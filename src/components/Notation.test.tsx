@@ -25,10 +25,22 @@ describe('rhythm notation', () => {
       await waitFor(() => expect(container.querySelector('svg')).toBeTruthy())
       const hits = container.querySelectorAll<SVGRectElement>('rect.note-hit')
       expect(hits).toHaveLength(measure.events.filter((e) => !e.rest).length)
+      // jsdom ignores pointer-events, so check the hit areas opt back in to taps (VexFlow's <svg> turns them off).
+      for (const hit of hits) expect(hit.getAttribute('pointer-events')).toBe('all')
       hits[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       if (hits.length) expect(taps).toHaveLength(1)
     })
   }
+
+  it('writes each count under its own beat', async () => {
+    const { container } = render(<Notation measure={{ meter: '4/4', events: [n('h'), n('q'), n('q')] }} labels={['1 2', '3', '4']} />)
+    await waitFor(() => expect(container.querySelectorAll('svg > text')).toHaveLength(4))
+    const counts = [...container.querySelectorAll('svg > text')]
+    expect(counts.map((t) => t.textContent)).toEqual(['1', '2', '3', '4'])
+    const xs = counts.map((t) => Number(t.getAttribute('x')))
+    // "2" sits between the half note and the next note, not bunched up with "1".
+    expect(xs[1] - xs[0]).toBeCloseTo(xs[2] - xs[1], 0)
+  })
 
   it('outlines the missing beats for “what completes the measure?”', async () => {
     const { container } = render(<Notation measure={{ meter: '4/4', events: [n('h'), n('q')] }} blankBeats={1} />)

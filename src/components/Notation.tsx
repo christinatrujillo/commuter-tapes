@@ -1,7 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import {
-  Annotation,
-  AnnotationVerticalJustify,
   Beam,
   Dot,
   Formatter,
@@ -66,7 +64,6 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
       const notes = measure.events.map((e, i) => {
         const n = new StaveNote({ keys: [e.rest ? 'r/4' : pitch], duration: `${e.dur}${e.rest ? 'r' : ''}`, clef: 'treble' })
         if (e.dots) Dot.buildAndAttach([n], { all: true })
-        if (labels?.[i]) n.addModifier(new Annotation(labels[i]).setVerticalJustification(AnnotationVerticalJustify.BOTTOM), 0)
         const color = colors?.[i]
         if (color) n.setStyle({ fillStyle: color, strokeStyle: color })
         return n
@@ -118,6 +115,21 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
         return endX
       }
 
+      // Counts go under the beat they name, so a half note's "1 2" spreads across the two beats it's held.
+      labels?.forEach((label, i) => {
+        label.split(' ').forEach((count, k) => {
+          const text = document.createElementNS(SVG_NS, 'text')
+          text.setAttribute('x', String(beatToX(k === 0 ? starts[i] : Math.floor(starts[i]) + k)))
+          text.setAttribute('y', String(height - 18))
+          text.setAttribute('font-size', '10pt')
+          text.setAttribute('text-anchor', 'middle')
+          text.setAttribute('stroke', 'none')
+          if (colors?.[i]) text.setAttribute('fill', colors[i]!)
+          text.textContent = count
+          svg.appendChild(text)
+        })
+      })
+
       for (const m of marks ?? []) {
         const tick = document.createElementNS(SVG_NS, 'path')
         const x = beatToX(m.beat)
@@ -152,6 +164,9 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
           hit.setAttribute('width', '36')
           hit.setAttribute('height', String(bottom - top + 52))
           hit.setAttribute('fill', 'transparent')
+          // VexFlow's <svg> has pointer-events="none" and a black stroke, which these would inherit.
+          hit.setAttribute('stroke', 'none')
+          hit.setAttribute('pointer-events', 'all')
           hit.setAttribute('class', 'note-hit')
           hit.dataset.noteIndex = String(i)
           hit.addEventListener('click', () => tapRef.current?.(i))
