@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: system-ui, Roboto, "Segoe UI", sans-serif;
+  --font-label: "Oswald Variable", "Arial Narrow", sans-serif;
+  --font-typed: "Special Elite", "Courier New", monospace;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --color-room: #15110f;
+  --color-tolex: #1e1815;
+  --color-panel: #261f1b;
+  --color-edge: #3a302a;
+  --color-cream: #efe5cf;
+  --color-cream-dim: #c9bda3;
+  --color-ink: #1d1916;
+  --color-muted: #9c8f80;
+  --color-amber: #ffb547;
+  --color-amber-dim: #a8742a;
+  --color-rec: #e5483a;
+  --color-led: #63d68b;
+  --color-teal: #5fc3c9;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-cream);
+  font-family: var(--font-sans);
+  background-color: var(--color-room);
+  /* Faint grain, like tolex on an amp. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.07'/></svg>");
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* ---------- Hardware buttons ---------- */
+
+.hw-btn {
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  border-radius: 6px;
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 3px 0 var(--btn-depth),
+    0 5px 10px rgba(0, 0, 0, 0.35);
+  transition: transform 60ms, box-shadow 60ms;
+}
+.hw-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 var(--btn-depth),
+    0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.hw-btn:disabled {
+  opacity: 0.4;
+}
+.hw-amber {
+  --btn-bg: linear-gradient(#ffc76b, #f2a233);
+  --btn-fg: #2a1a05;
+  --btn-depth: #8a5a14;
+}
+.hw-rec {
+  --btn-bg: linear-gradient(#f0604f, #c9392d);
+  --btn-fg: #fff6ee;
+  --btn-depth: #7a2018;
+}
+.hw-cream {
+  --btn-bg: linear-gradient(#f7efdd, #e0d4b8);
+  --btn-fg: #1d1916;
+  --btn-depth: #8f8268;
+}
+.hw-dark {
+  --btn-bg: linear-gradient(#3b322c, #29221e);
+  --btn-fg: #efe5cf;
+  --btn-depth: #0f0c0a;
+}
+
+/* ---------- Panels, paper, readouts ---------- */
+
+/* A metal-faced panel with a screw in each corner. */
+.panel {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid var(--color-edge);
+  background:
+    radial-gradient(circle at 9px 9px, #5d5148 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 9px) 9px, #5d5148 2px, transparent 2.6px),
+    radial-gradient(circle at 9px calc(100% - 9px), #5d5148 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), #5d5148 2px, transparent 2.6px),
+    linear-gradient(#2a221e, #221b18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Cream paper, like a cassette J-card or sheet music on a stand. */
+.paper {
+  color: var(--color-ink);
+  background: linear-gradient(#f6eedc, #ece2c9);
+  border-radius: 4px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.paper-lined {
+  background:
+    repeating-linear-gradient(transparent 0 27px, rgba(80, 120, 160, 0.18) 27px 28px),
+    linear-gradient(#f6eedc, #ece2c9);
+}
+
+/* Embossed label-maker tape: white raised capitals on black plastic. */
+.label-tape {
+  display: inline-block;
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(#1f1f1f, #0c0c0c);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 2px rgba(0, 0, 0, 0.55);
+  text-shadow:
+    0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Amber segment-display readout. */
+.lcd {
+  font-family: var(--font-mono);
+  color: var(--color-amber);
+  background: #1a1207;
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 0 6px rgba(255, 181, 71, 0.55);
+}
+
+.label-text {
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Indicator lamps. */
+.led {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #3a2f29;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.led-amber {
+  background: var(--color-amber);
+  box-shadow: 0 0 8px var(--color-amber);
+}
+.led-red {
+  background: var(--color-rec);
+  box-shadow: 0 0 8px var(--color-rec);
+}
+.led-green {
+  background: var(--color-led);
+  box-shadow: 0 0 8px var(--color-led);
+}
+
+/* Wooden shelf plank under each row of tapes. */
+.shelf {
+  height: 12px;
+  border-radius: 3px;
+  background: linear-gradient(#6b4a33, #4a3222 60%, #34231a);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- Fretboard ---------- */
+
+.fret-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.fret-hit:active {
+  fill: rgba(255, 181, 71, 0.18);
+}
+
+.note-hit {
+  cursor: pointer;
+}
+.note-hit:active {
+  fill: rgba(168, 116, 42, 0.18);
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.reel-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 2.6s linear infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0.25; }
+}
+.blink {
+  animation: blink 1.2s steps(1) infinite;
+}
+
+@keyframes pulse-ring {
+  from { transform: scale(1); opacity: 0.6; }
+  to { transform: scale(1.9); opacity: 0; }
+}
+.marker-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse-ring 1.3s ease-out infinite;
+}
+
+@keyframes pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.marker-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop 0.2s ease-out;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(40%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.slide-up {
+  animation: slide-up 0.18s ease-out;
+}
+
+@keyframes stamp {
+  from { transform: rotate(-8deg) scale(1.8); opacity: 0; }
+  to { transform: rotate(-8deg) scale(1); opacity: 1; }
+}
+.stamp {
+  animation: stamp 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  animation-delay: 0.25s;
+}

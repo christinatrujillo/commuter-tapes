@@ -1,0 +1,185 @@
+import { useEffect, useRef, useState } from 'react'
+import { canVibrate, countIn, effectiveMode, playRhythm, type Clock } from '../audio/metronome'
+import type { TapResult } from '../game/present'
+import { METER_BEATS, onsets, playedIndexes, type Measure } from '../music/rhythm'
+import { useProgress } from '../store/progress'
+import { Notation } from './Notation'
+import { Button, LedButtons } from './ui'
+
+type Phase = 'ready' | 'countin' | 'playing' | 'done'
+
+/** Scores taps against the notes: each note can be matched by one tap within the timing window. */
+export function scoreTaps(measure: Measure, bpm: number, taps: number[], start: number): TapResult {
+  const beatMs = 60000 / bpm
+  const window = Math.min(250, Math.max(120, beatMs * 0.25))
+  const starts = onsets(measure)
+  const played = playedIndexes(measure)
+  const offsets: (number | null)[] = measure.events.map(() => null)
+  const used = new Set<number>()
+  for (const i of played) {
+    const expected = start + starts[i] * beatMs
+    let best = -1
+    for (let t = 0; t < taps.length; t++) {
+      if (used.has(t) || Math.abs(taps[t] - expected) > window) continue
+      if (best === -1 || Math.abs(taps[t] - expected) < Math.abs(taps[best] - expected)) best = t
+    }
+    if (best !== -1) {
+      used.add(best)
+      offsets[i] = taps[best] - expected
+    }
+  }
+  const matched = offsets.filter((o): o is number => o !== null)
+  return {
+    hits: matched.length,
+    total: played.length,
+    extra: taps.length - matched.length,
+    offsets,
+    tapBeats: taps.map((t) => (t - start) / beatMs),
+    meanOffset: matched.length ? matched.reduce((a, b) => a + b, 0) / matched.length : 0,
+  }
+}
+
+interface Props {
+  measure: Measure
+  bpm: number
+  /** Set once the answer is in, to show how it went. */
+  result: TapResult | null
+  onDone: (result: TapResult) => void
+  /** Rehearsals let you hear the rhythm first; takes test reading it cold. */
+  allowListen?: boolean
+}
+
+/**
+ * Read a measure, hear (or feel) a one-measure count-in, then tap the rhythm.
+ * Space or Enter also taps, for practicing on a laptop.
+ */
+export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }: Props) {
+  const setting = useProgress((s) => s.settings.metronome)
+  const updateSettings = useProgress((s) => s.updateSettings)
+  const mode = effectiveMode(setting)
+  const [phase, setPhase] = useState<Phase>(result ? 'done' : 'ready')
+  const taps = useRef<number[]>([])
+  const clock = useRef<Clock | null>(null)
+  const playhead = useRef<((beat: number | null) => void) | null>(null)
+  const frame = useRef(0)
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const beatMs = 60000 / bpm
+  const beats = METER_BEATS[measure.meter]
+
+  useEffect(
+    () => () => {
+      clock.current?.stop()
+      cancelAnimationFrame(frame.current)
+      timers.current.forEach(clearTimeout)
+    },
+    [],
+  )
+
+  /** Moves the playback line across the measure until `until`. */
+  function animate(start: number, until: number) {
+    const step = () => {
+      const now = Date.now()
+      playhead.current?.(now >= start ? (now - start) / beatMs : null)
+      if (now < until) frame.current = requestAnimationFrame(step)
+      else playhead.current?.(null)
+    }
+    if (typeof requestAnimationFrame === 'function') frame.current = requestAnimationFrame(step)
+  }
+
+  function begin() {
+    taps.current = []
+    const c = countIn(measure, bpm, mode)
+    clock.current = c
+    const end = c.start + beats * beatMs
+    setPhase('countin')
+    // Taps are accepted from a little before beat 1 (an early first note still counts).
+    timers.current.push(setTimeout(() => setPhase('playing'), Math.max(0, c.start - Date.now() - beatMs * 0.25)))
+    timers.current.push(
+      setTimeout(
+        () => {
+          setPhase('done')
+          // Taps follow the clicks you hear, which arrive late by the speaker's latency.
+          const heard = taps.current.map((t) => t - c.latencyMs)
+          onDone(scoreTaps(measure, bpm, heard, c.start))
+        },
+        end - Date.now() + beatMs * 0.5,
+      ),
+    )
+    animate(c.start, end)
+  }
+
+  function listen() {
+    const c = playRhythm(measure, bpm)
+    animate(c.start, c.start + beats * beatMs)
+  }
+
+  function tap() {
+    if (phase === 'playing') taps.current.push(Date.now())
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault()
+        tap()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const colors = result
+    ? measure.events.map((e, i) => (e.rest || (i > 0 && measure.events[i - 1].tie) ? undefined : result.offsets[i] !== null ? '#2f8f4e' : '#c0392b'))
+    : undefined
+  const marks = result?.tapBeats.filter((b) => b > -1 && b < beats + 0.5).map((beat) => ({ beat, color: '#a8742a' }))
+  const starts = onsets(measure)
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div
+        className="paper min-h-[120px] flex-1 px-3 py-1"
+        data-onsets={playedIndexes(measure)
+          .map((i) => starts[i] * beatMs)
+          .join(',')}
+        data-countin-ms={beats * beatMs}
+      >
+        <Notation measure={measure} colors={colors} marks={marks} playhead={playhead} />
+      </div>
+      {phase === 'ready' && (
+        <div className="flex flex-col gap-3">
+          {canVibrate() && (
+            <div className="flex items-center justify-between gap-3">
+              <span className="label-text text-[11px] text-muted">Metronome</span>
+              <LedButtons
+                options={[
+                  { value: 'click', label: 'Click' },
+                  { value: 'vibrate', label: 'Vibrate' },
+                ]}
+                selected={[setting]}
+                onToggle={(metronome) => updateSettings({ metronome })}
+              />
+            </div>
+          )}
+          <div className="flex gap-3">
+            {allowListen && (
+              <Button variant="dark" className="!w-auto shrink-0" onClick={listen}>
+                ▶ Hear it
+              </Button>
+            )}
+            <Button onClick={begin}>Count me in</Button>
+          </div>
+        </div>
+      )}
+      {(phase === 'countin' || phase === 'playing') && (
+        <button
+          onPointerDown={tap}
+          className="hw-btn hw-cream h-32 w-full text-2xl"
+          aria-label="Tap"
+          data-phase={phase}
+        >
+          {phase === 'countin' ? `Count-in: ${beats} beats` : 'Tap'}
+        </button>
+      )}
+    </div>
+  )
+}
