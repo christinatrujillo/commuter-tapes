@@ -116,7 +116,6 @@ function tapRhythm(box: HTMLElement, correctly: boolean) {
   const measureMs = Number(box.dataset.countinMs)
   fireEvent.click(screen.getByRole('button', { name: 'Count me in' }))
   const beat1 = Date.now() + 150 + measureMs
-  expect(screen.getByTestId('countdown').textContent).toBe(String(box.dataset.beats))
   if (correctly) {
     for (const at of notesAt) {
       advanceTo(beat1 + at)

@@ -90,29 +90,31 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
 
   function begin() {
     taps.current = []
-    const c = countIn(measure, bpm, mode)
-    clock.current = c
-    const end = c.start + beats * beatMs
     setPhase('countin')
-    setBeat(0)
-    // Show every beat on screen, so the count-in is clear even if the clicks or buzzes don't come through.
-    for (let i = 0; i < beats * 2; i++) {
-      timers.current.push(setTimeout(() => setBeat(i % beats), c.start - (beats - i) * beatMs - Date.now()))
-    }
-    // Taps are accepted from a little before beat 1 (an early first note still counts).
-    timers.current.push(setTimeout(() => setPhase('playing'), Math.max(0, c.start - Date.now() - beatMs * 0.25)))
-    timers.current.push(
-      setTimeout(
-        () => {
-          setPhase('done')
-          // Taps follow the clicks you hear, which arrive late by the speaker's latency.
-          const heard = taps.current.map((t) => t - c.latencyMs)
-          onDone(scoreTaps(measure, bpm, heard, c.start))
-        },
-        end - Date.now() + beatMs * 0.5,
-      ),
-    )
-    animate(c.start, end)
+    setBeat(-1)
+    countIn(measure, bpm, mode, (c) => {
+      clock.current = c
+      // Sound reaches your ears late by the speaker's latency (big on Android, worse over Bluetooth).
+      // Draw the count and the playback line that late too, so the screen and the clicks agree.
+      const heardStart = c.start + c.latencyMs
+      const end = heardStart + beats * beatMs
+      // Show every beat on screen, so the count-in is clear even if the clicks or buzzes don't come through.
+      for (let i = 0; i < beats * 2; i++) {
+        timers.current.push(setTimeout(() => setBeat(i % beats), heardStart - (beats - i) * beatMs - Date.now()))
+      }
+      // Taps are accepted from a little before beat 1 (an early first note still counts).
+      timers.current.push(setTimeout(() => setPhase('playing'), Math.max(0, heardStart - Date.now() - beatMs * 0.25)))
+      timers.current.push(
+        setTimeout(
+          () => {
+            setPhase('done')
+            onDone(scoreTaps(measure, bpm, taps.current, heardStart))
+          },
+          end - Date.now() + beatMs * 0.5,
+        ),
+      )
+      animate(heardStart, end)
+    })
   }
 
   function listen() {
@@ -120,15 +122,23 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
     animate(c.start, c.start + beats * beatMs)
   }
 
-  function tap() {
-    if (phase === 'playing') taps.current.push(Date.now())
+  /** When the finger actually landed: the event's own timestamp, so a busy moment on a slow phone doesn't make taps late. */
+  function tapTime(e?: { timeStamp: number }): number {
+    const now = Date.now()
+    if (!e || typeof performance === 'undefined') return now
+    const ago = performance.now() - e.timeStamp
+    return ago >= 0 && ago < 1000 ? now - ago : now
+  }
+
+  function tap(e?: { timeStamp: number }) {
+    if (phase === 'playing') taps.current.push(tapTime(e))
   }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault()
-        tap()
+        tap(e)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -183,7 +193,7 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
       )}
       {(phase === 'countin' || phase === 'playing') && (
         <button
-          onPointerDown={tap}
+          onPointerDown={(e) => tap(e)}
           className={`hw-btn ${phase === 'playing' ? 'hw-amber' : 'hw-cream'} flex h-32 w-full flex-col items-center justify-center gap-2`}
           aria-label="Tap"
           data-phase={phase}
@@ -191,9 +201,11 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
           {phase === 'countin' ? (
             <>
               <span className="text-xs opacity-60">Get ready…</span>
-              <span key={beat} className="text-5xl leading-none" style={{ animation: 'pop 0.2s ease-out' }} data-testid="countdown">
-                {beats - beat}
-              </span>
+              {beat >= 0 && (
+                <span key={beat} className="text-5xl leading-none" style={{ animation: 'pop 0.2s ease-out' }} data-testid="countdown">
+                  {beats - beat}
+                </span>
+              )}
             </>
           ) : (
             <span className="text-3xl leading-none">Tap!</span>

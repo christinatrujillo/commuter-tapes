@@ -41,43 +41,73 @@ function click(ac: AudioContext, when: number, accent: boolean): OscillatorNode 
 const LEAD_MS = 150
 
 /**
+ * Runs `go` once the audio clock is actually ticking. Android starts it asleep and takes a moment
+ * to wake; sounds scheduled before then come out late and then bunch up, so the count speeds up.
+ */
+function whenRunning(ac: AudioContext, go: () => void) {
+  if (ac.state === 'running') return go()
+  let done = false
+  const fire = () => {
+    if (done) return
+    done = true
+    go()
+  }
+  void ac.resume().then(fire, fire)
+  setTimeout(fire, 1000) // Don't hang if it never says it's running.
+}
+
+/**
+ * When a sound scheduled at audio time `when` leaves the speaker, on the Date.now clock.
+ * The audio engine knows its own output delay best; the latency fields are a fallback.
+ */
+function heardAt(ac: AudioContext, when: number): number {
+  const scheduled = Date.now() + (when - ac.currentTime) * 1000
+  const ts = typeof ac.getOutputTimestamp === 'function' ? ac.getOutputTimestamp() : null
+  if (ts?.contextTime && ts.performanceTime && typeof performance !== 'undefined') {
+    const heard = Date.now() + ts.performanceTime + (when - ts.contextTime) * 1000 - performance.now()
+    if (heard >= scheduled - 50 && heard < scheduled + 1000) return Math.max(heard, scheduled)
+  }
+  return scheduled + ((ac.outputLatency || 0) + (ac.baseLatency || 0)) * 1000
+}
+
+/**
  * One measure of count-in, then one measure to play in. Click mode clicks every beat of both.
  * Vibrate mode buzzes the count-in, then only beat 1, so it doesn't nag.
+ * Calls `ready` with the clock once it's scheduled (straight away, unless the audio has to wake up first).
  */
-export function countIn(measure: Measure, bpm: number, mode: MetronomeMode): Clock {
+export function countIn(measure: Measure, bpm: number, mode: MetronomeMode, ready: (clock: Clock) => void): void {
   const beats = METER_BEATS[measure.meter]
   const beatMs = 60000 / bpm
-  const start = Date.now() + LEAD_MS + beats * beatMs
   const timers: ReturnType<typeof setTimeout>[] = []
   const oscillators: OscillatorNode[] = []
-  let latencyMs = 0
+  const stop = () => {
+    timers.forEach(clearTimeout)
+    oscillators.forEach((o) => {
+      try {
+        o.stop()
+      } catch {
+        // Already finished.
+      }
+    })
+  }
+  const ac = mode === 'click' ? audioContext() : null
 
-  if (mode === 'click') {
-    const ac = audioContext()
-    if (ac) {
-      const t0 = ac.currentTime + LEAD_MS / 1000
-      for (let i = 0; i < beats * 2; i++) oscillators.push(click(ac, t0 + (i * beatMs) / 1000, i % beats === 0))
-      latencyMs = ((ac.outputLatency || 0) + (ac.baseLatency || 0)) * 1000
+  if (!ac) {
+    if (mode === 'vibrate') {
+      for (let i = 0; i < beats; i++) timers.push(setTimeout(() => navigator.vibrate(i === 0 ? 60 : 30), LEAD_MS + i * beatMs))
+      timers.push(setTimeout(() => navigator.vibrate(60), LEAD_MS + beats * beatMs))
     }
-  } else {
-    for (let i = 0; i < beats; i++) timers.push(setTimeout(() => navigator.vibrate(i === 0 ? 60 : 30), LEAD_MS + i * beatMs))
-    timers.push(setTimeout(() => navigator.vibrate(60), LEAD_MS + beats * beatMs))
+    ready({ start: Date.now() + LEAD_MS + beats * beatMs, latencyMs: 0, stop })
+    return
   }
 
-  return {
-    start,
-    latencyMs,
-    stop: () => {
-      timers.forEach(clearTimeout)
-      oscillators.forEach((o) => {
-        try {
-          o.stop()
-        } catch {
-          // Already finished.
-        }
-      })
-    },
-  }
+  whenRunning(ac, () => {
+    const t0 = ac.currentTime + LEAD_MS / 1000
+    for (let i = 0; i < beats * 2; i++) oscillators.push(click(ac, t0 + (i * beatMs) / 1000, i % beats === 0))
+    const beat1 = t0 + (beats * beatMs) / 1000
+    const start = Date.now() + (beat1 - ac.currentTime) * 1000
+    ready({ start, latencyMs: heardAt(ac, beat1) - start, stop })
+  })
 }
 
 /** Plays a measure so you can hear how it goes: clicks on the beats, a guitar note on each note. */
