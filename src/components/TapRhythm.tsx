@@ -58,6 +58,8 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
   const updateSettings = useProgress((s) => s.updateSettings)
   const mode = effectiveMode(setting)
   const [phase, setPhase] = useState<Phase>(result ? 'done' : 'ready')
+  /** Which beat we're on (0-based) in the count-in or the measure being tapped. */
+  const [beat, setBeat] = useState(0)
   const taps = useRef<number[]>([])
   const clock = useRef<Clock | null>(null)
   const playhead = useRef<((beat: number | null) => void) | null>(null)
@@ -92,6 +94,11 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
     clock.current = c
     const end = c.start + beats * beatMs
     setPhase('countin')
+    setBeat(0)
+    // Show every beat on screen, so the count-in is clear even if the clicks or buzzes don't come through.
+    for (let i = 0; i < beats * 2; i++) {
+      timers.current.push(setTimeout(() => setBeat(i % beats), c.start - (beats - i) * beatMs - Date.now()))
+    }
     // Taps are accepted from a little before beat 1 (an early first note still counts).
     timers.current.push(setTimeout(() => setPhase('playing'), Math.max(0, c.start - Date.now() - beatMs * 0.25)))
     timers.current.push(
@@ -142,6 +149,7 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
           .map((i) => starts[i] * beatMs)
           .join(',')}
         data-countin-ms={beats * beatMs}
+        data-beats={beats}
       >
         <Notation measure={measure} colors={colors} marks={marks} playhead={playhead} />
       </div>
@@ -160,6 +168,9 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
               />
             </div>
           )}
+          {mode === 'vibrate' && (
+            <p className="text-xs text-muted">No buzz? Your phone's vibration may be turned off. Switch to Click, or follow the count on screen.</p>
+          )}
           <div className="flex gap-3">
             {allowListen && (
               <Button variant="dark" className="!w-auto shrink-0" onClick={listen}>
@@ -173,11 +184,25 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
       {(phase === 'countin' || phase === 'playing') && (
         <button
           onPointerDown={tap}
-          className="hw-btn hw-cream h-32 w-full text-2xl"
+          className={`hw-btn ${phase === 'playing' ? 'hw-amber' : 'hw-cream'} flex h-32 w-full flex-col items-center justify-center gap-2`}
           aria-label="Tap"
           data-phase={phase}
         >
-          {phase === 'countin' ? `Count-in: ${beats} beats` : 'Tap'}
+          {phase === 'countin' ? (
+            <>
+              <span className="text-xs opacity-60">Get ready…</span>
+              <span key={beat} className="text-5xl leading-none" style={{ animation: 'pop 0.2s ease-out' }} data-testid="countdown">
+                {beats - beat}
+              </span>
+            </>
+          ) : (
+            <span className="text-3xl leading-none">Tap!</span>
+          )}
+          <span className="flex gap-2" aria-hidden>
+            {Array.from({ length: beats }, (_, i) => (
+              <span key={i} className={`h-2 w-2 rounded-full ${i <= beat ? 'bg-current' : 'bg-current opacity-20'}`} />
+            ))}
+          </span>
         </button>
       )}
     </div>
