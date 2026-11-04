@@ -1,6 +1,26 @@
+import type { Marker } from '../components/Fretboard'
 import type { ExerciseType, LessonSpec } from '../music/curriculum'
+import { KEYS, type AccidentalRule, type KeyId, type Motion, type ScoreMeasure, type ScoreNote } from '../music/score'
+import { daysBetween, today } from '../lib/date'
+import { pick, randomSpelling, shuffle, type Rng } from '../lib/random'
+import { makeAccidentalRule, makeKeyName, makeKeyNote, makeMotion, makePhrase } from './reading'
 import {
-  eventBeats,
+  makeDegreeFind,
+  makeDegreeName,
+  makeKeySignature,
+  makeMinorNote,
+  makeRelativeFind,
+  makeRelativeKey,
+  makeScaleNote,
+  makeScaleStep,
+  makeStepFind,
+  makeStepNote,
+  makeStepRead,
+  makeStepSize,
+} from './theory'
+import { makeIvBelow, makeIvFlip, makeIvHear, makeIvHearFind, makeIvInvert, makeIvName, makeIvNumber, makeIvReadName, makeIvReadNumber } from './intervals'
+import {
+  eventQuarters,
   NAMEABLE,
   onsets,
   playedIndexes,
@@ -23,11 +43,10 @@ import {
   positionsForMidi,
   positionsForPc,
   spellMidi,
-  WRITTEN_OCTAVE_SHIFT,
+  written,
   type Position,
   type Region,
   type SpelledNote,
-  type Spelling,
 } from '../music/notes'
 
 export interface FactStat {
@@ -39,15 +58,90 @@ export interface FactStat {
   ms: number
   /** Recent speed against the fluency target (moving average of time ÷ target): 1 = right on target, lower is faster. */
   pace?: number
+  /** Days until the next review once it's answered right on time (spaced repetition). */
+  interval?: number
+  /** When it's next due for review (YYYY-MM-DD). Facts seen before scheduling existed count as due. */
+  due?: string
 }
+
+/** Whether a fact you've already met is due for review on `day`. */
+export const isDue = (stat: FactStat | undefined, day: string) => !!stat && stat.seen > 0 && (!stat.due || stat.due <= day)
 
 export type Stats = Record<string, FactStat>
 
 interface Base {
   id: number
+  /** Set on review questions mixed into a take: which tape the material first came from. */
+  review?: { tape: number }
   /** Stat keys this question practices: "string:fret" positions, "staff:<midi>", "iv:<semitones>". */
   facts: string[]
 }
+
+/** The words of a question, with the part to pick out in amber. */
+export interface Ask {
+  text: string
+  hl?: string
+}
+
+/** A theory question answered with buttons. */
+export interface TheoryPick {
+  ask: Ask
+  /** Button labels, or 'notes' for the note keyboard (then `answer` is a pitch class). */
+  options: string[] | 'notes'
+  answer: number
+  /** Why the answer is right, shown once it's answered. */
+  why: string
+  /** A fretboard to look at (not tap), with more labels once it's answered. */
+  board?: { region: Region; markers: Marker[]; after?: Marker[] }
+  /** Music to read, with note labels once it's answered (`after`). */
+  score?: { measures: ScoreMeasure[]; keySig?: KeyId; colors?: (string | undefined)[]; labels?: string[]; after?: string[]; marker?: number | null }
+  /** Notes to play once it's answered (sounding MIDI). */
+  sound: number[]
+  /** For ear questions: what to play when it appears, with a button to hear it again. */
+  listen?: Listen
+}
+
+/** Notes (sounding MIDI) an ear question plays, one after another or together. */
+export interface Listen {
+  notes: number[]
+  together?: boolean
+}
+
+/** A theory question answered by tapping the fretboard. */
+export interface TheoryTap {
+  ask: Ask
+  region: Region
+  /** On the board from the start: the note to count from, and any pattern around it. */
+  markers: Marker[]
+  from: Position
+  targets: Position[]
+  /** Printed on the answer once it's shown ("A", "5"). */
+  label: string
+  why: string
+  listen?: Listen
+}
+
+const PICK_KINDS = [
+  'stepSize',
+  'stepRead',
+  'stepNote',
+  'scaleStep',
+  'scaleNote',
+  'degreeName',
+  'keySignature',
+  'relativeKey',
+  'minorNote',
+  'ivNumber',
+  'ivName',
+  'ivReadNumber',
+  'ivReadName',
+  'ivFlip',
+  'ivInvert',
+  'ivHear',
+] as const
+const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind'] as const
+export type PickKind = (typeof PICK_KINDS)[number]
+export type TapKind = (typeof TAP_KINDS)[number]
 
 export type Question = Base &
   (
@@ -63,9 +157,21 @@ export type Question = Base &
     | { kind: 'measureFill'; measure: Measure; missing: number; options: SymbolId[] }
     | { kind: 'countBeat'; measure: Measure; beat: number; target: number }
     | { kind: 'tapRhythm'; measure: Measure; bpm: number }
+    | { kind: 'accidentalRule'; measures: ScoreMeasure[]; target: number; rule: AccidentalRule }
+    | { kind: 'keyName'; key: KeyId; options: KeyId[] }
+    | { kind: 'keyNote'; key: KeyId; note: ScoreNote; mode: 'name' | 'find'; region: Region; targets: Position[] }
+    | { kind: 'motion'; from: ScoreNote; to: ScoreNote; options: Motion[] }
+    | { kind: 'phrase'; measures: ScoreMeasure[]; key: KeyId; region: Region; targets: Position[][] }
+    | ({ kind: PickKind } & TheoryPick)
+    | ({ kind: TapKind } & TheoryTap)
   )
 
-export type Rng = () => number
+export type PickQuestion = Extract<Question, { kind: PickKind }>
+export type TapQuestion = Extract<Question, { kind: TapKind }>
+export const isPick = (q: Question): q is PickQuestion => (PICK_KINDS as readonly string[]).includes(q.kind)
+export const isTap = (q: Question): q is TapQuestion => (TAP_KINDS as readonly string[]).includes(q.kind)
+
+export type { Rng } from '../lib/random'
 
 let nextId = 1
 export const newQuestionId = () => nextId++
@@ -85,33 +191,67 @@ export const FLUENT_MS: Partial<Record<Question['kind'], number>> = {
   beats: 2500,
   measureFill: 4000,
   countBeat: 4000,
+  accidentalRule: 4000,
+  keyName: 3000,
+  keyNote: 3000,
+  motion: 2000,
+  stepSize: 2000,
+  stepRead: 2000,
+  stepFind: 2500,
+  stepNote: 3000,
+  scaleStep: 3000,
+  scaleNote: 4000,
+  degreeName: 3000,
+  degreeFind: 3000,
+  keySignature: 3000,
+  relativeKey: 3000,
+  relativeFind: 3000,
+  minorNote: 4000,
+  ivNumber: 3000,
+  ivName: 4000,
+  ivReadNumber: 3000,
+  ivReadName: 5000,
+  ivFlip: 3000,
+  ivInvert: 4000,
+  ivBelow: 4000,
+  // Ear questions are timed from when the notes start playing.
+  ivHear: 5000,
+  ivHearFind: 6000,
 }
+
+/** Whether a question needs you to listen. */
+export const needsListening = (q: Question) => (isPick(q) || isTap(q)) && !!q.listen
 
 /** Facts never answered quickly count as slow. */
 const paceOf = (stat: FactStat) => stat.pace ?? 2
 
 export type Mastery = 'new' | 'learning' | 'accurate' | 'fluent'
 
-/** learning = still getting it wrong; accurate = right but slow; fluent = right and fast, consistently. */
-export function mastery(stat: FactStat | undefined): Mastery {
+/**
+ * learning = still getting it wrong; accurate = right but slow; fluent = right and fast, consistently.
+ * Knowledge fades: something long past its review date drops back from fluent until it's reviewed.
+ */
+export function mastery(stat: FactStat | undefined, day: string = today()): Mastery {
   if (!stat || stat.seen === 0) return 'new'
   if (stat.correct < 2 || stat.recent < 0.75) return 'learning'
-  if (stat.correct >= 3 && paceOf(stat) <= 1) return 'fluent'
+  if (stat.correct >= 3 && paceOf(stat) <= 1) {
+    const overdue = stat.due ? daysBetween(stat.due, day) : 0
+    return stat.interval && overdue > stat.interval ? 'accurate' : 'fluent'
+  }
   return 'accurate'
 }
 
-/** How much a fact needs practice: 0 = solid, 1+ = shaky. Being slow counts, not just being wrong. */
-export function weakness(stat: FactStat | undefined): number {
+/**
+ * How much a fact needs practice: 0 = solid, 1+ = shaky. Being slow counts, not just being wrong,
+ * and so does being due for review.
+ */
+export function weakness(stat: FactStat | undefined, day: string = today()): number {
   if (!stat || stat.seen === 0) return 0.6
-  return 1 - stat.recent + Math.min(0.5, Math.max(0, paceOf(stat) - 1) * 0.5)
+  return 1 - stat.recent + Math.min(0.5, Math.max(0, paceOf(stat) - 1) * 0.5) + (isDue(stat, day) ? 0.3 : 0)
 }
 
 const weightOf = (stats: Stats, keys: string[]) =>
   0.4 + 2 * Math.max(...keys.map((k) => weakness(stats[k])))
-
-function pick<T>(items: T[], rng: Rng): T {
-  return items[Math.floor(rng() * items.length)]
-}
 
 function weightedPick<T>(items: T[], weight: (item: T) => number, rng: Rng): T {
   const weights = items.map(weight)
@@ -123,8 +263,6 @@ function weightedPick<T>(items: T[], weight: (item: T) => number, rng: Rng): T {
   return items[items.length - 1]
 }
 
-const randomSpelling = (rng: Rng): Spelling => (rng() < 0.5 ? 'sharp' : 'flat')
-const written = (midi: number) => midi + WRITTEN_OCTAVE_SHIFT
 
 /** Builds a lesson's questions. Weak notes (from past answers) come up more often. */
 export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.random): Question[] {
@@ -149,6 +287,8 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
   const meters = spec.meters ?? ['4/4']
   const nameable = NAMEABLE.filter((s) => symbols.includes(s))
   const pickSymbol = () => weightedPick(nameable, (s) => weightOf(stats, [`sym:${s}`]), rng)
+  // Reading notes in a key stops at four sharps or flats; the rarer keys are learned by name and signature.
+  const readKeys = (spec.keys ?? ['G']).filter((k) => Math.abs(KEYS[k].count) <= 4)
 
   const make = (kind: ExerciseType): Question | null => {
     const id = newQuestionId()
@@ -225,6 +365,58 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
         return makeCountBeat(id, pick(meters, rng), symbols, rng)
       case 'tapRhythm':
         return makeTapRhythm(id, pick(meters, rng), symbols, spec.bpm ?? 60, rng)
+      case 'accidentalRule':
+        return makeAccidentalRule(id, pick(spec.rules ?? ['carry'], rng), rng)
+      case 'keyName':
+        return makeKeyName(id, spec.keys ?? ['C', 'G', 'D', 'F'], rng)
+      case 'keyNote':
+        return makeKeyNote(id, pick(readKeys, rng), rng() < 0.5 ? 'name' : 'find', region, rng)
+      case 'motion':
+        return makeMotion(id, spec.motions ?? ['step', 'skip'], rng)
+      case 'phrase':
+        return makePhrase(id, pick(spec.keys ?? ['C'], rng), region, rng() < 0.5 ? 3 : 4, rng)
+      case 'stepSize':
+        return makeStepSize(id, region, rng)
+      case 'stepRead':
+        return makeStepRead(id, rng)
+      case 'stepFind':
+        return makeStepFind(id, region, rng)
+      case 'stepNote':
+        return makeStepNote(id, rng)
+      case 'scaleStep':
+        return makeScaleStep(id, rng)
+      case 'scaleNote':
+        return makeScaleNote(id, spec.keys ?? ['C'], rng)
+      case 'degreeName':
+        return makeDegreeName(id, rootStrings, rng)
+      case 'degreeFind':
+        return makeDegreeFind(id, rootStrings, rng)
+      case 'keySignature':
+        return makeKeySignature(id, spec.keys ?? ['C', 'G', 'D', 'F'], rng)
+      case 'relativeKey':
+        return makeRelativeKey(id, spec.keys ?? ['C'], rng)
+      case 'relativeFind':
+        return makeRelativeFind(id, region, rng)
+      case 'minorNote':
+        return makeMinorNote(id, spec.keys ?? ['C'], rng)
+      case 'ivNumber':
+        return makeIvNumber(id, rng)
+      case 'ivName':
+        return makeIvName(id, spec.ivNames ?? ['M3', 'P5'], rng)
+      case 'ivReadNumber':
+        return makeIvReadNumber(id, rng)
+      case 'ivReadName':
+        return makeIvReadName(id, spec.keys ?? ['C'], spec.ivNames ?? ['M3', 'P5'], !!spec.stacked, rng)
+      case 'ivFlip':
+        return makeIvFlip(id, rng)
+      case 'ivInvert':
+        return makeIvInvert(id, spec.ivNames ?? ['M3', 'P5'], rng)
+      case 'ivBelow':
+        return makeIvBelow(id, spec.ivNames ?? ['P4', 'P5'], rng)
+      case 'ivHear':
+        return makeIvHear(id, spec.ivNames ?? ['P8', 'P5'], spec.ear ?? ['up'], rng)
+      case 'ivHearFind':
+        return makeIvHearFind(id, spec.ivNames ?? ['P8', 'P5'], rng)
     }
   }
 
@@ -271,7 +463,9 @@ export function makeTapRhythm(id: number, meter: Meter, symbols: SymbolId[], bpm
   let measure = randomMeasure(meter, symbols, rng, focus)
   for (let i = 0; i < 10 && playedIndexes(measure).length < 2; i++) measure = randomMeasure(meter, symbols, rng, focus)
   const used = [...new Set(measure.events.map(symbolOf))]
-  return { id, kind: 'tapRhythm', measure, bpm, facts: used.map((s) => `sym:${s}`) }
+  // In cut time the beat is a half note, so the same tempo would feel twice as fast; ease it off.
+  const tempo = meter === '2/2' ? Math.round(bpm * 0.8) : bpm
+  return { id, kind: 'tapRhythm', measure, bpm: tempo, facts: used.map((s) => `sym:${s}`) }
 }
 
 /** A measure with its last value blanked out, and choices for what fills it. */
@@ -279,13 +473,15 @@ export function makeMeasureFill(id: number, meter: Meter, symbols: SymbolId[], r
   const nameable = NAMEABLE.filter((s) => symbols.includes(s) && s !== 'eighth')
   for (let attempt = 0; attempt < 30; attempt++) {
     const full = randomMeasure(meter, symbols, rng)
+    // Leave at least one value standing, so there's a measure to read.
+    if (full.events.length < 2) continue
     const last = full.events[full.events.length - 1]
     const before = full.events[full.events.length - 2]
     // Only blank a value that stands alone (not half of an eighth pair, a dotted pair, or a tie).
     if (last.dur === '8' || before?.tie || before?.dots) continue
     const answer = symbolOf(last)
     if (!nameable.includes(answer)) continue
-    const missing = eventBeats(last)
+    const missing = eventQuarters(last)
     const distractors = shuffle(nameable.filter((s) => SYMBOLS[s].beats !== missing), rng).slice(0, 3)
     if (distractors.length === 0) continue
     const options = shuffle([answer, ...distractors], rng)
@@ -295,17 +491,11 @@ export function makeMeasureFill(id: number, meter: Meter, symbols: SymbolId[], r
   return null
 }
 
-function shuffle<T>(items: T[], rng: Rng): T[] {
-  const out = [...items]
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[out[i], out[j]] = [out[j], out[i]]
-  }
-  return out
-}
-
 /** Identifies "the same question" so we don't ask it twice in a row. */
 function signature(q: Question): string {
+  // The same words can go with different notes on the board or staff.
+  if (isPick(q)) return `${q.kind}:${q.ask.text}:${JSON.stringify(q.board?.markers ?? q.score?.measures ?? null)}`
+  if (isTap(q)) return `${q.kind}:${q.ask.text}:${posKey(q.from)}`
   switch (q.kind) {
     case 'name':
       return `pos:${posKey(q.target)}`
@@ -325,6 +515,15 @@ function signature(q: Question): string {
     case 'countBeat':
     case 'tapRhythm':
       return `${q.kind}:${JSON.stringify(q.measure.events)}`
+    case 'accidentalRule':
+    case 'phrase':
+      return `${q.kind}:${JSON.stringify(q.measures)}`
+    case 'keyName':
+      return `key:${q.key}`
+    case 'keyNote':
+      return `keyNote:${q.key}:${q.note.letter}${q.note.octave}`
+    case 'motion':
+      return `motion:${q.from.letter}${q.from.octave}:${q.to.letter}${q.to.octave}`
   }
 }
 
@@ -355,47 +554,4 @@ export function practicedPositions(stats: Stats): Position[] {
     const pos = parsePosKey(key)
     return pos && stat.seen > 0 ? [pos] : []
   })
-}
-
-/** Positions you've practiced that need the most work, worst first. */
-export function weakestPositions(stats: Stats, limit: number): Position[] {
-  return Object.entries(stats)
-    .map(([key, stat]) => ({ pos: parsePosKey(key), stat }))
-    .filter((e): e is { pos: Position; stat: FactStat } => e.pos !== null && e.stat.seen > 0)
-    .sort((a, b) => weakness(b.stat) - weakness(a.stat))
-    .slice(0, limit)
-    .map((e) => e.pos)
-}
-
-/** A practice round built only from your weakest spots, or null if there isn't enough history yet. */
-export function buildWeakSpotSession(stats: Stats, rng: Rng = Math.random): Question[] | null {
-  const weak = weakestPositions(stats, 8)
-  if (weak.length < 3) return null
-  const choices = weak.some((p) => !isNatural(midiAt(p))) ? 'all' : 'naturals'
-  const questions: Question[] = []
-  for (let i = 0; i < 12; i++) {
-    const p = weak[i % weak.length]
-    const pc = pitchClass(midiAt(p))
-    if (i % 2 === 0) {
-      questions.push({ id: newQuestionId(), kind: 'name', target: p, choices, region: FULL_NECK, facts: [posKey(p)] })
-    } else {
-      const targets = positionsForPc(pc, { ...FULL_NECK, strings: [p.string] })
-      questions.push({
-        id: newQuestionId(),
-        kind: 'find',
-        pc,
-        label: pcName(pc, randomSpelling(rng)),
-        string: p.string,
-        targets,
-        region: FULL_NECK,
-        facts: targets.map(posKey),
-      })
-    }
-  }
-  // Shuffle so the same spot doesn't appear in a predictable rhythm.
-  for (let i = questions.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[questions[i], questions[j]] = [questions[j], questions[i]]
-  }
-  return questions
 }

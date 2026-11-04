@@ -52,15 +52,9 @@ export function SettingsScreen() {
       <BackHeader subtitle="Control panel" title="Settings" />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-lg flex-col gap-4 p-4">
-          <Section title="Monitor">
+          <Section title="Sound">
             <Toggle label="Sound" hint="Hear each note when you answer" checked={settings.sound} onChange={(sound) => update({ sound })} />
             <Toggle label="Vibration" hint="Buzz when you clip" checked={settings.haptics} onChange={(haptics) => update({ haptics })} />
-            <Toggle
-              label="Auto-advance"
-              hint="Roll on to the next note after a clean answer"
-              checked={settings.autoContinue}
-              onChange={(autoContinue) => update({ autoContinue })}
-            />
             <div className="flex items-center justify-between gap-4 py-3">
               <span>
                 <span className="label-text block text-sm text-cream">Metronome</span>
@@ -79,6 +73,32 @@ export function SettingsScreen() {
                 />
               )}
             </div>
+            <Toggle
+              label="Ear training"
+              hint="Listening questions, for when you have headphones. Off skips the ear-training tracks."
+              checked={settings.earTraining}
+              onChange={(earTraining) => update({ earTraining })}
+            />
+          </Section>
+
+          <Section title="Lessons">
+            <Toggle
+              label="Auto-advance"
+              hint="Move on after a clean answer"
+              checked={settings.autoContinue}
+              onChange={(autoContinue) => update({ autoContinue })}
+            />
+            <Toggle
+              label="Unseal every tape"
+              hint="Record any track without finishing the ones before it"
+              checked={settings.unlockAll}
+              onChange={(unlockAll) => update({ unlockAll })}
+            />
+            <div className="py-3">
+              <span className="label-text block text-sm text-cream">Daily goal</span>
+              <span className="mb-2.5 block text-sm text-muted">Right answers a day, shown on the VU meter</span>
+              <LedButtons options={GOALS} selected={[settings.dailyGoal]} onToggle={(dailyGoal) => update({ dailyGoal })} />
+            </div>
           </Section>
 
           <Section title="Fretboard">
@@ -89,18 +109,6 @@ export function SettingsScreen() {
               checked={settings.highEOnTop}
               onChange={(highEOnTop) => update({ highEOnTop })}
             />
-            <Toggle
-              label="Unseal every tape"
-              hint="Record any track without finishing the ones before it"
-              checked={settings.unlockAll}
-              onChange={(unlockAll) => update({ unlockAll })}
-            />
-          </Section>
-
-          <Section title="Daily goal (notes nailed)">
-            <div className="py-3">
-              <LedButtons options={GOALS} selected={[settings.dailyGoal]} onToggle={(dailyGoal) => update({ dailyGoal })} />
-            </div>
           </Section>
 
           <Section title="Your tapes">

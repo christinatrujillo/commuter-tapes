@@ -127,7 +127,7 @@ export function BackHeader({ title, subtitle }: { title: string; subtitle?: stri
 }
 
 /** A VU meter whose needle shows today's progress toward the daily goal. */
-export function VuMeter({ value, goal }: { value: number; goal: number }) {
+function VuMeter({ value, goal }: { value: number; goal: number }) {
   const p = Math.min(1.08, value / goal)
   const angle = -50 + p * 92
   const ticks = Array.from({ length: 11 }, (_, i) => -50 + i * 9.2)

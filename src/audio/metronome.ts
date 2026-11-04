@@ -1,4 +1,4 @@
-import { METER_BEATS, playedIndexes, onsets, type Measure } from '../music/rhythm'
+import { METER_PULSE, playedIndexes, onsets, type Measure } from '../music/rhythm'
 import { audioContext, pluck } from './sound'
 
 export type MetronomeMode = 'click' | 'vibrate'
@@ -76,7 +76,8 @@ function heardAt(ac: AudioContext, when: number): number {
  * Calls `ready` with the clock once it's scheduled (straight away, unless the audio has to wake up first).
  */
 export function countIn(measure: Measure, bpm: number, mode: MetronomeMode, ready: (clock: Clock) => void): void {
-  const beats = METER_BEATS[measure.meter]
+  // `bpm` counts the beat you tap: quarter notes, or half notes in cut time.
+  const beats = METER_PULSE[measure.meter].beats
   const beatMs = 60000 / bpm
   const timers: ReturnType<typeof setTimeout>[] = []
   const oscillators: OscillatorNode[] = []
@@ -118,10 +119,10 @@ export function playRhythm(measure: Measure, bpm: number): Clock {
   const oscillators: OscillatorNode[] = []
   if (ac) {
     const t0 = ac.currentTime + LEAD_MS / 1000
-    const beats = METER_BEATS[measure.meter]
-    for (let i = 0; i < beats; i++) oscillators.push(click(ac, t0 + (i * beatMs) / 1000, i === 0))
+    const pulse = METER_PULSE[measure.meter]
+    for (let i = 0; i < pulse.beats; i++) oscillators.push(click(ac, t0 + (i * beatMs) / 1000, i === 0))
     const starts = onsets(measure)
-    for (const i of playedIndexes(measure)) pluck(59, LEAD_MS / 1000 + (starts[i] * beatMs) / 1000, 0.55)
+    for (const i of playedIndexes(measure)) pluck(59, LEAD_MS / 1000 + ((starts[i] / pulse.quarters) * beatMs) / 1000, 0.55)
   }
   return { start, latencyMs: 0, stop: () => oscillators.forEach((o) => o.stop()) }
 }

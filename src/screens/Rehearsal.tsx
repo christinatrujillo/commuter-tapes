@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { playNotes } from '../audio/sound'
+import { playListen, playNotes } from '../audio/sound'
+import { CircleOfFifths } from '../components/CircleOfFifths'
+import { MonitorsOffScreen } from '../components/Monitors'
 import { Fretboard, useLandscape } from '../components/Fretboard'
 import { Notation } from '../components/Notation'
+import { Score } from '../components/Score'
 import { QuestionStage, useQuestionInput } from '../components/QuestionStage'
 import { Staff } from '../components/Staff'
 import { BackHeader, Button, LabelTape } from '../components/ui'
-import { newQuestionId, type Question } from '../game/questions'
+import { needsListening, newQuestionId, type Question } from '../game/questions'
 import { buildRehearsal, type Card, type Rehearsal } from '../game/rehearsal'
 import { goBack, navigate } from '../lib/router'
 import { playRhythm } from '../audio/metronome'
-import { METER_BEATS } from '../music/rhythm'
+import { METER_PULSE } from '../music/rhythm'
 import { answerSound, feedbackDetail, type Answer } from '../game/present'
-import { useProgress } from '../store/progress'
+import { isListening } from '../music/curriculum'
+import { listeningOff, useProgress } from '../store/progress'
 
 export function RehearsalScreen({ lessonId }: { lessonId: string }) {
   const [attempt, setAttempt] = useState(0)
   // "Rehearse again" deals fresh questions.
   const plan = useMemo(() => buildRehearsal(lessonId), [lessonId, attempt])
   const markRehearsed = useProgress((s) => s.markRehearsed)
+  const listening = useProgress((s) => listeningOff(s) === null)
   if (!plan) return <BackHeader title="Track not found" />
+  if (!listening && isListening(plan.lesson)) return <MonitorsOffScreen />
   const record = () => {
     markRehearsed(lessonId)
     navigate(`/lesson/${lessonId}`, { replace: true })
@@ -65,20 +71,22 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
   const sound = card.sound
   const playhead = useRef<((beat: number | null) => void) | null>(null)
   const played = useRef(false)
-  const canHear = sound.length > 0 || !!card.rhythm
+  const canHear = sound.length > 0 || !!card.rhythm || !!card.listen
 
   function hear() {
     if (card.rhythm) {
       const { measure, bpm } = card.rhythm
       const clock = playRhythm(measure, bpm)
-      const end = clock.start + (METER_BEATS[measure.meter] * 60000) / bpm
+      const end = clock.start + (METER_PULSE[measure.meter].beats * 60000) / bpm
       const step = () => {
         const now = Date.now()
-        playhead.current?.(now >= clock.start ? ((now - clock.start) * bpm) / 60000 : null)
+        playhead.current?.(now >= clock.start ? (((now - clock.start) * bpm) / 60000) * METER_PULSE[measure.meter].quarters : null)
         if (now < end) requestAnimationFrame(step)
         else playhead.current?.(null)
       }
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step)
+    } else if (card.listen) {
+      playListen(card.listen.notes, card.listen.together)
     } else if (sound.length) {
       playNotes(...sound)
     }
@@ -114,15 +122,29 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
         playhead={card.rhythm ? playhead : undefined}
       />
     </div>
+  ) : card.score ? (
+    <div className="paper h-40 shrink-0 px-3 py-1">
+      <Score
+        measures={card.score.measures}
+        keySig={card.score.keySig}
+        meter={card.score.meter}
+        labels={card.score.labels}
+        marker={card.score.marker}
+      />
+    </div>
   ) : null
-  const board = card.board && (
+  const board = card.board ? (
     <Fretboard
       minFret={card.board.region.minFret}
       maxFret={card.board.region.maxFret}
       activeStrings={card.board.region.strings}
       markers={card.board.markers}
     />
-  )
+  ) : card.circle ? (
+    <div className="paper h-full p-2">
+      <CircleOfFifths majors={card.circle.majors} minors={card.circle.minors} />
+    </div>
+  ) : null
   const controls = (
     <div className="flex gap-3">
       {canHear && (
@@ -161,6 +183,7 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
 /** Quick recall right after the cards. No clips: a miss shows the answer and the question comes back. */
 function CheckView({ questions, onDone }: { questions: Question[]; onDone: () => void }) {
   const autoContinue = useProgress((s) => s.settings.autoContinue)
+  const pauseListening = useProgress((s) => s.pauseListening)
   const landscape = useLandscape()
   const [queue, setQueue] = useState(questions)
   const [index, setIndex] = useState(0)
@@ -233,6 +256,7 @@ function CheckView({ questions, onDone }: { questions: Question[]; onDone: () =>
       onPick={input.pick}
       onRhythm={input.rhythm}
       allowListen
+      onCantListen={needsListening(q) ? pauseListening : undefined}
       label={
         <div className="mb-0.5 flex items-center gap-1.5">
           <span className="led led-green !h-2 !w-2" />

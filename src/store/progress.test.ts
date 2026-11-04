@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mastery } from '../game/questions'
-import { useProgress } from './progress'
+import { schedule, useProgress } from './progress'
 
 beforeEach(() => useProgress.getState().reset())
 
@@ -36,5 +36,39 @@ describe('recording answers', () => {
     expect(recordBest('low', 15)).toBe(true)
     expect(recordBest('neck', 4)).toBe(true)
     expect(useProgress.getState().bests).toEqual({ low: 15, neck: 4 })
+  })
+})
+
+describe('spaced repetition', () => {
+  const d = '2026-03-01'
+  it('stretches the gap after each on-time right answer', () => {
+    expect(schedule(undefined, true, true, d)).toEqual({ interval: 1, due: '2026-03-02' })
+    expect(schedule({ seen: 1, correct: 1, recent: 0.8, ms: 1000, interval: 1, due: d }, true, true, d)).toEqual({ interval: 3, due: '2026-03-04' })
+    expect(schedule({ seen: 2, correct: 2, recent: 0.9, ms: 1000, interval: 3, due: d }, true, true, d)).toEqual({ interval: 8, due: '2026-03-09' })
+    expect(schedule({ seen: 9, correct: 9, recent: 1, ms: 900, interval: 40, due: d }, true, true, d).interval).toBe(60)
+  })
+
+  it('stretches it less when the answer was slow', () => {
+    expect(schedule({ seen: 2, correct: 2, recent: 0.9, ms: 4000, interval: 3, due: d }, true, false, d).interval).toBe(5)
+  })
+
+  it('ignores extra right answers before the review date, and brings misses back tomorrow', () => {
+    const early = { seen: 3, correct: 3, recent: 1, ms: 1000, interval: 8, due: '2026-03-05' }
+    expect(schedule(early, true, true, d)).toEqual({ interval: 8, due: '2026-03-05' })
+    expect(schedule(early, false, true, d)).toEqual({ interval: 1, due: '2026-03-02' })
+  })
+
+  it('schedules facts as you answer them', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 2, 1, 9))
+      useProgress.getState().recordAnswer(['0:3'], true, 1200, 2000)
+      expect(useProgress.getState().stats['0:3'].due).toBe('2026-03-02')
+      vi.setSystemTime(new Date(2026, 2, 2, 9))
+      useProgress.getState().recordAnswer(['0:3'], true, 1200, 2000)
+      expect(useProgress.getState().stats['0:3']).toMatchObject({ interval: 3, due: '2026-03-05' })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

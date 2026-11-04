@@ -11,7 +11,7 @@ import {
   Voice,
   VoiceMode,
 } from 'vexflow/bravura'
-import { METER_BEATS, onsets, type Measure } from '../music/rhythm'
+import { METER_PULSE, METER_QUARTERS, onsets, type Measure } from '../music/rhythm'
 
 const fontReady: Promise<unknown> = globalThis.document?.fonts?.load('30px Bravura') ?? Promise.resolve()
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -49,7 +49,7 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''
-      const total = METER_BEATS[measure.meter]
+      const total = METER_QUARTERS[measure.meter]
       const lead = (clef ? 42 : 8) + (timeSig ? 26 : 0)
       const width = Math.max(150, lead + 40 + total * 56)
       const height = labels ? 132 : 112
@@ -58,7 +58,8 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
       const ctx = renderer.getContext()
       const stave = new Stave(2, 6, width - 4)
       if (clef) stave.addClef('treble')
-      if (timeSig) stave.addTimeSignature(measure.meter)
+      // Cut time is written with its own sign, ¢.
+      if (timeSig) stave.addTimeSignature(measure.meter === '2/2' ? 'C|' : measure.meter)
       stave.setContext(ctx).draw()
 
       const notes = measure.events.map((e, i) => {
@@ -116,10 +117,12 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
       }
 
       // Counts go under the beat they name, so a half note's "1 2" spreads across the two beats it's held.
+      const beatLength = METER_PULSE[measure.meter].quarters
       labels?.forEach((label, i) => {
         label.split(' ').forEach((count, k) => {
           const text = document.createElementNS(SVG_NS, 'text')
-          text.setAttribute('x', String(beatToX(k === 0 ? starts[i] : Math.floor(starts[i]) + k)))
+          const at = k === 0 ? starts[i] : (Math.floor(starts[i] / beatLength) + k) * beatLength
+          text.setAttribute('x', String(beatToX(at)))
           text.setAttribute('y', String(height - 18))
           text.setAttribute('font-size', '10pt')
           text.setAttribute('text-anchor', 'middle')

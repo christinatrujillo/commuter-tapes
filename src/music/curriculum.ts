@@ -1,5 +1,6 @@
 import { ALL_STRINGS, FULL_NECK, stringName, type Region } from './notes'
 import type { Meter, SymbolId } from './rhythm'
+import { KEY_ORDER, type AccidentalRule, type KeyId, type MotionKind } from './score'
 
 export type ExerciseType =
   | 'name' // a dot on the fretboard: pick its note name
@@ -14,6 +15,32 @@ export type ExerciseType =
   | 'measureFill' // a measure with a gap: which value completes it?
   | 'countBeat' // a measure: tap the note on a given count
   | 'tapRhythm' // a measure: tap it in time after a count-in
+  | 'accidentalRule' // a measure with accidentals: what is the marked note?
+  | 'keyName' // a key signature: which key?
+  | 'keyNote' // a note after a key signature: name it or find it
+  | 'motion' // two notes: same, step, skip or leap, up or down?
+  | 'phrase' // a short melody: tap it in order on the fretboard
+  | 'stepSize' // two notes on one string: half step or whole step?
+  | 'stepRead' // two neighboring notes on the staff: half step or whole step?
+  | 'stepFind' // tap a half or whole step above or below a note
+  | 'stepNote' // "what's a whole step above E?"
+  | 'scaleStep' // in a major scale, half or whole step between two of its notes?
+  | 'scaleNote' // "what's the 5th note of G major?"
+  | 'degreeName' // a note in a scale pattern: which degree is it?
+  | 'degreeFind' // tap a degree in a scale pattern
+  | 'keySignature' // how many sharps or flats a key has
+  | 'relativeKey' // the relative minor of a major key, or the other way round
+  | 'relativeFind' // tap a major key's relative minor on the same string
+  | 'minorNote' // "what's the 3rd note of E minor?"
+  | 'ivNumber' // "what number interval is C up to G?"
+  | 'ivName' // "what's the interval from C up to E♭?"
+  | 'ivReadNumber' // two notes on the staff: what number interval?
+  | 'ivReadName' // two notes on the staff, maybe stacked, in a key: name the interval
+  | 'ivFlip' // "turn a 3rd upside down: what number is it now?"
+  | 'ivInvert' // "turn a major 3rd upside down: what is it now?"
+  | 'ivBelow' // tap the note an interval below a root
+  | 'ivHear' // hear two notes: name the interval
+  | 'ivHearFind' // hear two notes: tap the second one on the neck
 
 export interface LessonSpec {
   id: string
@@ -34,6 +61,20 @@ export interface LessonSpec {
   meters?: Meter[]
   /** Tempo for tapping rhythms (default 60). */
   bpm?: number
+  /** Which accidental rules the measure-rule questions test. */
+  rules?: AccidentalRule[]
+  /** Key signatures used (key questions and phrases; phrases default to C, no signature). */
+  keys?: KeyId[]
+  /** Kinds of melodic motion for step/skip questions. */
+  motions?: MotionKind[]
+  /** Theory ideas the track teaches, each with its own rehearsal card. */
+  topics?: string[]
+  /** Intervals interval-naming and ear questions use, by short name ("M3", "P5"). */
+  ivNames?: string[]
+  /** How ear questions play their two notes: rising, falling or together. */
+  ear?: ('up' | 'down' | 'together')[]
+  /** Staff intervals are written stacked, sounding together. */
+  stacked?: boolean
   count?: number
 }
 
@@ -50,6 +91,22 @@ export interface Unit {
   tipStaff?: { keys: string[]; labels: string[] }
   lessons: LessonSpec[]
 }
+
+/** A tape that's planned but not recorded yet: it shows on the shelf as "Coming soon". */
+export interface PlannedTape {
+  planned: true
+  title: string
+}
+
+/** A chapter-sized run of tapes on the shelf. */
+export interface Volume {
+  /** "Vol. 1", or "Bonus Vol." */
+  label: string
+  title: string
+  tapes: (Unit | PlannedTape)[]
+}
+
+export const isPlanned = (tape: Unit | PlannedTape): tape is PlannedTape => 'planned' in tape
 
 /** Label-stripe colors, like old cassette labels. */
 const COLORS = ['#d9a441', '#d9693b', '#3f8f8b', '#5b7fa6', '#b5473a', '#8a8f3c', '#8a5a83']
@@ -85,12 +142,8 @@ function stringUnit(n: number, string: number, description: string, tips: string
   }
 }
 
-/**
- * One shelf, one path. Reading tapes follow the method-book order (first position, high E
- * string first, a new rhythm idea with each string); fretboard tapes slot in to take each
- * string up the neck once it's been read.
- */
-export const UNITS: Unit[] = [
+/** Every recorded tape, in shelf order. VOLUMES below decides where each one goes. */
+const TAPES: Unit[] = [
   {
     id: 'r1',
     title: 'Reading basics',
@@ -324,19 +377,36 @@ export const UNITS: Unit[] = [
     ],
   },
   {
-    id: 'u11',
-    title: 'Reading sharps & flats',
-    description: 'Accidentals on the staff',
+    id: 'r8',
+    title: 'Sharps, flats & naturals',
+    description: 'Accidentals and how long they last',
     color: COLORS[4],
     tips: [
-      'A ♯ before a note means play it one fret higher; a ♭ means one fret lower.',
-      'In real music an accidental lasts until the end of the measure. Here, every note stands alone.',
+      'A sharp (♯) raises a note one fret. A flat (♭) lowers it one fret. They’re written just before the note.',
+      'An accidental lasts until the next bar line, for every note on that same line or space.',
+      'A natural sign (♮) cancels a sharp or flat: the note goes back to plain.',
+      'A bar line wipes the slate clean. In the next measure, notes go back to normal.',
     ],
-    tipStaff: { keys: ['f#/4', 'bb/4', 'c#/5', 'eb/5'], labels: ['F♯', 'B♭', 'C♯', 'E♭'] },
+    tipStaff: { keys: ['f#/5', 'c#/5', 'bb/4', 'f/5'], labels: ['F♯', 'C♯', 'B♭', 'F♮'] },
     lessons: [
-      { id: 'u11-1', title: 'Name them', exercises: ['staffName'], region: FULL_NECK, accidentals: true, writtenRange: [57, 81] },
-      { id: 'u11-2', title: 'Open position', exercises: ['staffFind'], region: region(ALL_STRINGS, 0, 4), accidentals: true },
-      { id: 'u11-3', title: 'Mixed', exercises: ['staffFind', 'staffName'], region: region(ALL_STRINGS, 0, 4), accidentals: true, count: 12 },
+      { id: 'r8-1', title: 'Strings 1 to 3', exercises: ['staffName', 'staffFind'], region: region([3, 4, 5], 0, 4), accidentals: true },
+      { id: 'r8-2', title: 'Strings 4 to 6', exercises: ['staffName', 'staffFind'], region: region([0, 1, 2], 0, 4), accidentals: true },
+      {
+        id: 'r8-3',
+        title: 'The measure rule',
+        exercises: ['accidentalRule'],
+        region: firstPosition(ALL_STRINGS),
+        rules: ['carry', 'natural', 'barline'],
+      },
+      {
+        id: 'r8-4',
+        title: 'Accidentals review',
+        exercises: ['staffName', 'staffFind', 'accidentalRule'],
+        region: region(ALL_STRINGS, 0, 4),
+        accidentals: true,
+        rules: ['carry', 'natural', 'barline', 'octave'],
+        count: 12,
+      },
     ],
   },
   stringUnit(4, 2, 'The 4th string, all the way up', [
@@ -394,6 +464,53 @@ export const UNITS: Unit[] = [
     ],
   },
   {
+    id: 'r10',
+    title: 'Reading phrases',
+    description: 'Steps, skips and short melodies',
+    color: COLORS[6],
+    tips: [
+      'Good readers don’t name every note. They see the shape: does the next note step, skip or leap?',
+      'A step goes to the very next line or space. A skip goes from a line to the next line, or a space to the next space.',
+      'Before you play a phrase, look over all of it: where it starts, which way it moves, and the key signature.',
+    ],
+    lessons: [
+      { id: 'r10-1', title: 'Steps and skips', exercises: ['motion'], region: firstPosition(ALL_STRINGS), motions: ['same', 'step', 'skip'] },
+      { id: 'r10-2', title: 'Leaps', exercises: ['motion'], region: firstPosition(ALL_STRINGS), motions: ['step', 'skip', 'leap'] },
+      { id: 'r10-3', title: 'Short phrases', exercises: ['phrase'], region: firstPosition(ALL_STRINGS), count: 8 },
+    ],
+  },
+  {
+    id: 'r11',
+    title: '2/4 and cut time',
+    description: 'Two beats to the measure',
+    color: COLORS[0],
+    tips: [
+      '2/4 time has two quarter-note beats per measure. Count 1 2.',
+      'Cut time, written ¢, is 2/2: two beats per measure, and the half note gets the beat. Count 1 2, with quarter notes on the &.',
+      'Cut time looks a lot like 4/4 on the page, but you count (and feel) half as many beats.',
+    ],
+    lessons: [
+      { id: 'r11-1', title: '2/4 time', exercises: ['countBeat', 'measureFill', 'tapRhythm'], region: FULL_NECK, symbols: WITH_TIES, meters: ['2/4'] },
+      {
+        id: 'r11-2',
+        title: 'Cut time',
+        exercises: ['countBeat', 'measureFill', 'tapRhythm'],
+        region: FULL_NECK,
+        symbols: ['whole', 'half', 'quarter', 'dottedHalf', 'wholeRest', 'halfRest', 'quarterRest'],
+        meters: ['2/2'],
+      },
+      {
+        id: 'r11-3',
+        title: 'Mixed meters',
+        exercises: ['countBeat', 'measureFill', 'tapRhythm'],
+        region: FULL_NECK,
+        symbols: WITH_TIES,
+        meters: ['4/4', '3/4', '2/4', '2/2'],
+        count: 12,
+      },
+    ],
+  },
+  {
     id: 'u12',
     title: 'Reading up the neck',
     description: 'Same note, different places',
@@ -427,6 +544,145 @@ export const UNITS: Unit[] = [
     ],
   },
   {
+    id: 't1',
+    title: 'Whole & half steps',
+    description: 'The building blocks of scales',
+    color: COLORS[1],
+    tips: [
+      'A half step is one fret, the smallest step in music. A whole step is two frets.',
+      'Neighboring letters are a whole step apart, except E–F and B–C, which are half steps.',
+      'A sharp raises a note a half step and a flat lowers it a half step, so C♯ and D♭ are the same fret.',
+    ],
+    tipStaff: { keys: ['e/4', 'f/4', 'b/4', 'c/5'], labels: ['E', 'F', 'B', 'C'] },
+    lessons: [
+      { id: 't1-1', title: 'Half and whole steps', exercises: ['stepSize', 'stepFind'], region: FULL_NECK, topics: ['step:half', 'step:whole'] },
+      { id: 't1-2', title: 'E–F and B–C', exercises: ['stepRead'], region: FULL_NECK, topics: ['step:letters'] },
+      { id: 't1-3', title: 'Sharps and flats', exercises: ['stepNote'], region: FULL_NECK, topics: ['step:accidentals'] },
+      { id: 't1-4', title: 'Steps review', exercises: ['stepSize', 'stepRead', 'stepFind', 'stepNote'], region: FULL_NECK, count: 12 },
+    ],
+  },
+  {
+    id: 't2',
+    title: 'The major scale',
+    description: 'Whole, whole, half, whole, whole, whole, half',
+    color: COLORS[2],
+    tips: [
+      'Every major scale takes the same steps: whole, whole, half, whole, whole, whole, half.',
+      'Number the notes up from the root: the root is 1, and the 8th note is the root again, an octave higher.',
+      'Each letter appears once, in order. That’s why F major has B♭ and not A♯.',
+      'C major is the only major scale with no sharps or flats: its half steps land on E–F and B–C.',
+    ],
+    tipStaff: { keys: ['c/4', 'd/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5'], labels: ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'] },
+    lessons: [
+      { id: 't2-1', title: 'The formula', exercises: ['scaleStep'], region: FULL_NECK, topics: ['scale:formula'] },
+      { id: 't2-2', title: 'Scale degrees', exercises: ['scaleNote'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F'], topics: ['scale:degrees'] },
+      { id: 't2-3', title: 'One of each letter', exercises: ['scaleNote'], region: FULL_NECK, keys: ['A', 'E', 'Bb', 'Eb'], topics: ['scale:letters'] },
+      {
+        id: 't2-4',
+        title: 'Any major scale',
+        exercises: ['scaleNote', 'scaleStep'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'E', 'B', 'F', 'Bb', 'Eb', 'Ab', 'Db'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 't3',
+    title: 'Major scale patterns',
+    description: 'The scale as a shape on the neck',
+    color: COLORS[3],
+    tips: [
+      'With the root on the 6th or 5th string, a major scale fits in five frets: from one fret below the root to three above.',
+      'Learn where each degree sits around the root. The shape stays the same wherever you move it, so moving it changes the key.',
+      'Root on the 6th string at the 3rd fret is G major, and at the 5th fret it’s A major. Root on the 5th string at the 3rd fret is C major, shown below.',
+    ],
+    // C major with its root on the 5th string: every natural note from the 2nd fret to the 6th.
+    tipRegion: region(ALL_STRINGS, 2, 6),
+    lessons: [
+      { id: 't3-1', title: 'Root on the 6th string', exercises: ['degreeName', 'degreeFind'], region: FULL_NECK, rootStrings: [0], topics: ['pattern:6'] },
+      { id: 't3-2', title: 'Root on the 5th string', exercises: ['degreeName', 'degreeFind'], region: FULL_NECK, rootStrings: [1], topics: ['pattern:5'] },
+      { id: 't3-3', title: 'Both patterns', exercises: ['degreeName', 'degreeFind'], region: FULL_NECK, rootStrings: [0, 1], count: 12 },
+    ],
+  },
+  {
+    id: 'r9',
+    title: 'Key signatures',
+    description: 'Sharps and flats for the whole piece',
+    color: COLORS[5],
+    tips: [
+      'The sharps or flats right after the clef are the key signature. They apply to every note with that letter, on every line and space, for the whole piece.',
+      'G major has one sharp, F♯. D major has two, F♯ and C♯. F major has one flat, B♭. C major has none.',
+      'They’re the sharps or flats of the key’s major scale, written once at the start instead of on every note.',
+      'To name a sharp key, go one fret above the last sharp: F♯ → G, C♯ → D. One flat means F major.',
+    ],
+    lessons: [
+      { id: 'r9-1', title: 'Key of G', exercises: ['keyNote'], region: region(ALL_STRINGS, 0, 4), keys: ['G'] },
+      { id: 'r9-2', title: 'Keys of D and F', exercises: ['keyNote'], region: region(ALL_STRINGS, 0, 4), keys: ['D', 'F'] },
+      { id: 'r9-3', title: 'Name the key', exercises: ['keyName'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F'] },
+      { id: 'r9-4', title: 'Reading in keys', exercises: ['keyNote', 'keyName'], region: region(ALL_STRINGS, 0, 4), keys: ['C', 'G', 'D', 'F'], count: 12 },
+      // Keeps its id from when it closed Reading phrases, so saved progress carries over.
+      { id: 'r10-4', title: 'Phrases in G', exercises: ['phrase'], region: region(ALL_STRINGS, 0, 4), keys: ['G'], count: 8 },
+    ],
+  },
+  {
+    id: 't4',
+    title: 'The circle of fifths',
+    description: 'Every key, in order',
+    color: COLORS[6],
+    tips: [
+      'Going clockwise, each key is a fifth higher and adds a sharp: C G D A E B F♯ C♯.',
+      'Going counterclockwise, each key is a fifth lower and adds a flat: C F B♭ E♭ A♭ D♭ G♭ C♭.',
+      'Sharps are always added in the order F C G D A E B, and flats in the reverse order: B E A D G C F.',
+      'A sharp key is a half step above its last sharp. A flat key is its second-to-last flat, and one flat is F major.',
+    ],
+    lessons: [
+      {
+        id: 't4-1',
+        title: 'Sharp keys',
+        exercises: ['keyName', 'keySignature'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#'],
+        topics: ['circle:sharps'],
+      },
+      {
+        id: 't4-2',
+        title: 'Flat keys',
+        exercises: ['keyName', 'keySignature'],
+        region: FULL_NECK,
+        keys: ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'],
+        topics: ['circle:flats'],
+      },
+      { id: 't4-3', title: 'All the way around', exercises: ['keyName', 'keySignature', 'keyNote'], region: region(ALL_STRINGS, 0, 4), keys: KEY_ORDER, count: 12 },
+    ],
+  },
+  {
+    id: 't5',
+    title: 'Relative minor',
+    description: 'Two keys, one key signature',
+    color: COLORS[4],
+    tips: [
+      'Every major key shares its key signature with a minor key: its relative minor.',
+      'The relative minor starts on the 6th note of the major scale. C major and A minor have no sharps or flats; G major and E minor share F♯.',
+      'On the neck, the relative minor is 3 frets below the major key’s root, on the same string.',
+      'The natural minor scale is the relative major’s notes starting from the 6th: whole, half, whole, whole, half, whole, whole.',
+    ],
+    tipStaff: { keys: ['a/4', 'b/4', 'c/5', 'd/5', 'e/5', 'f/5', 'g/5', 'a/5'], labels: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'A'] },
+    lessons: [
+      { id: 't5-1', title: 'Relative keys', exercises: ['relativeKey'], region: FULL_NECK, keys: ['C', 'G', 'D', 'A', 'E', 'F', 'Bb', 'Eb'], topics: ['rel:keys'] },
+      { id: 't5-2', title: 'On the neck', exercises: ['relativeFind'], region: FULL_NECK, topics: ['rel:neck'] },
+      { id: 't5-3', title: 'The natural minor scale', exercises: ['minorNote'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F', 'Bb', 'A'], topics: ['minor:scale'] },
+      {
+        id: 't5-4',
+        title: 'Relative minor review',
+        exercises: ['relativeKey', 'relativeFind', 'minorNote'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'E', 'F', 'Bb', 'Eb'],
+        count: 12,
+      },
+    ],
+  },
+  {
     id: 'u14',
     title: 'Intervals',
     description: 'The shapes behind chords',
@@ -452,9 +708,159 @@ export const UNITS: Unit[] = [
       },
     ],
   },
+  {
+    id: 't6',
+    title: 'Naming intervals',
+    description: 'Number and quality',
+    color: COLORS[1],
+    tips: [
+      'An interval’s number counts the letters, both ends included: C up to G is C D E F G, a 5th.',
+      'Up from the root of a major scale, 2nds, 3rds, 6ths and 7ths are major; 4ths, 5ths and octaves are perfect.',
+      'A major interval made a half step smaller is minor. A perfect or major one made a half step bigger is augmented; a perfect or minor one made smaller is diminished.',
+      'The tritone is 6 half steps: an augmented 4th or a diminished 5th, depending on the letters.',
+    ],
+    lessons: [
+      { id: 't6-1', title: 'Interval numbers', exercises: ['ivNumber'], region: FULL_NECK, topics: ['ivname:number'] },
+      { id: 't6-2', title: 'Major and perfect', exercises: ['ivName'], region: FULL_NECK, ivNames: ['M2', 'M3', 'P4', 'P5', 'M6', 'M7', 'P8'], topics: ['ivname:major'] },
+      { id: 't6-3', title: 'Minor intervals', exercises: ['ivName'], region: FULL_NECK, ivNames: ['m2', 'M2', 'm3', 'M3', 'm6', 'M6', 'm7', 'M7'], topics: ['ivname:minor'] },
+      { id: 't6-4', title: 'The tritone', exercises: ['ivName'], region: FULL_NECK, ivNames: ['P4', 'A4', 'd5', 'P5', 'A5', 'm6'], topics: ['ivname:altered'] },
+      {
+        id: 't6-5',
+        title: 'Naming review',
+        exercises: ['ivName', 'ivNumber'],
+        region: FULL_NECK,
+        ivNames: ['m2', 'M2', 'm3', 'M3', 'P4', 'A4', 'd5', 'P5', 'A5', 'm6', 'M6', 'm7', 'M7', 'P8'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 't7',
+    title: 'Intervals on the staff',
+    description: 'Reading intervals in a key',
+    color: COLORS[2],
+    tips: [
+      'Line to line, or space to space, is an odd number: 3rd, 5th, 7th. A line and a space make an even number: 2nd, 4th, 6th.',
+      'Read the key signature first: in D major, F up to A is F♯ up to A, a minor 3rd.',
+      'Notes stacked on one stem are played together. Read them from the bottom up.',
+    ],
+    lessons: [
+      { id: 't7-1', title: 'Seeing the number', exercises: ['ivReadNumber'], region: FULL_NECK, topics: ['ivstaff:number'] },
+      {
+        id: 't7-2',
+        title: 'Names in a key',
+        exercises: ['ivReadName'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'F', 'Bb'],
+        ivNames: ['m2', 'M2', 'm3', 'M3', 'P4', 'A4', 'd5', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'],
+        topics: ['ivstaff:name'],
+      },
+      {
+        id: 't7-3',
+        title: 'Stacked notes',
+        exercises: ['ivReadName'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'F', 'Bb'],
+        ivNames: ['m2', 'M2', 'm3', 'M3', 'P4', 'A4', 'd5', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'],
+        stacked: true,
+        topics: ['ivstaff:stacked'],
+      },
+    ],
+  },
+  {
+    id: 't8',
+    title: 'Inversions',
+    description: 'Turning intervals upside down',
+    color: COLORS[3],
+    tips: [
+      'Move the bottom note up an octave and the interval turns upside down. The two numbers always add up to 9.',
+      'Major turns into minor and minor into major; augmented turns into diminished; perfect stays perfect.',
+      'A 4th up and a 5th down land on the same letter. So do a 3rd up and a 6th down.',
+    ],
+    lessons: [
+      { id: 't8-1', title: 'Flip it', exercises: ['ivFlip'], region: FULL_NECK, topics: ['invert:numbers'] },
+      { id: 't8-2', title: 'Qualities flip', exercises: ['ivInvert'], region: FULL_NECK, ivNames: ['m2', 'M2', 'm3', 'M3', 'P4', 'A4', 'P5', 'm6', 'M6', 'm7', 'M7'], topics: ['invert:qualities'] },
+      { id: 't8-3', title: 'On the neck', exercises: ['ivBelow'], region: FULL_NECK, ivNames: ['m3', 'M3', 'P4', 'P5', 'm6', 'M6'], topics: ['invert:neck'] },
+      {
+        id: 't8-4',
+        title: 'Inversions review',
+        exercises: ['ivFlip', 'ivInvert', 'ivBelow'],
+        region: FULL_NECK,
+        ivNames: ['m3', 'M3', 'P4', 'P5', 'm6', 'M6'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 't9',
+    title: 'Hearing intervals',
+    description: 'Ear training: headphones on',
+    color: COLORS[6],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
+      'Start with the sounds that are most different, then the ones that sound alike. Listen to the whole interval before you answer, and replay it as often as you like.',
+      'Octaves sound like the same note; 5ths sound open and strong; major 3rds bright and minor 3rds darker; 2nds are next-door neighbors.',
+    ],
+    lessons: [
+      { id: 't9-1', title: 'Octaves and 5ths', exercises: ['ivHear'], region: FULL_NECK, ivNames: ['P5', 'P8'], ear: ['up'], topics: ['ear:octave-fifth'] },
+      { id: 't9-2', title: 'Add 4ths', exercises: ['ivHear'], region: FULL_NECK, ivNames: ['P4', 'P5', 'P8'], ear: ['up', 'down'], topics: ['ear:fourth'] },
+      { id: 't9-3', title: 'Major and minor 3rds', exercises: ['ivHear'], region: FULL_NECK, ivNames: ['m3', 'M3', 'P4', 'P5'], ear: ['up', 'down'], topics: ['ear:thirds'] },
+      { id: 't9-4', title: '2nds', exercises: ['ivHear'], region: FULL_NECK, ivNames: ['m2', 'M2', 'm3', 'M3'], ear: ['up', 'down', 'together'], topics: ['ear:seconds'] },
+      {
+        id: 't9-5',
+        title: '6ths, 7ths and the tritone',
+        exercises: ['ivHear'],
+        region: FULL_NECK,
+        ivNames: ['A4', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'],
+        ear: ['up', 'down', 'together'],
+        topics: ['ear:wide'],
+      },
+      { id: 't9-6', title: 'By ear on the neck', exercises: ['ivHearFind'], region: FULL_NECK, ivNames: ['M2', 'm3', 'M3', 'P4', 'P5', 'P8'], topics: ['ear:neck'] },
+    ],
+  },
 ]
 
+const tape = (id: string): Unit => TAPES.find((u) => u.id === id)!
+const soon = (title: string): PlannedTape => ({ planned: true, title })
+
+/**
+ * One shelf, one path, a volume per chapter. Volume 1 follows the method-book reading order
+ * (first position, high E string first, a new rhythm idea with each string), with fretboard
+ * tapes taking each string up the neck once it's been read. From Volume 3 on, the volumes
+ * follow the order a guitar theory course takes: scales and keys, intervals, triads, chords.
+ */
+export const VOLUMES: Volume[] = [
+  { label: 'Vol. 1', title: 'Reading & the Neck', tapes: ['r1', 'r2', 'r3', 'r4', 'u7', 'r5', 'r6', 'r7', 'u1', 'u2', 'u3'].map(tape) },
+  { label: 'Vol. 2', title: 'The Whole Neck', tapes: ['r8', 'u4', 'u5', 'u6', 'u8', 'u9', 'r10', 'r11', 'u12', 'u13'].map(tape) },
+  { label: 'Vol. 3', title: 'Scales & Keys', tapes: ['t1', 't2', 't3', 'r9', 't4', 't5'].map(tape) },
+  { label: 'Vol. 4', title: 'Intervals', tapes: ['u14', 't6', 't7', 't8', 't9'].map(tape) },
+  { label: 'Vol. 5', title: 'Triads', tapes: [soon('Building triads'), soon('Triads on the neck'), soon('Triad inversions')] },
+  { label: 'Vol. 6', title: 'Chords in a Key', tapes: [soon('The chords in a key'), soon('Roman numerals')] },
+  { label: 'Vol. 7', title: 'Building Chords', tapes: [soon('7th chords'), soon('Sus, add & 6 chords'), soon('Chord symbols & diagrams')] },
+  { label: 'Vol. 8', title: 'Minor Keys', tapes: [soon('Chords in minor keys'), soon('Finding the key')] },
+  { label: 'Vol. 9', title: 'Blues & Pentatonics', tapes: [soon('Pentatonic patterns'), soon('The 12-bar blues')] },
+  { label: 'Vol. 10', title: 'Modes', tapes: [soon('The modes'), soon('Modal sounds')] },
+  { label: 'Vol. 11', title: 'More Scales & Arpeggios', tapes: [soon('Harmonic & melodic minor'), soon('Arpeggio shapes')] },
+  { label: 'Vol. 12', title: 'Chord Swaps', tapes: [soon('Substitutions'), soon('Reharmonizing')] },
+  { label: 'Bonus Vol.', title: 'Reading Extras', tapes: [soon('Road signs'), soon('6/8 & triplets'), soon('Reading TAB')] },
+]
+
+/** The recorded tapes, in the order you work through them. */
+export const UNITS: Unit[] = VOLUMES.flatMap((v) => v.tapes.filter((t): t is Unit => !isPlanned(t)))
+
 export const ALL_LESSONS: LessonSpec[] = UNITS.flatMap((u) => u.lessons)
+
+/** Tracks you can only do with sound: ear training. */
+export const isListening = (l: LessonSpec) => l.exercises.some((e) => e === 'ivHear' || e === 'ivHearFind')
+
+// Planned tapes get numbers too, so a tape's number never changes when the ones before it are recorded.
+const NUMBERS = new Map(VOLUMES.flatMap((v) => v.tapes).map((t, i) => [t, i + 1]))
+
+/** A tape's number on the shelf. */
+export const tapeNumber = (t: Unit | PlannedTape): number => NUMBERS.get(t)!
+
+/** The number of the tape to finish before this one opens: the recorded tape just before it. */
+export const tapeBefore = (unit: Unit): number => tapeNumber(UNITS[UNITS.indexOf(unit) - 1])
 
 export function findLesson(id: string): { unit: Unit; lesson: LessonSpec } | null {
   for (const unit of UNITS) {

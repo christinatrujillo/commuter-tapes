@@ -2,7 +2,7 @@ import { useRoute } from './lib/router'
 import { DeckScreen } from './screens/Deck'
 import { ExploreScreen } from './screens/Explore'
 import { HomeScreen } from './screens/Home'
-import { DrillScreen, LessonScreen, WeakSpotScreen } from './screens/Lesson'
+import { DrillScreen, LessonScreen, ReviewScreen, TheoryJamScreen, WeakSpotScreen } from './screens/Lesson'
 import { PracticeScreen } from './screens/Practice'
 import { RehearsalScreen } from './screens/Rehearsal'
 import { SettingsScreen } from './screens/Settings'
@@ -20,6 +20,10 @@ export function App() {
       return <DrillScreen query={query} />
     case 'weak':
       return <WeakSpotScreen />
+    case 'jam':
+      return <TheoryJamScreen key={query.get('t')} jamId={query.get('t') ?? ''} />
+    case 'review':
+      return <ReviewScreen />
     case 'sprint':
       return <SprintScreen presetId={query.get('p') ?? ''} />
     case 'tape':

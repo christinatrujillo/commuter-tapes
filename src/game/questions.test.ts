@@ -1,20 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { inRegion, seeded } from '../test-helpers'
 import { ALL_LESSONS } from '../music/curriculum'
-import { isNatural, midiAt, pitchClass, spelledMidi, type Position, type Region } from '../music/notes'
-import { measureBeats, METER_BEATS, onsets, playedIndexes, SYMBOLS, symbolOf } from '../music/rhythm'
-import { buildFromPositions, buildSession, buildWeakSpotSession, mastery, weakness, type Stats } from './questions'
-
-/** Deterministic random numbers so failures are reproducible. */
-function seeded(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-const inRegion = (p: Position, r: Region) => r.strings.includes(p.string) && p.fret >= r.minFret && p.fret <= r.maxFret
+import { isNatural, midiAt, pitchClass, spelledMidi } from '../music/notes'
+import { measureQuarters, METER_QUARTERS, onsets, playedIndexes, SYMBOLS, symbolOf } from '../music/rhythm'
+import { KEYS, motionBetween, motionKind, resolveNotes, staffDegree } from '../music/score'
+import { buildFromPositions, buildSession, isPick, isTap, mastery, weakness, type Stats } from './questions'
 
 describe('every lesson', () => {
   for (const lesson of ALL_LESSONS) {
@@ -73,22 +63,83 @@ describe('every lesson', () => {
               expect(q.options).toContain(SYMBOLS[q.symbol].beats)
               break
             case 'measureFill': {
-              expect(measureBeats(q.measure) + q.missing).toBe(METER_BEATS[q.measure.meter])
+              expect(measureQuarters(q.measure) + q.missing).toBe(METER_QUARTERS[q.measure.meter])
               const fits = q.options.filter((o) => SYMBOLS[o].beats === q.missing)
               expect(fits).toHaveLength(1)
               break
             }
             case 'countBeat':
-              expect(measureBeats(q.measure)).toBe(METER_BEATS[q.measure.meter])
+              expect(measureQuarters(q.measure)).toBe(METER_QUARTERS[q.measure.meter])
               expect(playedIndexes(q.measure).length).toBeGreaterThanOrEqual(2)
               expect(playedIndexes(q.measure)).toContain(q.target)
               expect(onsets(q.measure)[q.target]).toBe(q.beat)
               break
             case 'tapRhythm':
-              expect(measureBeats(q.measure)).toBe(METER_BEATS[q.measure.meter])
+              expect(measureQuarters(q.measure)).toBe(METER_QUARTERS[q.measure.meter])
               expect(playedIndexes(q.measure).length).toBeGreaterThanOrEqual(2)
               for (const e of q.measure.events) expect([...(lesson.symbols ?? []), 'quarter']).toContain(symbolOf(e))
               break
+            case 'accidentalRule': {
+              expect(lesson.rules).toContain(q.rule)
+              const flat = q.measures.flat()
+              const target = flat[q.target]
+              const resolved = resolveNotes(q.measures)[q.target]
+              const setUp = flat.find((n) => n.letter === target.letter && n.sign !== undefined && n.sign !== 0)!
+              expect(setUp).toBeTruthy()
+              // Only the natural-sign rule prints anything on the marked note itself.
+              expect(target.sign).toBe(q.rule === 'natural' ? 0 : undefined)
+              expect(resolved.acc).toBe(q.rule === 'carry' ? setUp.sign : 0)
+              // Other notes use other letters, so nothing else can interfere.
+              for (const n of flat) if (n !== target && n !== setUp) expect(n.letter).not.toBe(target.letter)
+              break
+            }
+            case 'keyName':
+              expect(q.options).toContain(q.key)
+              expect(q.options.length).toBeGreaterThanOrEqual(2)
+              break
+            case 'keyNote': {
+              expect(lesson.keys).toContain(q.key)
+              const resolved = resolveNotes([[q.note]], q.key)[0]
+              expect(resolved.acc).toBe(KEYS[q.key].altered[q.note.letter] ?? 0)
+              expect(q.targets.length).toBeGreaterThan(0)
+              for (const t of q.targets) {
+                expect(inRegion(t, lesson.region)).toBe(true)
+                expect(midiAt(t)).toBe(spelledMidi(resolved) - 12)
+              }
+              break
+            }
+            case 'motion':
+              expect(q.options).toContain(motionBetween(q.from, q.to))
+              expect(lesson.motions).toContain(motionKind(motionBetween(q.from, q.to)))
+              break
+            case 'phrase': {
+              const notes = resolveNotes(q.measures, q.key)
+              expect(notes.length).toBeGreaterThanOrEqual(3)
+              expect(notes.length).toBeLessThanOrEqual(4)
+              notes.forEach((n, i) => {
+                expect(q.targets[i].length).toBeGreaterThan(0)
+                for (const t of q.targets[i]) {
+                  expect(inRegion(t, lesson.region)).toBe(true)
+                  expect(midiAt(t)).toBe(spelledMidi(n) - 12)
+                }
+                if (i > 0) expect(Math.abs(staffDegree(n) - staffDegree(notes[i - 1]))).toBeLessThanOrEqual(3)
+              })
+              break
+            }
+          }
+          // Theory questions: one right answer among distinct choices, and everything on the board in view.
+          if (isPick(q)) {
+            if (q.options === 'notes') expect(q.answer).toBe(pitchClass(q.answer))
+            else {
+              expect(new Set(q.options).size).toBe(q.options.length)
+              expect(q.options[q.answer]).toBeDefined()
+            }
+            for (const m of q.board?.markers ?? []) expect(inRegion(m.pos, q.board!.region)).toBe(true)
+            expect(q.why.length).toBeGreaterThan(0)
+          }
+          if (isTap(q)) {
+            expect(q.targets.length).toBeGreaterThan(0)
+            for (const p of [q.from, ...q.targets, ...q.markers.map((m) => m.pos)]) expect(inRegion(p, q.region)).toBe(true)
           }
         }
       }
@@ -117,18 +168,6 @@ describe('weak spots', () => {
     expect(weakHits / total).toBeGreaterThan(0.25)
   })
 
-  it('needs some history before building a practice round', () => {
-    expect(buildWeakSpotSession({})).toBeNull()
-    const stats: Stats = {
-      '0:1': { seen: 3, correct: 1, recent: 0.3, ms: 4000 },
-      '1:2': { seen: 3, correct: 2, recent: 0.6, ms: 3000 },
-      '2:3': { seen: 3, correct: 0, recent: 0.1, ms: 7000 },
-    }
-    const round = buildWeakSpotSession(stats, seeded(7))!
-    expect(round).toHaveLength(12)
-    const spots = new Set(round.flatMap((q) => q.facts))
-    expect(spots.has('2:3')).toBe(true)
-  })
 })
 
 describe('speed-based mastery', () => {
@@ -139,6 +178,12 @@ describe('speed-based mastery', () => {
     expect(mastery({ seen: 5, correct: 5, recent: 0.95, ms: 1500, pace: 0.8 })).toBe('fluent')
     // Fast but only answered twice: not proven yet.
     expect(mastery({ seen: 2, correct: 2, recent: 0.88, ms: 1200, pace: 0.6 })).toBe('accurate')
+  })
+
+  it('lets fluency fade when a note is long overdue for review', () => {
+    const stat = { seen: 5, correct: 5, recent: 0.95, ms: 1500, pace: 0.8, interval: 3, due: '2026-01-10' }
+    expect(mastery(stat, '2026-01-12')).toBe('fluent')
+    expect(mastery(stat, '2026-01-20')).toBe('accurate')
   })
 
   it('treats slow-but-right notes as needing practice', () => {

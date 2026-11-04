@@ -3,19 +3,26 @@ import { playNotes, playStrum, playWrong } from '../audio/sound'
 import { QuestionStage } from '../components/QuestionStage'
 import { Button } from '../components/ui'
 import { answerSound, pickIsCorrect } from '../game/present'
-import { buildFromPositions, buildSession, FLUENT_MS, practicedPositions, type Question, type Stats } from '../game/questions'
+import { namedIntervals, namedKeys } from '../game/jams'
+import { buildFromPositions, buildSession, FLUENT_MS, isPick, practicedPositions, type Question, type Stats } from '../game/questions'
 import { goBack } from '../lib/router'
 import { ALL_STRINGS, describePosition, FULL_NECK, midiAt, pcName, pitchClass, samePos, spelledName, stringName, type Position } from '../music/notes'
-import { useProgress } from '../store/progress'
+import { KEYS } from '../music/score'
+import { useProgress, type LessonRecord } from '../store/progress'
 
 export const SPRINT_SECONDS = 60
 /** Practiced-spots sprints need enough spots to keep from repeating. */
-export const MIN_PRACTICED_SPOTS = 6
+const MIN_PRACTICED_SPOTS = 6
+
+type Lessons = Record<string, LessonRecord>
 
 export interface SprintPreset {
   id: string
   label: string
-  build: (stats: Stats) => Question[] | null
+  /** Whether you've learned enough for this sprint, and what to do if not. */
+  ready: (stats: Stats, lessons: Lessons) => boolean
+  sealed: string
+  build: (stats: Stats, lessons: Lessons) => Question[]
 }
 
 const LOTS = 150
@@ -24,30 +31,54 @@ export const SPRINT_PRESETS: SprintPreset[] = [
   {
     id: 'practiced',
     label: 'Spots you’ve practiced',
-    build: (stats) => {
-      const spots = practicedPositions(stats)
-      return spots.length >= MIN_PRACTICED_SPOTS ? buildFromPositions(spots, stats, LOTS) : null
-    },
+    ready: (stats) => practicedPositions(stats).length >= MIN_PRACTICED_SPOTS,
+    sealed: `Practice at least ${MIN_PRACTICED_SPOTS} spots to unlock this one.`,
+    build: (stats) => buildFromPositions(practicedPositions(stats), stats, LOTS),
   },
   {
     id: 'low',
     label: 'Low E & A',
+    ready: () => true,
+    sealed: '',
     build: (stats) =>
       buildSession({ id: 'sprint', title: 'Sprint', exercises: ['name', 'find'], region: { strings: [0, 1], minFret: 0, maxFret: 12 }, count: LOTS }, stats),
   },
   {
     id: 'neck',
     label: 'Whole neck',
+    ready: () => true,
+    sealed: '',
     build: (stats) => buildSession({ id: 'sprint', title: 'Sprint', exercises: ['name', 'find'], region: FULL_NECK, count: LOTS }, stats),
   },
   {
     id: 'staff',
     label: 'Staff reading',
+    ready: () => true,
+    sealed: '',
     build: (stats) =>
       buildSession(
         { id: 'sprint', title: 'Sprint', exercises: ['staffName', 'staffFind'], region: { strings: ALL_STRINGS, minFret: 0, maxFret: 3 }, count: LOTS },
         stats,
       ),
+  },
+  {
+    id: 'keys',
+    label: 'Keys',
+    ready: (_, lessons) => namedKeys(lessons).length >= 2,
+    sealed: 'Record “Name the key” on the Key signatures tape to unlock this one.',
+    build: (stats, lessons) =>
+      buildSession({ id: 'sprint', title: 'Sprint', exercises: ['keyName', 'keySignature'], region: FULL_NECK, keys: namedKeys(lessons), count: LOTS }, stats),
+  },
+  {
+    id: 'intervals',
+    label: 'Intervals',
+    ready: (_, lessons) => !!lessons['t6-1']?.stars || namedIntervals(lessons).length >= 2,
+    sealed: 'Record a track on the Naming intervals tape to unlock this one.',
+    build: (stats, lessons) => {
+      const names = namedIntervals(lessons)
+      const exercises = [...(lessons['t6-1']?.stars ? (['ivNumber'] as const) : []), ...(names.length >= 2 ? (['ivName'] as const) : [])]
+      return buildSession({ id: 'sprint', title: 'Sprint', exercises, region: FULL_NECK, ivNames: names, count: LOTS }, stats)
+    },
   },
 ]
 
@@ -55,11 +86,14 @@ export function SprintScreen({ presetId }: { presetId: string }) {
   const preset = SPRINT_PRESETS.find((p) => p.id === presetId) ?? SPRINT_PRESETS[1]
   const [attempt, setAttempt] = useState(0)
   // A new attempt deals a fresh run of questions.
-  const questions = useMemo(() => preset.build(useProgress.getState().stats), [preset, attempt])
+  const questions = useMemo(() => {
+    const { stats, lessons } = useProgress.getState()
+    return preset.ready(stats, lessons) ? preset.build(stats, lessons) : null
+  }, [preset, attempt])
   if (!questions) {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-6 px-8 text-center">
-        <p className="text-lg text-muted">Practice at least {MIN_PRACTICED_SPOTS} spots first, or pick another sprint.</p>
+        <p className="text-lg text-muted">{preset.sealed}</p>
         <Button variant="dark" className="max-w-xs" onClick={() => goBack()}>
           ◂◂ Back
         </Button>
@@ -203,6 +237,7 @@ function SprintRunner({ preset, questions, onAgain }: { preset: SprintPreset; qu
 
 /** Short description of a missed question, for the end screen. */
 function missLabel(q: Question): string {
+  if (isPick(q)) return q.ask.hl ?? q.ask.text
   switch (q.kind) {
     case 'name':
       return `${pcName(pitchClass(midiAt(q.target)))} · ${describePosition(q.target)}`
@@ -211,6 +246,8 @@ function missLabel(q: Question): string {
     case 'staffName':
     case 'staffFind':
       return `${spelledName(q.note, true)} on the staff`
+    case 'keyName':
+      return `${KEYS[q.key].name} key signature`
     default:
       return ''
   }
@@ -231,7 +268,7 @@ function SprintDone({
   misses: Question[]
   onAgain: () => void
 }) {
-  const uniqueMisses = [...new Set(misses.map(missLabel))].slice(0, 6)
+  const uniqueMisses = [...new Set(misses.map(missLabel))].filter(Boolean).slice(0, 6)
   return (
     <div className="flex h-dvh flex-col px-6 py-8">
       <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">

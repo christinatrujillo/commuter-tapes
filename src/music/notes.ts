@@ -35,6 +35,7 @@ export const TUNING = [40, 45, 50, 55, 59, 64]
 
 /** Guitar music is written an octave higher than it sounds. */
 export const WRITTEN_OCTAVE_SHIFT = 12
+export const written = (midi: number) => midi + WRITTEN_OCTAVE_SHIFT
 
 const SHARP_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B']
 const FLAT_NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B']
@@ -59,6 +60,9 @@ export function pcName(pc: number, spelling?: Spelling): string {
   if (spelling === 'flat') return FLAT_NAMES[i]
   return `${SHARP_NAMES[i]}/${FLAT_NAMES[i]}`
 }
+
+/** The note at a spot on the neck, with sharp names for black keys ("F♯"). */
+export const noteAt = (p: Position) => pcName(pitchClass(midiAt(p)), 'sharp')
 
 export function spelledMidi(n: SpelledNote): number {
   return (n.octave + 1) * 12 + LETTER_PC[n.letter] + n.acc

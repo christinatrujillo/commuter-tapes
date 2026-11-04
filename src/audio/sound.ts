@@ -70,6 +70,11 @@ export function playNotes(...midis: number[]) {
 }
 
 /** A dead, muted thunk: the sound of a fumbled note. */
+/** Notes for ear training, one after another with room to hear each, or together. They play even with answer sounds off. */
+export function playListen(midis: number[], together = false) {
+  if (audioContext()) midis.forEach((m, i) => pluck(m, together ? 0 : i * 0.75))
+}
+
 export function playWrong() {
   if (hapticsOn()) navigator.vibrate?.(120)
   if (soundOn()) [40, 45].forEach((m, i) => pluck(m, i * 0.01, 0.9, true))

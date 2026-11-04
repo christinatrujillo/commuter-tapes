@@ -1,4 +1,16 @@
+# Dependencies and build output
 node_modules
 dist
+*.tsbuildinfo
+
+# Local settings that may hold personal info
+.env
+.env.*
+*.local
+.claude/
+.vscode/
+.idea/
 .DS_Store
-.claude/settings.local.json
+
+# Progress backups exported from the app
+commuter-tapes-backup-*.json

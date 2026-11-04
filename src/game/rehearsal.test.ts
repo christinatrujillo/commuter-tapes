@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { inRegion, seeded } from '../test-helpers'
 import { ALL_LESSONS } from '../music/curriculum'
-import { midiAt, pitchClass, spelledMidi, type Position, type Region } from '../music/notes'
+import { midiAt, pitchClass, spelledMidi } from '../music/notes'
 import { buildRehearsal, type Card, type Rehearsal } from './rehearsal'
 
-function seeded(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-const inRegion = (p: Position, r: Region) => r.strings.includes(p.string) && p.fret >= r.minFret && p.fret <= r.maxFret
 const cards = (r: Rehearsal): Card[] => r.steps.flatMap((s) => (s.kind === 'card' ? [s.card] : []))
 
 describe('every track has a rehearsal', () => {
@@ -123,7 +114,42 @@ describe('what gets taught', () => {
     const sharps = buildRehearsal('u9-1', seeded(1))!
     expect(sharps.newCount).toBe(6)
     expect(cards(sharps)).toHaveLength(2)
-    expect(cards(buildRehearsal('u11-1', seeded(1))!).map((x) => x.title)).toContain('Sharps & flats')
+    expect(cards(buildRehearsal('r8-1', seeded(1))!).map((x) => x.title)).toContain('Sharps & flats')
+  })
+
+  it('teaches sharps and flats in groups, then each rule for how long they last', () => {
+    expect(cards(buildRehearsal('r8-1', seeded(1))!).map((x) => x.title)).toEqual(['Sharps & flats', 'Sharps & flats'])
+    const rule = cards(buildRehearsal('r8-3', seeded(1))!)
+    expect(rule.map((x) => x.title)).toEqual(['The measure rule', 'Natural sign', 'Bar lines reset'])
+    // Worked examples point at the note that matters and name every note.
+    expect(rule[0].score?.marker).toBe(2)
+    expect(rule[0].score?.labels).toEqual(['F♯', 'G', 'F♯', 'E'])
+    expect(rule[2].score?.labels).toEqual(['G', 'A', 'F♯', 'A', 'F', 'G'])
+    expect(cards(buildRehearsal('r8-4', seeded(1))!).map((x) => x.title)).toEqual(['Same line or space only'])
+  })
+
+  it('teaches key signatures one at a time, then how to name them', () => {
+    const g = cards(buildRehearsal('r9-1', seeded(1))!)
+    expect(g.map((x) => x.title)).toEqual(['Key of G'])
+    expect(g[0].score?.labels).toEqual(['E', 'F♯', 'G', 'A'])
+    expect(cards(buildRehearsal('r9-2', seeded(1))!).map((x) => x.title)).toEqual(['Key of D', 'Key of F'])
+    expect(cards(buildRehearsal('r9-3', seeded(1))!).map((x) => x.title)).toEqual(['Key of C', 'Naming the key'])
+    expect(buildRehearsal('r9-4', seeded(1))!.mode).toBe('warmup')
+    expect(buildRehearsal('r10-4', seeded(1))!.mode).toBe('warmup')
+  })
+
+  it('teaches steps and skips before leaps, then phrases', () => {
+    expect(cards(buildRehearsal('r10-1', seeded(1))!).map((x) => x.title)).toEqual(['Steps', 'Skips', 'Same note'])
+    expect(cards(buildRehearsal('r10-2', seeded(1))!).map((x) => x.title)).toEqual(['Leaps'])
+    expect(cards(buildRehearsal('r10-3', seeded(1))!).map((x) => x.title)).toEqual(['Reading phrases'])
+  })
+
+  it('teaches 2/4 and cut time', () => {
+    expect(cards(buildRehearsal('r11-1', seeded(1))!).map((x) => x.title)).toEqual(['2/4 time'])
+    const cut = cards(buildRehearsal('r11-2', seeded(1))!)
+    expect(cut.map((x) => x.title)).toEqual(['Cut time (¢)'])
+    expect(cut[0].notation?.labels).toEqual(['1', '2', '&'])
+    expect(buildRehearsal('r11-3', seeded(1))!.mode).toBe('warmup')
   })
 
   it('teaches interval shapes, including the bend at the B string', () => {

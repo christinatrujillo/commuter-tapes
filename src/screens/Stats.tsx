@@ -4,7 +4,7 @@ import { Button, TabShell } from '../components/ui'
 import { heatColor } from '../lib/color'
 import { navigate } from '../lib/router'
 import { mastery, type Mastery } from '../game/questions'
-import { describePosition, midiAt, NUM_STRINGS, MAX_FRET, parsePosKey, pcName, pitchClass, type Position } from '../music/notes'
+import { describePosition, MAX_FRET, midiAt, noteAt, NUM_STRINGS, parsePosKey, pcName, pitchClass, type Position } from '../music/notes'
 import { currentStreak, useProgress } from '../store/progress'
 
 const MASTERY_FILL: Record<Exclude<Mastery, 'new'>, string> = {
@@ -33,7 +33,7 @@ export function StatsScreen() {
     pos,
     tone: 'heat',
     fill: MASTERY_FILL[mastery(stat) as Exclude<Mastery, 'new'>],
-    label: pcName(pitchClass(midiAt(pos)), 'sharp'),
+    label: noteAt(pos),
   }))
   const selectedStat = selected ? stats[`${selected.string}:${selected.fret}`] : undefined
 

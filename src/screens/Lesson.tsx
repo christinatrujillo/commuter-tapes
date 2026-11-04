@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { playNotes, playStrum, playWrong } from '../audio/sound'
 import { useLandscape } from '../components/Fretboard'
+import { MonitorsOffScreen } from '../components/Monitors'
 import { QuestionStage, useQuestionInput } from '../components/QuestionStage'
 import { Button, ClipLeds, LabelTape, Reels } from '../components/ui'
 import { drillFromQuery } from '../game/drill'
 import { answerSound, feedbackDetail, type Answer } from '../game/present'
-import { buildSession, buildWeakSpotSession, FLUENT_MS, newQuestionId, type Question } from '../game/questions'
-import { findLesson } from '../music/curriculum'
+import { buildJam, recordedOn, THEORY_JAMS } from '../game/jams'
+import { buildSession, FLUENT_MS, needsListening, newQuestionId, type Question } from '../game/questions'
+import { buildReview, buildTroubleSpots, mixInReview } from '../game/review'
+import { today } from '../lib/date'
+import { findLesson, isListening } from '../music/curriculum'
 import { goBack } from '../lib/router'
-import { currentStreak, RATING_NAMES, ratingFor, useProgress, type Rating } from '../store/progress'
+import { currentStreak, listeningOff, RATING_NAMES, ratingFor, useProgress, type Rating } from '../store/progress'
 
 /** Clip three times and the take is ruined. */
 const MAX_CLIPS = 3
@@ -32,9 +36,15 @@ interface Summary {
 export function LessonScreen({ lessonId }: { lessonId: string }) {
   const found = useMemo(() => findLesson(lessonId), [lessonId])
   const [attempt, setAttempt] = useState(0)
-  // A new attempt deals a fresh set of questions.
-  const questions = useMemo(() => (found ? buildSession(found.lesson, useProgress.getState().stats) : []), [found, attempt])
-  if (!found) return <Unavailable message="That lesson doesn’t exist." />
+  const listening = useProgress((s) => listeningOff(s) === null)
+  // A new attempt deals a fresh set of questions, with any due review from earlier tapes mixed in.
+  const questions = useMemo(() => {
+    if (!found) return []
+    const state = useProgress.getState()
+    return mixInReview(buildSession(found.lesson, state.stats), found.lesson, state.stats, today(), Math.random, listeningOff(state) === null)
+  }, [found, attempt])
+  if (!found) return <Unavailable message="That track doesn’t exist." />
+  if (!listening && isListening(found.lesson)) return <MonitorsOffScreen />
   return (
     <LessonRunner key={attempt} questions={questions} lessonId={lessonId} title={found.lesson.title} onRetry={() => setAttempt((a) => a + 1)} />
   )
@@ -51,10 +61,40 @@ export function DrillScreen({ query }: { query: URLSearchParams }) {
 
 export function WeakSpotScreen() {
   const [attempt, setAttempt] = useState(0)
-  const questions = useMemo(() => buildWeakSpotSession(useProgress.getState().stats), [attempt])
-  if (!questions) return <Unavailable message="Finish a few lessons first. Then this will drill the notes you miss most." />
+  const questions = useMemo(() => {
+    const state = useProgress.getState()
+    return buildTroubleSpots(state.stats, Math.random, listeningOff(state) === null)
+  }, [attempt])
+  if (!questions) return <Unavailable message="Record a few tracks first. Then this will drill the notes you miss most." />
   return <LessonRunner key={attempt} questions={questions} title="Trouble spots" onRetry={() => setAttempt((a) => a + 1)} />
 }
+
+/** A theory jam from the Jam room: ten quick questions from the tracks you've recorded on its tapes. */
+export function TheoryJamScreen({ jamId }: { jamId: string }) {
+  const jam = THEORY_JAMS.find((j) => j.id === jamId)
+  const [attempt, setAttempt] = useState(0)
+  const listening = useProgress((s) => listeningOff(s) === null)
+  const questions = useMemo(() => {
+    const { lessons, stats } = useProgress.getState()
+    return jam ? buildJam(recordedOn(jam.tapes, lessons), stats, 10) : []
+  }, [jam, attempt])
+  if (jam?.id === 'ear' && !listening) return <MonitorsOffScreen />
+  if (!jam || !questions.length) return <Unavailable message="Record a track on one of its tapes first, then this jam will mix questions from it." />
+  return <LessonRunner key={attempt} questions={questions} title={`Theory jam · ${jam.label}`} onRetry={() => setAttempt((a) => a + 1)} />
+}
+
+/** The optional review session: up to 12 due notes and ideas from earlier tapes. */
+export function ReviewScreen() {
+  const [attempt, setAttempt] = useState(0)
+  const questions = useMemo(() => {
+    const state = useProgress.getState()
+    return buildReview(state.stats, today(), REVIEW_SESSION, Math.random, undefined, listeningOff(state) === null)
+  }, [attempt])
+  if (!questions.length) return <Unavailable message="Nothing’s due for review. Reviews also mix into every take, so you’re not missing anything." />
+  return <LessonRunner key={attempt} questions={questions} title="Review" onRetry={() => setAttempt((a) => a + 1)} />
+}
+
+export const REVIEW_SESSION = 12
 
 function Unavailable({ message }: { message: string }) {
   return (
@@ -85,6 +125,7 @@ function LessonRunner({
 }) {
   const recordAnswer = useProgress((s) => s.recordAnswer)
   const completeSession = useProgress((s) => s.completeSession)
+  const pauseListening = useProgress((s) => s.pauseListening)
   const autoContinue = useProgress((s) => s.settings.autoContinue)
   const landscape = useLandscape()
 
@@ -114,6 +155,9 @@ function LessonRunner({
         if (ms <= target) setOnBeat((n) => n + 1)
       }
       playNotes(...answerSound(q, detail.tapped))
+    } else if (q.review) {
+      // Review misses don't clip the take; the schedule just brings that note back sooner.
+      playWrong()
     } else {
       playWrong()
       setMistakes((m) => m + 1)
@@ -153,8 +197,22 @@ function LessonRunner({
     // `next` is recreated each render; the answer changing is what matters.
   }, [answer])
 
+  /**
+   * "Can't listen now": listening questions still to come (this one too) drop out of the take. An
+   * ear-training track is all listening, so it's left unrecorded and swapped for the monitors-off screen.
+   */
+  function cantListen() {
+    pauseListening()
+    if (lessonId && queue.every(needsListening)) return
+    const rest = queue.slice(index).filter((x) => !needsListening(x))
+    if (!rest.length) return finish()
+    setQueue([...queue.slice(0, index), ...rest])
+    setAnswer(null)
+    questionStart.current = Date.now()
+  }
+
   function quit() {
-    if ((index === 0 && !answer) || window.confirm('Quit this lesson? You’ll lose your progress in it.')) goBack()
+    if ((index === 0 && !answer) || window.confirm('Stop recording? You’ll lose this take.')) goBack()
   }
 
   if (summary) return <CompleteScreen summary={summary} title={title} />
@@ -176,11 +234,19 @@ function LessonRunner({
         onTap={input.tap}
         onPick={input.pick}
         onRhythm={input.rhythm}
+        onCantListen={needsListening(q) ? cantListen : undefined}
         label={
-          <div className="mb-0.5 flex items-center gap-1.5">
-            <span className="led led-red blink !h-2 !w-2" />
-            <span className="label-text truncate text-[10px] text-muted">Rec · {title}</span>
-          </div>
+          q.review ? (
+            <div className="mb-0.5 flex items-center gap-1.5">
+              <span className="font-label text-sm leading-none text-amber">↺</span>
+              <span className="label-text truncate text-[10px] text-amber">Review · from tape {q.review.tape}</span>
+            </div>
+          ) : (
+            <div className="mb-0.5 flex items-center gap-1.5">
+              <span className="led led-red blink !h-2 !w-2" />
+              <span className="label-text truncate text-[10px] text-muted">Rec · {title}</span>
+            </div>
+          )
         }
         feedback={answer && <FeedbackPanel q={q} answer={answer} rounded={landscape} onContinue={next} />}
       />
@@ -190,18 +256,23 @@ function LessonRunner({
 
 function FeedbackPanel({ q, answer, rounded, onContinue }: { q: Question; answer: Answer; rounded: boolean; onContinue: () => void }) {
   const ok = answer.ok
+  // A missed review question isn't a clip: it's a nudge that the note needs another look soon.
+  const reviewMiss = !ok && !!q.review
   return (
     <div
       className={`slide-up bg-tolex px-5 pt-4 ${rounded ? 'rounded-lg border-2 pb-4' : 'border-t-2 pb-[max(1rem,env(safe-area-inset-bottom))]'} ${
-        ok ? 'border-led/60' : 'border-rec/70'
+        ok ? 'border-led/60' : reviewMiss ? 'border-amber/60' : 'border-rec/70'
       }`}
       role="status"
-      data-result={ok ? 'clean' : 'clipped'}
+      data-result={ok ? 'clean' : reviewMiss ? 'review-miss' : 'clipped'}
     >
       <div className="flex items-center gap-2.5">
-        <span className={`led ${ok ? 'led-green' : 'led-red'}`} />
-        <span className={`label-text text-lg ${ok ? 'text-led' : 'text-rec'}`}>{ok ? PRAISE[q.id % PRAISE.length] : 'Clipped'}</span>
+        <span className={`led ${ok ? 'led-green' : reviewMiss ? 'led-amber' : 'led-red'}`} />
+        <span className={`label-text text-lg ${ok ? 'text-led' : reviewMiss ? 'text-amber' : 'text-rec'}`}>
+          {ok ? PRAISE[q.id % PRAISE.length] : reviewMiss ? 'Not yet' : 'Clipped'}
+        </span>
         {ok && <Pace kind={q.kind} ms={answer.ms} />}
+        {reviewMiss && <span className="ml-auto text-xs text-muted">No clip. It’ll come back soon.</span>}
       </div>
       <p className="mt-1.5 min-h-[2.75rem] text-[15px] leading-snug text-cream">{feedbackDetail(q, answer)}</p>
       <Button variant={ok ? 'amber' : 'cream'} className="mt-3" onClick={onContinue}>
