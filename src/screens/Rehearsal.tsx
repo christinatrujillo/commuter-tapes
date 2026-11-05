@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { playListen, playNotes } from '../audio/sound'
+import { playListen, playNotes, stopSounds } from '../audio/sound'
 import { CircleOfFifths } from '../components/CircleOfFifths'
+import { GlossaryText } from '../components/GlossaryText'
 import { MonitorsOffScreen } from '../components/Monitors'
 import { Fretboard, useLandscape } from '../components/Fretboard'
 import { Notation } from '../components/Notation'
@@ -34,8 +35,19 @@ export function RehearsalScreen({ lessonId }: { lessonId: string }) {
 
 function RehearsalRunner({ plan, onRecord, onAgain }: { plan: Rehearsal; onRecord: () => void; onAgain: () => void }) {
   const [index, setIndex] = useState(0)
+  // How far you've got: checks before this point are done, so revisiting cards skips them.
+  const [furthest, setFurthest] = useState(0)
   const step = plan.steps[index]
-  const next = () => setIndex((i) => Math.min(i + 1, plan.steps.length - 1))
+  const next = () => {
+    let i = index + 1
+    while (i < furthest && plan.steps[i].kind === 'check') i++
+    const to = Math.min(i, plan.steps.length - 1)
+    setIndex(to)
+    setFurthest((f) => Math.max(f, to))
+  }
+  /** Back to the card before this step, if there is one. */
+  const previousCard = plan.steps.slice(0, index).findLastIndex((s) => s.kind === 'card')
+  const back = previousCard >= 0 ? () => setIndex(previousCard) : undefined
 
   return (
     <div className="flex h-dvh flex-col">
@@ -58,19 +70,18 @@ function RehearsalRunner({ plan, onRecord, onAgain }: { plan: Rehearsal; onRecor
           <div className="h-full bg-amber transition-[width] duration-300" style={{ width: `${(index / (plan.steps.length - 1)) * 100}%` }} />
         </div>
       </header>
-      {step.kind === 'card' && <CardView key={index} card={step.card} onNext={next} />}
-      {step.kind === 'check' && <CheckView key={index} questions={step.questions} onDone={next} />}
+      {step.kind === 'card' && <CardView key={index} card={step.card} onNext={next} onBack={back} />}
+      {step.kind === 'check' && <CheckView key={index} questions={step.questions} onDone={next} onBack={back} />}
       {step.kind === 'ready' && <ReadyView plan={plan} onRecord={onRecord} onAgain={onAgain} />}
     </div>
   )
 }
 
 /** A note being introduced: what it is, where it is, and a hook to remember it by. */
-function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
+function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; onBack?: () => void }) {
   const landscape = useLandscape()
   const sound = card.sound
   const playhead = useRef<((beat: number | null) => void) | null>(null)
-  const played = useRef(false)
   const canHear = sound.length > 0 || !!card.rhythm || !!card.listen
 
   function hear() {
@@ -86,18 +97,14 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
       }
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step)
     } else if (card.listen) {
-      playListen(card.listen.notes, card.listen.together)
+      playListen(card.listen.notes, card.listen.together, card.listen.chord)
     } else if (sound.length) {
       playNotes(...sound)
     }
   }
 
-  useEffect(() => {
-    // Once per card (development mode runs effects twice).
-    if (played.current || !canHear) return
-    played.current = true
-    hear()
-  }, [])
+  // Cards play only when you press Hear, and stop when you move on (even halfway through).
+  useEffect(() => () => stopSounds(), [])
 
   const paper = (
     <div className="paper px-4 pt-3 pb-4" data-step="card">
@@ -106,7 +113,15 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
         <LabelTape size="lg">{card.title}</LabelTape>
       </h1>
       <p className="mt-2 font-typed text-sm text-ink/80">{card.subtitle}</p>
-      <p className="mt-2 font-typed text-[15px] leading-relaxed">{card.hook}</p>
+      <p className="mt-2 font-typed text-[15px] leading-relaxed">
+        <GlossaryText text={card.hook} skip={[card.title]} />
+      </p>
+      {card.onGuitar && (
+        <p className="mt-3 border-t border-ink/15 pt-2 font-typed text-[14px] leading-snug">
+          <span className="label-text mr-2 text-[10px] text-amber-dim">On guitar</span>
+          <GlossaryText text={card.onGuitar} skip={[card.title]} />
+        </p>
+      )}
     </div>
   )
   const staff = card.staff ? (
@@ -130,6 +145,7 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
         meter={card.score.meter}
         labels={card.score.labels}
         marker={card.score.marker}
+        colors={card.score.colors}
       />
     </div>
   ) : null
@@ -145,14 +161,27 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
       <CircleOfFifths majors={card.circle.majors} minors={card.circle.minors} />
     </div>
   ) : null
+  // Three equal slots, centered: back, hear, next. Empty slots keep the others from shifting.
   const controls = (
-    <div className="flex gap-3">
-      {canHear && (
-        <Button variant="dark" className="!w-auto shrink-0" onClick={hear} aria-label="Hear it again">
-          ▶ Hear
+    <div className="grid grid-cols-3 gap-3">
+      {onBack ? (
+        <Button variant="dark" className="flex items-center justify-center" onClick={onBack} aria-label="Previous card">
+          <TransportIcon kind="back" />
         </Button>
+      ) : (
+        <span />
       )}
-      <Button onClick={onNext}>Next ▸▸</Button>
+      {canHear ? (
+        <Button variant="dark" className="flex items-center justify-center gap-2" onClick={hear} aria-label="Hear it again">
+          <TransportIcon kind="play" />
+          Hear
+        </Button>
+      ) : (
+        <span />
+      )}
+      <Button className="flex items-center justify-center" onClick={onNext} aria-label="Next">
+        <TransportIcon kind="next" />
+      </Button>
     </div>
   )
 
@@ -180,8 +209,20 @@ function CardView({ card, onNext }: { card: Card; onNext: () => void }) {
   )
 }
 
+/** Tape-deck transport symbols, drawn so they sit dead center in their keys. */
+function TransportIcon({ kind }: { kind: 'back' | 'play' | 'next' }) {
+  const shapes = { back: ['M11 2 L3 8 L11 14 Z'], play: ['M3 2 L12 8 L3 14 Z'], next: ['M1 2 L8 8 L1 14 Z', 'M9 2 L16 8 L9 14 Z'] }[kind]
+  return (
+    <svg viewBox={kind === 'next' ? '0 0 17 16' : '0 0 14 16'} className="h-4 w-auto" fill="currentColor" aria-hidden>
+      {shapes.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  )
+}
+
 /** Quick recall right after the cards. No clips: a miss shows the answer and the question comes back. */
-function CheckView({ questions, onDone }: { questions: Question[]; onDone: () => void }) {
+function CheckView({ questions, onDone, onBack }: { questions: Question[]; onDone: () => void; onBack?: () => void }) {
   const autoContinue = useProgress((s) => s.settings.autoContinue)
   const pauseListening = useProgress((s) => s.pauseListening)
   const landscape = useLandscape()
@@ -240,7 +281,9 @@ function CheckView({ questions, onDone }: { questions: Question[]; onDone: () =>
         <span className={`label-text text-lg ${answer.ok ? 'text-led' : 'text-amber'}`}>{answer.ok ? 'Got it' : 'Not yet'}</span>
         {!answer.ok && <span className="ml-auto text-xs text-muted">It’ll come back in a moment</span>}
       </div>
-      <p className="mt-1.5 min-h-[2.75rem] text-[15px] leading-snug text-cream">{feedbackDetail(q, answer)}</p>
+      <p className="mt-1.5 min-h-[2.75rem] text-[15px] leading-snug text-cream">
+        <GlossaryText text={feedbackDetail(q, answer)} />
+      </p>
       <Button variant={answer.ok ? 'amber' : 'cream'} className="mt-3" onClick={next}>
         Next ▸▸
       </Button>
@@ -261,6 +304,11 @@ function CheckView({ questions, onDone }: { questions: Question[]; onDone: () =>
         <div className="mb-0.5 flex items-center gap-1.5">
           <span className="led led-green !h-2 !w-2" />
           <span className="label-text text-[10px] text-muted">Quick check · no clips</span>
+          {onBack && (
+            <button onClick={onBack} aria-label="Back to the card" className="hw-btn hw-dark ml-auto px-2.5 py-0.5 text-xs">
+              ◂
+            </button>
+          )}
         </div>
       }
       feedback={feedback}

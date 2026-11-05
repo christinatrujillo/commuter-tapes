@@ -44,12 +44,15 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
 
   // The page itself: try the network first so updates show up, fall back to the cache offline.
+  // Only a good copy replaces the cached one, so an error page (or a train Wi-Fi login page) can't.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE).then((cache) => cache.put('./', copy))
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone()
+            caches.open(CACHE).then((cache) => cache.put('./', copy))
+          }
           return response
         })
         .catch(() => caches.match('./')),
@@ -82,6 +85,6 @@ export default defineConfig({
   // Relative paths so the build works at any URL (e.g. username.github.io/commuter-tapes/).
   base: './',
   plugins: [react(), tailwindcss(), serviceWorker()],
-  // VexFlow embeds its music font, so the main bundle is ~1 MB (cached once, then offline).
-  build: { chunkSizeWarningLimit: 1200 },
+  // VexFlow embeds its music font, so the main bundle is ~1.2 MB (cached once, then offline).
+  build: { chunkSizeWarningLimit: 1300 },
 })

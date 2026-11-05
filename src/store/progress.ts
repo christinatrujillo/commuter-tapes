@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ALL_LESSONS, isListening } from '../music/curriculum'
+import { DEFAULT_DRILL, type DrillOptions } from '../game/drill'
 import type { FactStat, Stats } from '../game/questions'
 import { addDays, today } from '../lib/date'
 
@@ -62,6 +63,8 @@ interface ProgressData {
   settings: Settings
   /** "Can't listen now" turns listening questions off until this time (ms since 1970), or null. */
   listeningPausedUntil: number | null
+  /** The Jam room's last custom setup and sprint, kept between visits. */
+  jam: { setup: DrillOptions; sprint: string | null }
 }
 
 export type Rating = 1 | 2 | 3
@@ -80,6 +83,7 @@ interface ProgressState extends ProgressData {
   /** "Can't listen now": no listening questions for the next 15 minutes. */
   pauseListening: () => void
   resumeListening: () => void
+  saveJam: (patch: Partial<ProgressData['jam']>) => void
   importData: (data: unknown) => boolean
   reset: () => void
 }
@@ -109,6 +113,7 @@ const initialData = (): ProgressData => ({
   daily: { date: today(), nailed: 0 },
   settings: { ...DEFAULT_SETTINGS },
   listeningPausedUntil: null,
+  jam: { setup: DEFAULT_DRILL, sprint: null },
 })
 
 export const useProgress = create<ProgressState>()(
@@ -176,10 +181,12 @@ export const useProgress = create<ProgressState>()(
 
       resumeListening: () => set({ listeningPausedUntil: null }),
 
+      saveJam: (patch) => set((state) => ({ jam: { ...state.jam, ...patch } })),
+
       importData: (data) => {
-        if (!data || typeof data !== 'object' || !('stats' in data) || !('lessons' in data)) return false
-        const d = data as Partial<ProgressData>
-        set({ ...initialData(), ...d, settings: { ...DEFAULT_SETTINGS, ...d.settings } })
+        const backup = readBackup(data)
+        if (!backup) return false
+        set({ ...backup, listeningPausedUntil: null })
         return true
       },
 
@@ -189,7 +196,7 @@ export const useProgress = create<ProgressState>()(
       // Kept from the app's original name so saved progress isn't lost.
       name: 'fretboard-trainer',
       version: 3,
-      partialize: ({ nailed, bests, rehearsed, lessons, stats, streak, daily, settings, listeningPausedUntil }) => ({
+      partialize: ({ nailed, bests, rehearsed, lessons, stats, streak, daily, settings, listeningPausedUntil, jam }) => ({
         nailed,
         bests,
         rehearsed,
@@ -199,6 +206,7 @@ export const useProgress = create<ProgressState>()(
         daily,
         settings,
         listeningPausedUntil,
+        jam,
       }),
       // Version 1 counted XP (with lesson bonuses); keep it as the starting "notes nailed" count.
       migrate: (persisted, version) => {
@@ -214,7 +222,7 @@ export const useProgress = create<ProgressState>()(
       },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<ProgressData>
-        return { ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...p.settings } }
+        return { ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...p.settings }, jam: { ...current.jam, ...p.jam, setup: { ...DEFAULT_DRILL, ...p.jam?.setup } } }
       },
     },
   ),
@@ -247,6 +255,66 @@ export function currentLessonId(lessons: Record<string, LessonRecord>, earTraini
 export function listeningOff(state: Pick<ProgressData, 'settings' | 'listeningPausedUntil'>, now = Date.now()): 'settings' | 'paused' | null {
   if (!state.settings.earTraining) return 'settings'
   return state.listeningPausedUntil && now < state.listeningPausedUntil ? 'paused' : null
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
+const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+
+/** The entries of `v` that `read` accepts. */
+function recordOf<T>(v: unknown, read: (x: unknown) => T | undefined): Record<string, T> {
+  if (!isObject(v)) return {}
+  return Object.fromEntries(
+    Object.entries(v).flatMap(([key, x]) => {
+      const value = read(x)
+      return value === undefined ? [] : [[key, value] as const]
+    }),
+  )
+}
+
+const readLesson = (v: unknown): LessonRecord | undefined =>
+  isObject(v) && isCount(v.stars) && v.stars <= 3 && isCount(v.completions) ? { stars: Math.round(v.stars), completions: Math.round(v.completions) } : undefined
+
+function readStat(v: unknown): FactStat | undefined {
+  if (!isObject(v) || !isCount(v.seen) || !isCount(v.correct) || !isCount(v.recent) || !isCount(v.ms)) return undefined
+  return {
+    seen: v.seen,
+    correct: v.correct,
+    recent: Math.min(1, v.recent),
+    ms: v.ms,
+    ...(isCount(v.pace) && { pace: v.pace }),
+    ...(isCount(v.interval) && { interval: Math.min(MAX_INTERVAL, v.interval) }),
+    ...(isDay(v.due) && { due: v.due }),
+  }
+}
+
+function readSettings(v: unknown): Settings {
+  const out: Record<string, unknown> = { ...DEFAULT_SETTINGS }
+  if (isObject(v)) for (const key of Object.keys(DEFAULT_SETTINGS)) if (typeof v[key] === typeof out[key]) out[key] = v[key]
+  const settings = out as unknown as Settings
+  if (settings.metronome !== 'click' && settings.metronome !== 'vibrate') settings.metronome = DEFAULT_SETTINGS.metronome
+  if (!isCount(settings.dailyGoal) || settings.dailyGoal < 1) settings.dailyGoal = DEFAULT_SETTINGS.dailyGoal
+  return settings
+}
+
+/**
+ * The progress in a backup file, or null if it isn't one. Only the fields a backup holds are read,
+ * and anything of the wrong shape is dropped, so a damaged or tampered file can't break the app.
+ */
+export function readBackup(data: unknown): Omit<ProgressData, 'listeningPausedUntil' | 'jam'> | null {
+  if (!isObject(data) || !isObject(data.stats) || !isObject(data.lessons)) return null
+  const streak = isObject(data.streak) ? data.streak : {}
+  const daily = isObject(data.daily) ? data.daily : {}
+  return {
+    nailed: isCount(data.nailed) ? data.nailed : 0,
+    bests: recordOf(data.bests, (x) => (isCount(x) ? x : undefined)),
+    rehearsed: recordOf(data.rehearsed, (x) => (x === true ? true : undefined)),
+    lessons: recordOf(data.lessons, readLesson),
+    stats: recordOf(data.stats, readStat),
+    streak: { count: isCount(streak.count) ? streak.count : 0, lastDate: isDay(streak.lastDate) ? streak.lastDate : null },
+    daily: isDay(daily.date) && isCount(daily.nailed) ? { date: daily.date, nailed: daily.nailed } : { date: today(), nailed: 0 },
+    settings: readSettings(data.settings),
+  }
 }
 
 export function exportData(): string {

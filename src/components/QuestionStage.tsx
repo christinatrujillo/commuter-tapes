@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { playListen, playNotes } from '../audio/sound'
+import { playListen, playNotes, stopSounds } from '../audio/sound'
 import { correctPick, hintText, markersFor, phraseNotes, pickIsCorrect, promptText, usesBoard, type Answer, type TapResult } from '../game/present'
 import { isPick, isTap, type Question } from '../game/questions'
 import { samePos, midiAt, spelledName, vexKey, type Position } from '../music/notes'
@@ -98,17 +98,16 @@ export function QuestionStage({ q, answer, found, label, feedback, onTap, onPick
   const hint = hintText(q, found)
   const result = answer && answer.picked !== undefined ? { picked: answer.picked, correct: correctPick(q) } : null
 
-  // Ear questions play their notes as they appear (once each, even in development's double render).
+  // Ear questions play their notes as they appear. Moving on to the next question cuts off
+  // anything this one was still playing: its notes, an answer's sound, a count-in.
   const listen = isPick(q) || isTap(q) ? q.listen : undefined
-  const played = useRef<number | null>(null)
   useEffect(() => {
-    if (!listen || played.current === q.id) return
-    played.current = q.id
-    playListen(listen.notes, listen.together)
+    if (listen) playListen(listen.notes, listen.together, listen.chord)
+    return () => stopSounds()
   }, [q.id])
   const listenKeys = listen && (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <button onClick={() => playListen(listen.notes, listen.together)} className="hw-btn hw-amber px-4 py-2 text-sm">
+      <button onClick={() => playListen(listen.notes, listen.together, listen.chord)} className="hw-btn hw-amber px-4 py-2 text-sm">
         ▶ Hear again
       </button>
       {onCantListen && !answer && <CantListenButton onPress={onCantListen} />}
@@ -268,7 +267,15 @@ function scoreFor(q: Question, answer: Answer | null, found: Position[]): ReactN
   if (isPick(q)) {
     const s = q.score
     if (!s) return null
-    return <Score measures={s.measures} keySig={s.keySig} colors={s.colors} labels={answer ? (s.after ?? s.labels) : s.labels} marker={answer ? null : (s.marker ?? null)} />
+    return (
+      <Score
+        measures={answer ? (s.afterMeasures ?? s.measures) : s.measures}
+        keySig={s.keySig}
+        colors={s.colors}
+        labels={answer ? (s.after ?? s.labels) : s.labels}
+        marker={answer ? null : (s.marker ?? null)}
+      />
+    )
   }
   switch (q.kind) {
     case 'accidentalRule': {

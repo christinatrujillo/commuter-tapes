@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Fretboard, useLandscape, type Marker } from '../components/Fretboard'
-import { Button, TabShell } from '../components/ui'
+import { Button, LedBar, TabShell } from '../components/ui'
 import { heatColor } from '../lib/color'
 import { navigate } from '../lib/router'
 import { mastery, type Mastery } from '../game/questions'
+import { skillMeters } from '../game/skills'
 import { describePosition, MAX_FRET, midiAt, noteAt, NUM_STRINGS, parsePosKey, pcName, pitchClass, type Position } from '../music/notes'
-import { currentStreak, useProgress } from '../store/progress'
+import { useProgress } from '../store/progress'
 
 const MASTERY_FILL: Record<Exclude<Mastery, 'new'>, string> = {
   learning: heatColor(0),
@@ -17,8 +18,6 @@ const ALL_SPOTS = NUM_STRINGS * (MAX_FRET + 1)
 export function StatsScreen() {
   const landscape = useLandscape()
   const stats = useProgress((s) => s.stats)
-  const nailed = useProgress((s) => s.nailed)
-  const streak = useProgress((s) => currentStreak(s.streak))
   const [selected, setSelected] = useState<Position | null>(null)
 
   const positions = Object.entries(stats).flatMap(([key, stat]) => {
@@ -40,12 +39,24 @@ export function StatsScreen() {
   const summary = (
     <>
       <h1 className="label-text text-sm text-muted">Meters</h1>
-      <div className="panel grid grid-cols-2 gap-x-4 gap-y-4 p-5">
-        <Readout label="Notes nailed" value={String(nailed).padStart(4, '0')} />
-        <Readout label="Days in a row" value={String(streak).padStart(2, '0')} />
+      {/* Days in a row and notes nailed are already in the strip at the top. */}
+      <div className="panel grid grid-cols-2 gap-x-4 p-5">
         <Readout label="Fluent spots" value={`${fluent}/${ALL_SPOTS}`} />
         <Readout label="Accuracy" value={seen ? `${Math.round((right / seen) * 100)}%` : '--'} />
       </div>
+      <section className="panel p-5" aria-label="Skills">
+        <h2 className="label-text text-base text-cream">Skills</h2>
+        <p className="mt-1 text-sm text-muted">How solid each area is: fluent (right and fast) out of what you’ve practiced.</p>
+        <ul className="mt-3 flex flex-col gap-2">
+          {skillMeters(stats).map((m) => (
+            <li key={m.label} className="flex items-center gap-3" aria-label={m.practiced ? `${m.label}: ${m.fluent} of ${m.practiced} fluent` : `${m.label}: not started`}>
+              <span className={`label-text w-28 shrink-0 text-[11px] ${m.practiced ? 'text-cream' : 'text-muted'}`}>{m.label}</span>
+              <LedBar value={m.fluent} total={m.practiced} />
+              <span className="ml-auto font-mono text-xs text-cream-dim">{m.practiced ? `${m.fluent}/${m.practiced}` : '—'}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
       <section className="panel p-5">
         <h2 className="label-text text-base text-cream">Signal map</h2>
         <p className="mt-1 text-sm text-muted">

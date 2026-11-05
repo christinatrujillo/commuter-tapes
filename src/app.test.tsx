@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { ALL_LESSONS } from './music/curriculum'
@@ -9,11 +9,15 @@ import { KEYS, MOTION_NAMES, motionBetween, resolveNotes, type KeyId, type Score
 import { useProgress } from './store/progress'
 
 // Ear questions play notes the player can't see; the stand-in remembers the last ones played.
-const heard = vi.hoisted(() => ({ notes: [] as number[] }))
+// It also counts how often the screens ask for sound to stop.
+const heard = vi.hoisted(() => ({ notes: [] as number[], stops: 0 }))
 vi.mock('./audio/sound', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./audio/sound')>()),
   playListen: (notes: number[]) => {
     heard.notes = notes
+  },
+  stopSounds: () => {
+    heard.stops++
   },
 }))
 
@@ -240,6 +244,66 @@ function intervalSemis(name: string): number {
 
 const letterGap = (lo: string, hi: string) => (LETTER_ORDER.indexOf(hi[0]) - LETTER_ORDER.indexOf(lo[0]) + 7) % 7
 const staffSpot = (n: { letter: string; octave: number }) => n.octave * 7 + LETTER_ORDER.indexOf(n.letter)
+const capitalize = (s: string) => s[0].toUpperCase() + s.slice(1)
+
+// Triads worked out independently: every other letter, sized by half steps above the root.
+const TRIAD_SEMIS: Record<string, [number, number]> = { major: [4, 7], minor: [3, 7], diminished: [3, 6], augmented: [4, 8] }
+const KIND_BUTTON = /^(Major|Minor|Diminished|Augmented)$/
+const TRIAD_BUTTON = /^[A-G][♯♭]? (major|minor|diminished|augmented)$/
+
+/** The note `semis` half steps above `root`, on the letter `letters` above it. */
+function noteAbove(root: string, letters: number, semis: number): string {
+  const letter = LETTER_ORDER[(LETTER_ORDER.indexOf(root[0]) + letters) % 7]
+  const diff = ((labelPc(root) + semis - LETTER_PC[letter] + 18) % 12) - 6
+  return letter + (diff === 1 ? '♯' : diff === -1 ? '♭' : '')
+}
+
+const spellTriad = (root: string, kind: string) => [root, noteAbove(root, 2, TRIAD_SEMIS[kind][0]), noteAbove(root, 4, TRIAD_SEMIS[kind][1])].join(' ')
+
+/** Which kind of triad three note names spell, root first. */
+function kindOf(notes: string[]): string {
+  const [third, fifth] = [notes[1], notes[2]].map((n) => (labelPc(n) - labelPc(notes[0]) + 12) % 12)
+  return Object.keys(TRIAD_SEMIS).find((k) => TRIAD_SEMIS[k][0] === third && TRIAD_SEMIS[k][1] === fifth)!
+}
+
+/** Three note names restacked in 3rds: the root is the one with the other two letters 2 and 4 above it. */
+function restack(notes: string[]): string[] {
+  for (const n of notes) {
+    const at = (letters: number) => notes.find((x) => letterGap(n, x) === letters)
+    if (at(2) && at(4)) return [n, at(2)!, at(4)!]
+  }
+  throw new Error(`Not a triad: ${notes.join(' ')}`)
+}
+
+/** The labeled dots on the fretboard. */
+const boardMarkers = () =>
+  [...document.querySelectorAll<SVGGElement>('svg[aria-label="Guitar fretboard"] g[data-tone]')].map((g) => ({
+    pos: parsePosKey(g.dataset.pos!)!,
+    label: g.querySelector('text')?.textContent ?? '',
+  }))
+
+// Chords in a key worked out independently: every other note of the scale, named by its half steps.
+const ROMAN = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii']
+const NUMERAL_BUTTON = /^(i|ii|iii|iv|v|vi|vii|I|II|III|IV|V|VI|VII)°?$/
+const PROGRESSION_BUTTON = /^(i|ii|iii|iv|v|vi|vii|I|II|III|IV|V|VI|VII)°?(–(i|ii|iii|iv|v|vi|vii|I|II|III|IV|V|VI|VII)°?)+$/
+const degreeOfNumeral = (numeral: string) => ROMAN.indexOf(numeral.replace('°', '').toLowerCase()) + 1
+const numeralFor = (d: number, kind: string) => (kind === 'major' ? ROMAN[d - 1].toUpperCase() : kind === 'minor' ? ROMAN[d - 1] : `${ROMAN[d - 1]}°`)
+
+/** The chord on note `d` (from 1) of a major key, by name: "E minor". */
+function chordIn(key: string, d: number): string {
+  const notes = [d, d + 2, d + 4].map((x) => scaleDegree(key, ((x - 1) % 7) + 1))
+  return `${notes[0]} ${kindOf(notes)}`
+}
+
+/** The chords just heard, as numerals: each group of three notes is a chord, its root at the bottom. */
+function heardChords(): string[] {
+  const chords = Array.from({ length: heard.notes.length / 3 }, (_, i) => heard.notes.slice(i * 3, i * 3 + 3))
+  return chords.map(([root, third, fifth]) => {
+    const d = MAJOR.indexOf((((root - chords[0][0]) % 12) + 12) % 12) + 1
+    const kind = Object.keys(TRIAD_SEMIS).find((k) => TRIAD_SEMIS[k][0] === third - root && TRIAD_SEMIS[k][1] === fifth - root)!
+    return numeralFor(d, kind)
+  })
+}
 
 /** Theory questions (steps, scales, patterns, keys, relative minors), worked out from the words and the board. */
 function answerTheory(text: string, correctly: boolean): boolean {
@@ -280,6 +344,8 @@ function answerTheory(text: string, correctly: boolean): boolean {
     pickOption(`${scaleDegree(m[1], 6)} minor`, (b) => b.endsWith(' minor'), correctly)
   } else if ((m = text.match(/^What’s the relative major of (\S+) minor\?$/))) {
     pickOption(`${scaleDegree(m[1], 3, true)} major`, (b) => b.endsWith(' major'), correctly)
+  } else if ((m = text.match(/^Count five letters up from (\S+)\. Which key comes next, clockwise\?$/))) {
+    pickOption(`${scaleDegree(m[1], 5)} major`, (b) => b.endsWith(' major'), correctly)
   } else if (text.startsWith('Tap the relative minor of this')) {
     tapFromRoot(midiAt(markerPos('root')) - 3, correctly)
   } else if ((m = text.match(/^What number interval is (\S+) up to (\S+)\?$/))) {
@@ -298,7 +364,7 @@ function answerTheory(text: string, correctly: boolean): boolean {
     const [[first, second]] = JSON.parse(score.dataset.measures!) as ScoreMeasure[]
     const key = score.dataset.key as KeyId
     const spell = (x: { letter: Letter; octave: number; sign?: -1 | 0 | 1 }) => ({ ...x, acc: x.sign ?? KEYS[key].altered[x.letter] ?? 0 })
-    const [lo, hi] = [spell(first), spell(second ?? first.with!)].sort((x, y) => staffSpot(x) - staffSpot(y))
+    const [lo, hi] = [spell(first), spell(second ?? first.with![0])].sort((x, y) => staffSpot(x) - staffSpot(y))
     pickOption(intervalLabel(staffSpot(hi) - staffSpot(lo) + 1, spelledMidi(hi) - spelledMidi(lo)), (b) => ivRegex.test(b), correctly)
   } else if ((m = text.match(/^Turn a (\d)\w+ upside down\. What number is it now\?$/))) {
     pickOption(String(9 - Number(m[1])), (b) => /^[2-7]$/.test(b), correctly)
@@ -314,6 +380,87 @@ function answerTheory(text: string, correctly: boolean): boolean {
   } else if (text === 'Listen, then tap the second note') {
     if (correctly) clickWhere((midi) => midi === heard.notes[1])
     else tapFromRoot(midiAt(markerPos('root')), false)
+  } else if ((m = text.match(/^Which letters make a triad on ([A-G])\?$/))) {
+    const root = LETTER_ORDER.indexOf(m[1])
+    pickOption([0, 2, 4].map((s) => LETTER_ORDER[(root + s) % 7]).join(' '), (b) => /^[A-G] [A-G] [A-G]$/.test(b), correctly)
+  } else if ((m = text.match(/^What notes make an? (\S+) (major|minor|diminished|augmented) triad\?$/))) {
+    pickOption(spellTriad(m[1], m[2]), (b) => /^([A-G][♯♭]? ?){3}$/.test(b), correctly)
+  } else if ((m = text.match(/^In the \S+ \w+ triad \(.+\), what’s the interval from (\S+) up to (\S+)\?$/))) {
+    const semis = (labelPc(m[2]) - labelPc(m[1]) + 12) % 12
+    pickOption(intervalLabel(letterGap(m[1], m[2]) + 1, semis), (b) => ivRegex.test(b), correctly)
+  } else if ((m = text.match(/^(.+): which kind of triad\?$/))) {
+    pickOption(capitalize(kindOf(m[1].split(' '))), (b) => KIND_BUTTON.test(b), correctly)
+  } else if (text === 'Name this triad') {
+    const score = screen.getByTestId('score')
+    const [[chord]] = JSON.parse(score.dataset.measures!) as ScoreMeasure[]
+    const key = score.dataset.key as KeyId
+    const name = (x: { letter: Letter; sign?: -1 | 0 | 1 }) => {
+      const acc = x.sign ?? KEYS[key].altered[x.letter] ?? 0
+      return x.letter + (acc === 1 ? '♯' : acc === -1 ? '♭' : '')
+    }
+    const notes = restack([chord, ...chord.with!].map(name))
+    pickOption(`${notes[0]} ${kindOf(notes)}`, (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^This (\S+) \w+ triad: root position, 1st or 2nd inversion\?$/))) {
+    const [[chord]] = JSON.parse(screen.getByTestId('score').dataset.measures!) as ScoreMeasure[]
+    const bottom = [chord, ...chord.with!].sort((x, y) => staffSpot(x) - staffSpot(y))[0]
+    const gap = letterGap(m[1], bottom.letter)
+    pickOption(['Root position', '', '1st inversion', '', '2nd inversion'][gap], (b) => /^(Root position|1st inversion|2nd inversion)$/.test(b), correctly)
+  } else if (text === 'Which triad is this?') {
+    const notes = restack(boardMarkers().map((mk) => mk.label))
+    pickOption(`${notes[0]} ${kindOf(notes)}`, (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^Tap the missing note of this (\S+) (\w+) triad, on the (.+) string$/))) {
+    const shown = boardMarkers().map((mk) => pitchClass(midiAt(mk.pos)))
+    const missing = spellTriad(m[1], m[2])
+      .split(' ')
+      .map(labelPc)
+      .find((pc) => !shown.includes(pc))!
+    const string = ['low E', 'A', 'D', 'G', 'B', 'high E'].indexOf(m[3])
+    const spot = hitSpots().find((s) => s.pos.string === string && (pitchClass(midiAt(s.pos)) === missing) === correctly)
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if (text === 'What kind of triad do you hear?') {
+    const [root, third, fifth] = heard.notes
+    const kind = Object.keys(TRIAD_SEMIS).find((k) => TRIAD_SEMIS[k][0] === third - root && TRIAD_SEMIS[k][1] === fifth - root)!
+    pickOption(capitalize(kind), (b) => KIND_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^What’s the chord on the (\d)\w+ note of (\S+) major\?$/))) {
+    pickOption(chordIn(m[2], Number(m[1])), (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In any major key, what kind of chord is on the (\d)\w+ note\?$/))) {
+    pickOption(capitalize(chordIn('C', Number(m[1])).split(' ')[1]), (b) => KIND_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, what’s the (\S+) chord\?$/))) {
+    pickOption(chordIn(m[1], degreeOfNumeral(m[2])), (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which chord (is home|moves away from home|pulls back home to I)\?$/))) {
+    pickOption(chordIn(m[1], { 'is home': 1, 'moves away from home': 4, 'pulls back home to I': 5 }[m[2]]!), (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which numeral is (\S+) (\w+)\?$/))) {
+    pickOption(numeralFor(letterGap(m[1], m[2]) + 1, m[3]), (b) => NUMERAL_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^Which numeral is this chord in (\S+) major\?$/))) {
+    const score = screen.getByTestId('score')
+    const [[chord]] = JSON.parse(score.dataset.measures!) as ScoreMeasure[]
+    const key = score.dataset.key as KeyId
+    const name = (x: { letter: Letter; sign?: -1 | 0 | 1 }) => {
+      const acc = x.sign ?? KEYS[key].altered[x.letter] ?? 0
+      return x.letter + (acc === 1 ? '♯' : acc === -1 ? '♭' : '')
+    }
+    const notes = restack([chord, ...chord.with!].map(name))
+    pickOption(numeralFor(letterGap(m[1], notes[0]) + 1, kindOf(notes)), (b) => NUMERAL_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^Tap the root of the (IV|V) chord in (\S+) major$/))) {
+    const root = markerPos('root')
+    const target = pitchClass(midiAt(root) + (m[1] === 'IV' ? 5 : 7))
+    const spot = hitSpots().find((s) => (correctly ? s.pos.string === root.string + 1 && pitchClass(midiAt(s.pos)) === target : s.pos.string === root.string && s.pos.fret === root.fret))
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if ((m = text.match(/^In (\S+) major, what are the roots of (\S+)\?$/))) {
+    const roots = m[2].split('–').map((n) => scaleDegree(m![1], degreeOfNumeral(n)))
+    pickOption(roots.join(' '), (b) => /^([A-G][♯♭]? ?)+$/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which progression is (.+)\?$/))) {
+    const numerals = m[2].split(', ').map((c) => numeralFor(letterGap(m![1], c) + 1, c.split(' ')[1]))
+    pickOption(numerals.join('–'), (b) => PROGRESSION_BUTTON.test(b), correctly)
+  } else if (text === 'Does it end at home, or away?') {
+    const chords = heardChords()
+    pickOption(chords[chords.length - 1] === 'I' ? 'Home' : 'Away', (b) => b === 'Home' || b === 'Away', correctly)
+  } else if (text === 'After I, which chord: IV or V?') {
+    pickOption(heardChords()[1], (b) => b === 'IV' || b === 'V', correctly)
+  } else if (text === 'Which progression do you hear?') {
+    pickOption(heardChords().join('–'), (b) => PROGRESSION_BUTTON.test(b), correctly)
   } else {
     return false
   }
@@ -418,7 +565,7 @@ function playRehearsal() {
       answer(true)
       expect(screen.getByRole('status').dataset.result).toBe('clean')
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Next ▸▸' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Next/ }))
   }
   throw new Error('Rehearsal never finished')
 }
@@ -443,11 +590,14 @@ describe('the app', () => {
     const lcd = () => document.querySelector('section .lcd')!.textContent
     expect(lcd()).toContain('UP NEXT')
     expect(lcd()).toContain('Note values')
-    expect(screen.getByText('Now playing')).toBeTruthy()
+    // "Now playing" on the deck's band, and on that tape in the rack.
+    const deck = () => within(document.querySelector('section')!)
+    expect(deck().getByText('Now playing')).toBeTruthy()
+    expect(screen.getAllByText('Now playing')).toHaveLength(2)
     // Browsing another tape loads it into the deck without moving "now playing".
     fireEvent.click(screen.getByRole('button', { name: /^Tape 3: The 2nd string/ }))
     expect(lcd()).toContain('SEALED')
-    expect(screen.getByText('Loaded')).toBeTruthy()
+    expect(deck().getByText('Loaded')).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Tape 1: Reading basics\. Now playing/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /^Tape 1: Reading basics/ }))
     expect(lcd()).toContain('UP NEXT')
@@ -457,7 +607,7 @@ describe('the app', () => {
     expect(screen.getByText('Liner notes')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '▶ Play' }))
     expect(window.location.hash).toBe('#/rehearse/r1-1')
-    expect(screen.getByText('New idea 1 of 4')).toBeTruthy()
+    expect(screen.getByText('New idea 1 of 7')).toBeTruthy()
   })
 
   it('rehearses a track, then records it; next time Record goes straight to the take', () => {
@@ -475,11 +625,11 @@ describe('the app', () => {
   it('brings a missed rehearsal question back instead of counting a clip', () => {
     render(<App />)
     go('/rehearse/r2-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Next ▸▸' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next ▸▸' }))
+    // Past the cards to the first quick check.
+    while (document.querySelector('[data-step="card"]')) fireEvent.click(screen.getByRole('button', { name: /^Next/ }))
     answer(false)
     expect(screen.getByText('Not yet')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Next ▸▸' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Next/ }))
     playRehearsal()
     expect(screen.getByText('Ready to record')).toBeTruthy()
     expect(Object.keys(useProgress.getState().stats)).toHaveLength(0)
@@ -675,8 +825,9 @@ describe('the app', () => {
     expect(screen.getByText('Monitors off')).toBeTruthy()
     expect(useProgress.getState().lessons['t9-1']).toBeUndefined()
     expect(useProgress.getState().listeningPausedUntil).toBeGreaterThan(Date.now())
-    // The tape page has the switch too; flipping it brings listening back.
+    // The tape page has the switch too; flipping it brings listening back. Every track on it is marked as needing headphones.
     go('/tape/t9')
+    expect(screen.getAllByText('Needs headphones')).toHaveLength(6)
     fireEvent.click(screen.getByRole('switch', { name: 'Monitors' }))
     expect(useProgress.getState().listeningPausedUntil).toBeNull()
     go('/lesson/t9-1')
@@ -730,6 +881,95 @@ describe('the app', () => {
       tick(300)
     }
     expect(screen.getByLabelText('Score 4')).toBeTruthy()
+  })
+
+  it('goes back a card in a rehearsal, without asking a passed check again', () => {
+    render(<App />)
+    go('/rehearse/r1-1')
+    const title = () => document.querySelector('[data-step="card"] h1')?.textContent
+    const next = () => fireEvent.click(screen.getByRole('button', { name: /^Next/ }))
+    const back = () => fireEvent.click(screen.getByRole('button', { name: 'Previous card' }))
+    expect(title()).toBe('How music is written')
+    expect(screen.queryByRole('button', { name: 'Previous card' })).toBeNull()
+    next()
+    next()
+    next()
+    expect(title()).toBe('Whole note')
+    next()
+    expect(title()).toBe('Half note')
+    back()
+    expect(title()).toBe('Whole note')
+    next()
+    next()
+    // The quick check, then on to the next card.
+    while (!document.querySelector('[data-step="card"]')) {
+      answer(true)
+      next()
+    }
+    expect(title()).toBe('Quarter note')
+    back()
+    expect(title()).toBe('Half note')
+    next()
+    expect(title()).toBe('Quarter note')
+  })
+
+  it('stops the last card’s or question’s sound when you move on', () => {
+    render(<App />)
+    go('/rehearse/r1-1')
+    let before = heard.stops
+    fireEvent.click(screen.getByRole('button', { name: /^Next/ }))
+    expect(heard.stops).toBeGreaterThan(before)
+    go('/lesson/u1-1')
+    answer(true)
+    before = heard.stops
+    fireEvent.click(continueButton()!)
+    expect(heard.stops).toBeGreaterThan(before)
+    before = heard.stops
+    go('/explore')
+    expect(heard.stops).toBeGreaterThan(before)
+  })
+
+  it('explains a music word when you tap it on a lesson card', () => {
+    render(<App />)
+    go('/rehearse/r1-1')
+    // The third card, "Measures and bar lines", picks out "beats".
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: /^beats$/i }))
+    expect(screen.getByRole('dialog', { name: 'beat' }).textContent).toContain('steady pulse')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // The settings knob says what it is.
+    go('/')
+    expect(screen.getByRole('button', { name: 'Settings' }).textContent).toContain('Setup')
+  })
+
+  it('remembers the Jam setup after a jam', () => {
+    render(<App />)
+    go('/practice')
+    // Turn off the high e string and pick 20 notes.
+    fireEvent.click(screen.getByRole('button', { name: 'e' }))
+    fireEvent.click(screen.getByRole('button', { name: '20 notes' }))
+    go('/weak')
+    go('/practice')
+    expect(screen.getByRole('button', { name: 'e' }).getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByRole('button', { name: '20 notes' }).getAttribute('aria-pressed')).toBe('true')
+    expect(useProgress.getState().jam.setup.strings).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('adds the Scale and Interval views to the Fretboard tab once you reach those tapes', () => {
+    render(<App />)
+    go('/explore')
+    expect(screen.queryByRole('button', { name: /Scale/ })).toBeNull()
+    act(() => useProgress.setState({ lessons: { 't2-2': { stars: 3, completions: 1 } } }))
+    fireEvent.click(screen.getByRole('button', { name: /Scale/ }))
+    expect(screen.getByRole('button', { name: /^G$/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^A$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Interval/ })).toBeNull()
+    act(() => useProgress.setState({ lessons: { 't2-2': { stars: 3, completions: 1 }, 'u14-1': { stars: 3, completions: 1 } } }))
+    fireEvent.click(screen.getByRole('button', { name: /Interval/ }))
+    fireEvent.click(document.querySelector('rect.fret-hit[data-pos="1:3"]')!)
+    expect(screen.getByText(/C up a perfect 5th is G/)).toBeTruthy()
   })
 
   it('renders every tab and screen', () => {

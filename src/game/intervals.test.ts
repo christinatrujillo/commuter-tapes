@@ -103,6 +103,34 @@ describe('interval questions', () => {
   })
 })
 
+describe('Vol. 4 teaching', () => {
+  it('opens each tape with what it’s about, explained but not quizzed', async () => {
+    const { buildRehearsal } = await import('./rehearsal')
+    const opening: Record<string, string[]> = {
+      't6-1': ['Number and quality', 'Interval numbers'],
+      't7-1': ['Why read intervals', 'Numbers on the staff'],
+      't8-1': ['What inverting means', 'The numbers add up to 9'],
+      't9-1': ['Why train your ear', 'Octaves and 5ths'],
+    }
+    for (const [id, titles] of Object.entries(opening)) {
+      const plan = buildRehearsal(id, seeded(1))!
+      expect(plan.steps.flatMap((s) => (s.kind === 'card' ? [s.card.title] : []))).toEqual(titles)
+      expect(plan.steps.map((s) => s.kind)).toEqual(['card', 'card', 'check', 'ready'])
+    }
+    // The tritone has its own card now.
+    const altered = buildRehearsal('t6-4', seeded(1))!.steps.flatMap((s) => (s.kind === 'card' ? [s.card.title] : []))
+    expect(altered).toEqual(['Augmented and diminished', 'The tritone'])
+  })
+
+  it('shows the two notes and explains the size when naming an interval', () => {
+    const q = asPick(makeIvName(1, ALL, seeded(5), 'm3'))
+    expect(q.score!.measures[0]).toHaveLength(2)
+    expect(q.why).toContain('one half step smaller than major')
+    expect(asPick(makeIvName(1, ALL, seeded(5), 'A5')).why).toContain('one half step bigger than perfect')
+    expect(asPick(makeIvInvert(1, ['M3'], seeded(2))).score!.measures[0][0].with).toBeTruthy()
+  })
+})
+
 describe('listening and the MONITORS switch', () => {
   const settings = (earTraining: boolean) => ({ sound: false, haptics: false, autoContinue: false, leftHanded: false, highEOnTop: true, unlockAll: false, dailyGoal: 30, metronome: 'click' as const, earTraining })
 

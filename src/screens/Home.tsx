@@ -1,9 +1,17 @@
 import { useRef, useState, type Ref } from 'react'
-import { Cassette } from '../components/Cassette'
+import { Cassette, DeckWell } from '../components/Cassette'
+import { HeadphonesIcon } from '../components/Monitors'
 import { LabelTape, TabShell } from '../components/ui'
 import { navigate } from '../lib/router'
-import { ALL_LESSONS, findLesson, isPlanned, tapeBefore, tapeNumber, VOLUMES, type Unit } from '../music/curriculum'
+import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber, VOLUMES, type Unit } from '../music/curriculum'
 import { currentLessonId, isUnlocked, useProgress } from '../store/progress'
+
+/** Wood grain, for the rack and its shelf rails. */
+const WOOD = 'bg-[repeating-linear-gradient(90deg,#4a3222_0px,#4f3625_5px,#432d1f_9px,#553a28_12px,#4a3222_17px)]'
+/** Lettering cut into the rails: shaded darker at the top of each letter, its top lip in shadow, its bottom edge catching the light. */
+const CARVED = 'bg-clip-text text-transparent [filter:drop-shadow(0_-1px_0_rgba(0,0,0,0.85))_drop-shadow(0_1px_0_rgba(255,226,180,0.22))]'
+const CARVED_TITLE = 'bg-[linear-gradient(180deg,#6f5234_0%,#b0905f_45%,#ead0a6_100%)]'
+const CARVED_LABEL = 'bg-[linear-gradient(180deg,#5e452b_0%,#94784f_45%,#c9ab80_100%)]'
 
 /** Home: a tape deck holding your next lesson's tape, and a rack of every tape below it, by volume. */
 export function HomeScreen() {
@@ -52,14 +60,14 @@ function RackHome() {
           {doneCount}/{ALL_LESSONS.length} tracks
         </span>
       </div>
-      {/* A wooden rack holding the tapes spine-out, a labeled section per volume: a list you can scan at a glance. */}
-      <div className="rounded-md border-x-[10px] border-y-[6px] border-[#4a3222] bg-[#120e0c] p-1.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.8),0_8px_14px_rgba(0,0,0,0.5)]">
-        <ol className="flex flex-col gap-3">
+      {/* A wooden rack holding the tapes spine-out, a shelf per volume under a rail with its name: a list you can scan at a glance. */}
+      <div className={`rounded-md p-2.5 shadow-[0_8px_14px_rgba(0,0,0,0.5)] ${WOOD}`}>
+        <ol className="flex flex-col gap-2.5 rounded-sm bg-[#120e0c] p-1.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.85)]">
           {VOLUMES.map((volume) => (
             <li key={volume.label}>
-              <h3 className="mb-1 flex items-baseline gap-2 border-b border-edge px-1 pb-1">
-                <span className="label-text text-[11px] text-amber">{volume.label}</span>
-                <span className="font-label text-[15px] text-cream">{volume.title}</span>
+              <h3 className={`mb-1.5 flex items-baseline gap-2 rounded-[2px] px-2 py-1 shadow-[0_2px_4px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] ${WOOD}`}>
+                <span className={`label-text text-[10px] ${CARVED} ${CARVED_LABEL}`}>{volume.label}</span>
+                <span className={`font-label text-[15px] ${CARVED} ${CARVED_TITLE}`}>{volume.title}</span>
               </h3>
               <ol className="flex flex-col gap-1">
                 {volume.tapes.map((t) =>
@@ -103,18 +111,30 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
       : [isNext ? 'UP NEXT' : 'NEXT ON THIS TAPE', next.title, `TAPE ${tape} · TRACK ${unit.lessons.indexOf(next) + 1} OF ${unit.lessons.length}`]
   return (
     <section ref={ref} className="panel scroll-mt-4 px-4 pt-6 pb-4">
-      {/* The tape window, front and center; a newly loaded tape slides in. */}
-      <div className="relative w-full overflow-hidden rounded-lg bg-[#0d0a08] p-3 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]">
-        {/* A band on the tape: blinking "now playing" for your next lesson's tape, steady "loaded" for one you're browsing. */}
-        <div className="absolute top-1 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded border border-edge bg-room px-2 py-0.5 whitespace-nowrap">
-          <span className={`led !h-2 !w-2 ${isNext ? 'led-red breathe' : 'led-amber'}`} />
-          <span className={`label-text text-[10px] ${isNext ? 'text-cream' : 'text-amber'}`}>{isNext ? 'Now playing' : 'Loaded'}</span>
-        </div>
+      {/* The tape in the deck, front and center; a newly loaded tape slides in. The band on it: blinking
+          "now playing" for your next lesson's tape, steady "loaded" for one you're browsing. */}
+      <DeckWell
+        band={
+          <>
+            <span className={`led !h-2 !w-2 ${isNext ? 'led-red breathe' : 'led-amber'}`} />
+            <span className={`label-text text-[10px] ${isNext ? 'text-cream' : 'text-amber'}`}>{isNext ? 'Now playing' : 'Loaded'}</span>
+          </>
+        }
+      >
         <div key={unit.id} className="slide-up">
-          <Cassette title={unit.title} number={tape} color={unit.color} recorded={recorded} total={unit.lessons.length} sealed={locked} playing={!locked} />
+          <Cassette
+            title={unit.title}
+            number={tape}
+            color={unit.color}
+            recorded={recorded}
+            total={unit.lessons.length}
+            sealed={locked}
+            playing={!locked}
+            listening={unit.lessons.some(isListening)}
+          />
         </div>
-      </div>
-      <div className="lcd mt-4 flex flex-col px-3 py-2">
+      </DeckWell>
+      <div className="lcd lcd-wide mt-4 flex flex-col px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[11px] opacity-75">{top}</span>
           {/* A little level meter: bouncing while your next lesson's tape is playing, still and dim otherwise. */}
@@ -152,13 +172,17 @@ function Spine({
 }) {
   const number = tapeNumber(unit)
   const total = unit.lessons.length
-  const status = locked ? `Locked · finish tape ${tapeBefore(unit)} first` : done >= total ? 'Done' : `${done} of ${total} tracks`
+  const finished = done >= total && !locked
+  const status = locked ? `Locked · finish tape ${tapeBefore(unit)} first` : finished ? 'Done' : `${done} of ${total} tracks`
+  // The lights show how many tracks are recorded, so this line only says what they can't. Why a tape is sealed shows on the deck.
+  const line = locked ? 'Sealed' : finished ? '✓ Done' : ''
+  const listening = unit.lessons.some(isListening)
   return (
     <button
       onClick={onPick}
       aria-pressed={inDeck}
-      aria-label={`Tape ${number}: ${unit.title}. ${isCurrent ? 'Now playing. ' : ''}${status}`}
-      className={`relative flex w-full items-center gap-3 overflow-hidden rounded-[3px] border border-black py-2 pr-3 pl-0 text-left transition-transform ${
+      aria-label={`Tape ${number}: ${unit.title}. ${listening ? 'Needs headphones. ' : ''}${isCurrent ? 'Now playing. ' : ''}${status}`}
+      className={`relative flex min-h-[3.75rem] w-full items-center gap-3 overflow-hidden rounded-[3px] border border-black py-2 pr-3 pl-0 text-left transition-transform ${
         inDeck
           ? 'translate-x-3 bg-[linear-gradient(#3a2f28,#2a221d)] shadow-[0_0_18px_rgba(255,181,71,0.3)] ring-1 ring-amber/70'
           : 'bg-[linear-gradient(#2f2723,#211b18)]'
@@ -167,17 +191,21 @@ function Spine({
       <span className="w-2 self-stretch" style={{ background: locked ? '#5d5148' : unit.color }} />
       <span className="w-6 shrink-0 text-center font-mono text-xs text-muted">{String(number).padStart(2, '0')}</span>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-        <LabelTape className="max-w-full truncate">{unit.title}</LabelTape>
-        <span className={`flex items-center gap-1.5 text-[13px] ${isCurrent ? 'text-amber' : done >= total && !locked ? 'text-led' : 'text-cream-dim'}`}>
-          {isCurrent && (
-            <>
-              <span className="led led-red breathe !h-2 !w-2" />
-              <span className="text-cream">Now playing ·</span>
-            </>
-          )}
-          {done >= total && !locked ? '✓ ' : ''}
-          {status}
+        <span className="flex max-w-full items-center gap-1.5">
+          <LabelTape className="min-w-0 truncate">{unit.title}</LabelTape>
+          {listening && <HeadphonesIcon className="h-3.5 w-3.5 shrink-0 text-cream-dim" />}
         </span>
+        {(isCurrent || line) && (
+          <span className={`flex items-center gap-1.5 text-[13px] ${finished ? 'text-led' : 'text-cream-dim'}`}>
+            {isCurrent && (
+              <>
+                <span className="led led-red breathe !h-2 !w-2" />
+                <span className="text-cream">Now playing{line ? ' ·' : ''}</span>
+              </>
+            )}
+            {line}
+          </span>
+        )}
       </span>
       {!locked && (
         <span className="flex shrink-0 gap-1" aria-hidden>
@@ -186,6 +214,8 @@ function Spine({
           ))}
         </span>
       )}
+      {/* The case's plastic: a faint sheen and a lit top edge. */}
+      <span className="pointer-events-none absolute inset-0 rounded-[3px] bg-[linear-gradient(180deg,rgba(255,255,255,0.09)_0%,rgba(255,255,255,0.025)_45%,transparent_46%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" />
       {/* Unopened tapes still have their cellophane. */}
       {locked && <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_30%,rgba(255,255,255,0.08)_45%,transparent_60%)]" />}
     </button>

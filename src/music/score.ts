@@ -57,8 +57,8 @@ export interface ScoreNote {
   sign?: Accidental
   dur: RhythmEvent['dur']
   dots?: 0 | 1
-  /** A second note sounded with this one, on the same stem (an interval played together). */
-  with?: { letter: Letter; octave: number; sign?: Accidental }
+  /** Notes sounded with this one, on the same stem: an interval or a chord played together. */
+  with?: { letter: Letter; octave: number; sign?: Accidental }[]
 }
 
 export type ScoreMeasure = ScoreNote[]
@@ -85,13 +85,18 @@ export function resolveNotes(measures: ScoreMeasure[], key: KeyId = 'C'): Spelle
 /** Lines and spaces counted from the bottom of the musical alphabet: one step = next line or space. */
 export const staffDegree = (n: { letter: Letter; octave: number }) => n.octave * 7 + LETTERS.indexOf(n.letter)
 
+/** Landmarks the exercises keep notes between: middle C (one ledger line below) and the A on the first ledger line above. */
+export const MIDDLE_C = staffDegree({ letter: 'C', octave: 4 })
+export const HIGH_A = staffDegree({ letter: 'A', octave: 5 })
+
 /** The note `steps` lines and spaces above (or below, if negative). */
 export function stepFrom(n: { letter: Letter; octave: number }, steps: number): { letter: Letter; octave: number } {
   const degree = staffDegree(n) + steps
   return { letter: LETTERS[((degree % 7) + 7) % 7], octave: Math.floor(degree / 7) }
 }
 
-export type MotionKind = 'same' | 'step' | 'skip' | 'leap'
+export const MOTION_KINDS = ['same', 'step', 'skip', 'leap'] as const
+export type MotionKind = (typeof MOTION_KINDS)[number]
 export type Motion = 'same' | 'stepUp' | 'stepDown' | 'skipUp' | 'skipDown' | 'leapUp' | 'leapDown'
 
 export const MOTION_NAMES: Record<Motion, string> = {
@@ -132,4 +137,5 @@ export const signName = (sign: Accidental) => (sign === 1 ? 'sharp' : sign === -
  * The rules for how long an accidental lasts, each taught on its own: it carries through the
  * measure, a natural cancels it, a bar line resets it, and it only applies to its own octave.
  */
-export type AccidentalRule = 'carry' | 'natural' | 'barline' | 'octave'
+export const ACCIDENTAL_RULES = ['carry', 'natural', 'barline', 'octave'] as const
+export type AccidentalRule = (typeof ACCIDENTAL_RULES)[number]

@@ -1,4 +1,5 @@
 import { findLesson, tapeNumber, type LessonSpec } from '../music/curriculum'
+import { isOneOf } from '../lib/guards'
 import { pick, randomSpelling, shuffle } from '../lib/random'
 import {
   ALL_STRINGS,
@@ -14,16 +15,19 @@ import {
   positionsForMidi,
   positionsForPc,
   spellMidi,
+  WRITTEN_OCTAVE_SHIFT,
   type Region,
 } from '../music/notes'
-import { NAMEABLE, SYMBOLS, type Meter, type SymbolId } from '../music/rhythm'
-import { KEYS, keyLabel, type AccidentalRule, type KeyId, type MotionKind } from '../music/score'
+import { METER_QUARTERS, NAMEABLE, SYMBOLS, type Meter, type SymbolId } from '../music/rhythm'
+import { ACCIDENTAL_RULES, KEY_ORDER, KEYS, keyLabel, MOTION_KINDS, type KeyId, type MotionKind } from '../music/score'
 import { degreeName, parseInterval } from '../music/theory'
 import { isDue, makeCountBeat, makeMeasureFill, newQuestionId, weakness, type Question, type Rng, type Stats } from './questions'
 import { makeAccidentalRule, makeKeyNote, makeMotion } from './reading'
 import { earLabel, intervalLabel } from './intervals'
 import { coveredBy, firstTaughtIn } from './rehearsal'
 import { theoryItemFor, theoryReview } from './theory'
+import { describeTriadFact } from './triads'
+import { describeHarmonyFact } from './harmony'
 
 /**
  * Spaced repetition, folded into normal practice: material from earlier tapes comes back
@@ -80,10 +84,13 @@ function reviewQuestion(fact: string, stats: Stats, rng: Rng): Question | null {
     return { id, kind: 'find', pc, label: pcName(pc, randomSpelling(rng)), string: pos.string, targets, region, facts }
   }
 
+  // Fact names come back from saved progress, so anything not recognized gets no question.
   const [kind, value] = fact.split(':')
+  const meter = Object.hasOwn(METER_QUARTERS, value) ? (value as Meter) : null
   switch (kind) {
     case 'staff': {
       const w = Number(value)
+      if (!Number.isInteger(w) || !positionsForMidi(w - WRITTEN_OCTAVE_SHIFT, FULL_NECK).length) return null
       return { id, kind: 'staffName', note: spellMidi(w, isNatural(w) ? 'sharp' : randomSpelling(rng)), choices: isNatural(w) ? 'naturals' : 'all', facts }
     }
     case 'iv': {
@@ -97,6 +104,7 @@ function reviewQuestion(fact: string, stats: Stats, rng: Rng): Question | null {
       return null
     }
     case 'sym': {
+      if (!Object.hasOwn(SYMBOLS, value)) return null
       const symbol = value as SymbolId
       const nameable = NAMEABLE.filter((s) => symbols.includes(s))
       if (nameable.length >= 2 && rng() < 0.5) {
@@ -107,18 +115,19 @@ function reviewQuestion(fact: string, stats: Stats, rng: Rng): Question | null {
       return { id, kind: 'beats', symbol, options, facts }
     }
     case 'count':
-      return { ...makeCountBeat(id, value as Meter, symbols, rng), facts }
+      return meter && { ...makeCountBeat(id, meter, symbols, rng), facts }
     case 'fill': {
-      const q = makeMeasureFill(id, value as Meter, symbols, rng)
+      const q = meter && makeMeasureFill(id, meter, symbols, rng)
       return q && { ...q, facts }
     }
     case 'rule':
-      return makeAccidentalRule(id, value as AccidentalRule, rng)
+      return isOneOf(value, ACCIDENTAL_RULES) ? makeAccidentalRule(id, value, rng) : null
     case 'key':
-      return makeKeyNote(id, value as KeyId, 'name', { strings: ALL_STRINGS, minFret: 0, maxFret: 4 }, rng)
+      return isOneOf(value, KEY_ORDER) ? makeKeyNote(id, value, 'name', { strings: ALL_STRINGS, minFret: 0, maxFret: 4 }, rng) : null
     case 'motion': {
+      if (!isOneOf(value, MOTION_KINDS)) return null
       const kinds = [...new Set<MotionKind>(['step', 'skip', ...(known('motion:') as MotionKind[])])]
-      return makeMotion(id, kinds, rng, value as MotionKind)
+      return makeMotion(id, kinds, rng, value)
     }
     default:
       return null
@@ -162,13 +171,13 @@ export function mixInReview(questions: Question[], lesson: LessonSpec, stats: St
 // Trouble spots
 // ---------------------------------------------------------------------------
 
-/** Facts Trouble spots works on: spots on the neck, and scales, keys and intervals once you've met them. */
-const TROUBLE = /^(\d:\d+$|step:|scale:|minor:|degree:|key:|rel:|ivnum:|ivn:|invnum:|inv:|ear:)/
+/** Facts Trouble spots works on: spots on the neck, and scales, keys, intervals and triads once you've met them. */
+const TROUBLE = /^(step|scale|minor|degree|key|rel|ivnum|ivn|invnum|inv|ear|triad|tri|tq|tinv|tneck|hd|hrn|hprim|hbox|hprog):/
 
 /** The facts you've practiced that need the most work, worst first (listening ones only while listening is on). */
 export function weakestFacts(stats: Stats, limit: number, listening = true): string[] {
   return Object.keys(stats)
-    .filter((fact) => stats[fact].seen > 0 && TROUBLE.test(fact) && (listening || !fact.startsWith('ear:')))
+    .filter((fact) => stats[fact].seen > 0 && (parsePosKey(fact) || TROUBLE.test(fact)) && (listening || !fact.startsWith('ear:')))
     .sort((a, b) => weakness(stats[b]) - weakness(stats[a]))
     .slice(0, limit)
 }
@@ -190,6 +199,8 @@ export function buildTroubleSpots(stats: Stats, rng: Rng = Math.random, listenin
 export function describeFact(fact: string): string {
   const pos = parsePosKey(fact)
   if (pos) return `${noteAt(pos)} · ${describePosition(pos)}`
+  const named = describeTriadFact(fact) ?? describeHarmonyFact(fact)
+  if (named) return named
   const [kind, value] = fact.split(':')
   const interval = () => intervalLabel(parseInterval(value))
   switch (kind) {

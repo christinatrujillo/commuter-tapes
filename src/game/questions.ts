@@ -7,6 +7,7 @@ import { makeAccidentalRule, makeKeyName, makeKeyNote, makeMotion, makePhrase } 
 import {
   makeDegreeFind,
   makeDegreeName,
+  makeCircleNext,
   makeKeySignature,
   makeMinorNote,
   makeRelativeFind,
@@ -19,6 +20,31 @@ import {
   makeStepSize,
 } from './theory'
 import { makeIvBelow, makeIvFlip, makeIvHear, makeIvHearFind, makeIvInvert, makeIvName, makeIvNumber, makeIvReadName, makeIvReadNumber } from './intervals'
+import {
+  makeTriadHear,
+  makeTriadInversion,
+  makeTriadLetters,
+  makeTriadQuality,
+  makeTriadRead,
+  makeTriadShapeFind,
+  makeTriadShapeName,
+  makeTriadSpell,
+  makeTriadThird,
+} from './triads'
+import {
+  makeBoxFind,
+  makeCadenceHear,
+  makeChordOnDegree,
+  makeChordToNumeral,
+  makeDegreeQuality,
+  makeFourFiveHear,
+  makeNumeralRead,
+  makeNumeralToChord,
+  makePrimaryChord,
+  makeProgressionHear,
+  makeProgressionName,
+  makeProgressionSpell,
+} from './harmony'
 import {
   eventQuarters,
   NAMEABLE,
@@ -93,8 +119,16 @@ export interface TheoryPick {
   why: string
   /** A fretboard to look at (not tap), with more labels once it's answered. */
   board?: { region: Region; markers: Marker[]; after?: Marker[] }
-  /** Music to read, with note labels once it's answered (`after`). */
-  score?: { measures: ScoreMeasure[]; keySig?: KeyId; colors?: (string | undefined)[]; labels?: string[]; after?: string[]; marker?: number | null }
+  /** Music to read, with note labels once it's answered (`after`), and the answer written out then too (`afterMeasures`). */
+  score?: {
+    measures: ScoreMeasure[]
+    keySig?: KeyId
+    colors?: (string | undefined)[]
+    labels?: string[]
+    after?: string[]
+    afterMeasures?: ScoreMeasure[]
+    marker?: number | null
+  }
   /** Notes to play once it's answered (sounding MIDI). */
   sound: number[]
   /** For ear questions: what to play when it appears, with a button to hear it again. */
@@ -105,6 +139,8 @@ export interface TheoryPick {
 export interface Listen {
   notes: number[]
   together?: boolean
+  /** Played as chords of this many notes, one chord after another. */
+  chord?: number
 }
 
 /** A theory question answered by tapping the fretboard. */
@@ -119,6 +155,8 @@ export interface TheoryTap {
   label: string
   why: string
   listen?: Listen
+  /** Notes to play once it's answered, if not the starting note and the tap (a whole chord). */
+  sound?: number[]
 }
 
 const PICK_KINDS = [
@@ -138,8 +176,28 @@ const PICK_KINDS = [
   'ivFlip',
   'ivInvert',
   'ivHear',
+  'circleNext',
+  'triadLetters',
+  'triadSpell',
+  'triadThird',
+  'triadQuality',
+  'triadRead',
+  'triadInversion',
+  'triadShapeName',
+  'triadHear',
+  'chordOnDegree',
+  'degreeQuality',
+  'numeralToChord',
+  'chordToNumeral',
+  'numeralRead',
+  'primaryChord',
+  'progressionSpell',
+  'progressionName',
+  'cadenceHear',
+  'fourFiveHear',
+  'progressionHear',
 ] as const
-const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind'] as const
+const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind'] as const
 export type PickKind = (typeof PICK_KINDS)[number]
 export type TapKind = (typeof TAP_KINDS)[number]
 
@@ -217,6 +275,29 @@ export const FLUENT_MS: Partial<Record<Question['kind'], number>> = {
   // Ear questions are timed from when the notes start playing.
   ivHear: 5000,
   ivHearFind: 6000,
+  circleNext: 4000,
+  triadLetters: 3000,
+  triadSpell: 5000,
+  triadThird: 4000,
+  triadQuality: 3000,
+  triadRead: 5000,
+  triadInversion: 4000,
+  triadShapeName: 5000,
+  triadShapeFind: 4000,
+  triadHear: 5000,
+  chordOnDegree: 5000,
+  degreeQuality: 3000,
+  numeralToChord: 5000,
+  chordToNumeral: 5000,
+  numeralRead: 6000,
+  primaryChord: 4000,
+  boxFind: 3000,
+  progressionSpell: 8000,
+  progressionName: 8000,
+  // Progressions take a few seconds to play: 1.6 seconds a chord.
+  cadenceHear: 9000,
+  fourFiveHear: 6000,
+  progressionHear: 10000,
 }
 
 /** Whether a question needs you to listen. */
@@ -271,12 +352,8 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
   const pool = allPositions(region).filter((p) => spec.accidentals || isNatural(midiAt(p)))
   const choices = spec.accidentals ? 'all' : 'naturals'
 
-  // Distinct pitches for staff exercises, limited to the lesson's written range.
-  const staffMidis = [...new Set(pool.map(midiAt))].filter((m) => {
-    if (!spec.writtenRange) return true
-    const w = written(m)
-    return w >= spec.writtenRange[0] && w <= spec.writtenRange[1]
-  })
+  // Distinct pitches for staff exercises.
+  const staffMidis = [...new Set(pool.map(midiAt))]
 
   const rootStrings = spec.rootStrings ?? region.strings
   const roots = pool.filter((p) => rootStrings.includes(p.string))
@@ -289,6 +366,7 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
   const pickSymbol = () => weightedPick(nameable, (s) => weightOf(stats, [`sym:${s}`]), rng)
   // Reading notes in a key stops at four sharps or flats; the rarer keys are learned by name and signature.
   const readKeys = (spec.keys ?? ['G']).filter((k) => Math.abs(KEYS[k].count) <= 4)
+  const triads = spec.triads ?? ['maj']
 
   const make = (kind: ExerciseType): Question | null => {
     const id = newQuestionId()
@@ -364,7 +442,7 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
       case 'countBeat':
         return makeCountBeat(id, pick(meters, rng), symbols, rng)
       case 'tapRhythm':
-        return makeTapRhythm(id, pick(meters, rng), symbols, spec.bpm ?? 60, rng)
+        return makeTapRhythm(id, pick(meters, rng), symbols, TAP_BPM, rng)
       case 'accidentalRule':
         return makeAccidentalRule(id, pick(spec.rules ?? ['carry'], rng), rng)
       case 'keyName':
@@ -394,7 +472,7 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
       case 'keySignature':
         return makeKeySignature(id, spec.keys ?? ['C', 'G', 'D', 'F'], rng)
       case 'relativeKey':
-        return makeRelativeKey(id, spec.keys ?? ['C'], rng)
+        return makeRelativeKey(id, spec.keys ?? ['C'], rng, undefined, spec.showScale)
       case 'relativeFind':
         return makeRelativeFind(id, region, rng)
       case 'minorNote':
@@ -417,6 +495,50 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
         return makeIvHear(id, spec.ivNames ?? ['P8', 'P5'], spec.ear ?? ['up'], rng)
       case 'ivHearFind':
         return makeIvHearFind(id, spec.ivNames ?? ['P8', 'P5'], rng)
+      case 'circleNext':
+        return makeCircleNext(id, spec.keys ?? ['C', 'G', 'D'], rng)
+      case 'triadLetters':
+        return makeTriadLetters(id, rng)
+      case 'triadSpell':
+        return makeTriadSpell(id, spec.keys ?? [], pick(triads, rng), rng, spec.showScale)
+      case 'triadThird':
+        return makeTriadThird(id, spec.keys ?? [], pick(triads, rng), rng, triads)
+      case 'triadQuality':
+        return makeTriadQuality(id, spec.keys ?? [], triads, rng)
+      case 'triadRead':
+        return makeTriadRead(id, spec.keys ?? ['C'], !!spec.inverted, rng)
+      case 'triadInversion':
+        return makeTriadInversion(id, spec.keys ?? ['C'], rng)
+      case 'triadShapeName':
+        return makeTriadShapeName(id, spec.keys ?? [], triads, region.strings, rng)
+      case 'triadShapeFind':
+        return makeTriadShapeFind(id, spec.keys ?? [], triads, region.strings, rng)
+      case 'triadHear':
+        return makeTriadHear(id, triads, (spec.ear ?? ['up']).filter((e) => e !== 'down'), rng)
+      case 'chordOnDegree':
+        return makeChordOnDegree(id, spec.keys ?? ['C'], rng, spec.showScale)
+      case 'degreeQuality':
+        return makeDegreeQuality(id, rng)
+      case 'numeralToChord':
+        return makeNumeralToChord(id, spec.keys ?? ['C'], rng)
+      case 'chordToNumeral':
+        return makeChordToNumeral(id, spec.keys ?? ['C'], rng)
+      case 'numeralRead':
+        return makeNumeralRead(id, spec.keys ?? ['C'], rng)
+      case 'primaryChord':
+        return makePrimaryChord(id, spec.keys ?? ['C'], rng() < 0.5, rng)
+      case 'boxFind':
+        return makeBoxFind(id, rng)
+      case 'progressionSpell':
+        return makeProgressionSpell(id, spec.keys ?? ['C'], spec.progressions ?? ['I-IV-V-I'], rng)
+      case 'progressionName':
+        return makeProgressionName(id, spec.keys ?? ['C'], spec.progressions ?? ['I-IV-V-I'], rng)
+      case 'cadenceHear':
+        return makeCadenceHear(id, rng)
+      case 'fourFiveHear':
+        return makeFourFiveHear(id, rng)
+      case 'progressionHear':
+        return makeProgressionHear(id, spec.progressions ?? [], rng)
     }
   }
 
@@ -457,6 +579,9 @@ export function makeCountBeat(id: number, meter: Meter, symbols: SymbolId[], rng
   const target = pick(later.length ? later : played, rng)
   return { id, kind: 'countBeat', measure, beat: starts[target], target, facts: [`count:${meter}`] }
 }
+
+/** Tempo for tapping rhythms, in beats per minute. */
+export const TAP_BPM = 60
 
 /** A measure to tap in time. */
 export function makeTapRhythm(id: number, meter: Meter, symbols: SymbolId[], bpm: number, rng: Rng, focus: SymbolId[] = []): Question {

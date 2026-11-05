@@ -139,6 +139,7 @@ body {
 
 /* Amber segment-display readout. */
 .lcd {
+  position: relative;
   font-family: var(--font-mono);
   color: var(--color-amber);
   background: #1a1207;
@@ -146,6 +147,23 @@ body {
   border-radius: 4px;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
   text-shadow: 0 0 6px rgba(255, 181, 71, 0.55);
+}
+
+/* Its glass front: a glare across the top half with a hard edge, and a lit rim along the top. */
+.lcd::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 48%, transparent 49%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Big multi-line displays get a fainter glare that stops higher up, so the glass doesn't take over. */
+.lcd-wide::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, transparent 31%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .label-text {
@@ -247,6 +265,15 @@ body {
   animation: slide-up 0.18s ease-out;
 }
 
+/* A card settling into place: a quick fade and a few pixels of lift. */
+@keyframes fade-in {
+  from { transform: translateY(4px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.fade-in {
+  animation: fade-in 0.16s ease-out;
+}
+
 @keyframes stamp {
   from { transform: rotate(-8deg) scale(1.8); opacity: 0; }
   to { transform: rotate(-8deg) scale(1); opacity: 1; }
@@ -291,5 +318,5 @@ body {
 
 /* Respect the phone's "reduce motion" setting. */
 @media (prefers-reduced-motion: reduce) {
-  .breathe, .level-bar, .blink, .reel-spin { animation: none; }
+  .breathe, .level-bar, .blink, .reel-spin, .fade-in { animation: none; }
 }

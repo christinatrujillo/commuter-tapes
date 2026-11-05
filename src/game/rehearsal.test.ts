@@ -48,13 +48,14 @@ describe('every track has a rehearsal', () => {
 })
 
 describe('what gets taught', () => {
-  it('starts the shelf with note values, two at a time', () => {
+  it('starts the shelf with how music is written, then note values two at a time', () => {
     const plan = buildRehearsal('r1-1', seeded(1))!
     expect(plan.mode).toBe('learn')
-    expect(cards(plan).map((x) => x.title)).toEqual(['Whole note', 'Half note', 'Quarter note', '4/4 time'])
-    expect(plan.steps.map((s) => s.kind)).toEqual(['card', 'card', 'check', 'card', 'card', 'check', 'check', 'ready'])
+    expect(cards(plan).map((x) => x.title)).toEqual(['How music is written', 'The beat', 'Measures and bar lines', 'Whole note', 'Half note', 'Quarter note', '4/4 time'])
+    // The basics are explained, not quizzed; the checks come with the note values.
+    expect(plan.steps.map((s) => s.kind)).toEqual(['card', 'card', 'card', 'card', 'card', 'check', 'card', 'card', 'check', 'check', 'ready'])
     // Each rhythm card shows a measure with its counts written underneath, and plays it.
-    const half = cards(plan)[1]
+    const half = cards(plan)[4]
     expect(half.notation?.labels).toEqual(['1 2', '3 4'])
     expect(half.rhythm).toBeTruthy()
   })
@@ -66,10 +67,10 @@ describe('what gets taught', () => {
 
   it('reads the 1st string in first position, with finger numbers', () => {
     const c = cards(buildRehearsal('r2-1', seeded(1))!)
-    expect(c.map((x) => x.title)).toEqual(['E', 'F', 'G'])
-    expect(c[0].hook).toContain('Spaces, bottom to top')
-    expect(c[1].hook).toContain('Play it on the high E string, 1st fret. Use your 1st finger.')
-    expect(c[2].subtitle).toBe('Just above the staff')
+    expect(c.map((x) => x.title)).toEqual(['The staff', 'The treble clef', 'E', 'F', 'G'])
+    expect(c[2].hook).toContain('Spaces, bottom to top')
+    expect(c[3].hook).toContain('Play it on the high E string, 1st fret. Use your 1st finger.')
+    expect(c[4].subtitle).toBe('Just above the staff')
   })
 
   it('adds a rhythm idea with each string', () => {
@@ -104,9 +105,18 @@ describe('what gets taught', () => {
   })
 
   it('turns tracks with nothing new into a warm-up', () => {
-    for (const id of ['r2-2', 'r7-2', 'u1-3', 'u3-1', 'u8-5', 'u14-4']) {
+    for (const id of ['r2-2', 'r7-2', 'u1-3', 'u3-2', 'u8-5', 'u14-4']) {
       expect(buildRehearsal(id, seeded(1))!.mode).toBe('warmup')
     }
+  })
+
+  it('opens tapes 11 and 28 by explaining what they’re for', () => {
+    const low = buildRehearsal('u3-1', seeded(1))!
+    expect(cards(low).map((x) => x.title)).toEqual(['Why these two strings', 'The 5th-fret link'])
+    expect(low.steps.map((s) => s.kind)).toEqual(['card', 'card', 'ready'])
+    const fifths = cards(buildRehearsal('u14-1', seeded(1))!)
+    expect(fifths.map((x) => x.title).slice(0, 2)).toEqual(['What an interval is', 'Why shapes'])
+    expect(fifths[3].hook).toContain('just as with octaves')
   })
 
   it('groups bigger sets of notes', () => {
@@ -130,8 +140,8 @@ describe('what gets taught', () => {
 
   it('teaches key signatures one at a time, then how to name them', () => {
     const g = cards(buildRehearsal('r9-1', seeded(1))!)
-    expect(g.map((x) => x.title)).toEqual(['Key of G'])
-    expect(g[0].score?.labels).toEqual(['E', 'F♯', 'G', 'A'])
+    expect(g.map((x) => x.title)).toEqual(['What a key is', 'Key of G'])
+    expect(g[1].score?.labels).toEqual(['E', 'F♯', 'G', 'A'])
     expect(cards(buildRehearsal('r9-2', seeded(1))!).map((x) => x.title)).toEqual(['Key of D', 'Key of F'])
     expect(cards(buildRehearsal('r9-3', seeded(1))!).map((x) => x.title)).toEqual(['Key of C', 'Naming the key'])
     expect(buildRehearsal('r9-4', seeded(1))!.mode).toBe('warmup')
@@ -152,9 +162,30 @@ describe('what gets taught', () => {
     expect(buildRehearsal('r11-3', seeded(1))!.mode).toBe('warmup')
   })
 
-  it('teaches interval shapes, including the bend at the B string', () => {
-    expect(cards(buildRehearsal('u13-1', seeded(1))!).map((x) => x.hook)).toEqual(['2 strings over, 2 frets up.'])
+  it('explains octaves before their shapes, including the bend at the B string', () => {
+    const first = cards(buildRehearsal('u13-1', seeded(1))!)
+    expect(first.map((x) => x.title)).toEqual(['What an octave is', 'Why octaves matter', 'From the 6th and 5th strings'])
+    expect(first[2].hook).toContain('2 frets up')
     expect(cards(buildRehearsal('u13-2', seeded(1))!)[0].hook).toContain('3 frets up')
+    // An explanation on its own gets a card but no quiz.
+    const eStrings = buildRehearsal('u13-3', seeded(1))!
+    expect(eStrings.steps.map((s) => s.kind)).toEqual(['card', 'ready'])
     expect(cards(buildRehearsal('u14-3', seeded(1))!)).toHaveLength(4)
+  })
+
+  it('teaches relative minor from the why and the sound, with the scale to count on at first', () => {
+    const plan = buildRehearsal('t5-1', seeded(1))!
+    expect(plan.steps.map((s) => (s.kind === 'card' ? s.card.title : s.kind))).toEqual([
+      'Why relative keys matter',
+      'Major and minor',
+      'Same notes, new home',
+      'check',
+      'ready',
+    ])
+    const checks = plan.steps.flatMap((s) => (s.kind === 'check' ? s.questions : []))
+    for (const q of checks) expect(q.kind === 'relativeKey' && q.score?.labels?.length).toBe(8)
+    // Later, only the key signature.
+    const later = buildRehearsal('t5-5', seeded(1))!.steps.flatMap((s) => (s.kind === 'check' ? s.questions : []))
+    for (const q of later) expect(q.kind === 'relativeKey' && q.score?.keySig && !q.score.labels).toBe(true)
   })
 })

@@ -12,7 +12,9 @@ import {
 } from '../music/notes'
 import {
   KEY_ORDER,
+  HIGH_A,
   KEYS,
+  MIDDLE_C,
   motionOptions,
   resolveNotes,
   staffDegree,
@@ -34,8 +36,6 @@ const atDegree = (degree: number): Spot => stepFrom({ letter: 'C', octave: 0 }, 
 const note = (s: Spot, dur: ScoreNote['dur'] = 'q', sign?: Accidental): ScoreNote => ({ letter: s.letter, octave: s.octave, dur, ...(sign !== undefined ? { sign } : {}) })
 
 // The staff and one ledger line either side: C4 (middle C) up to A5, in lines and spaces.
-const MIDDLE_C = staffDegree({ letter: 'C', octave: 4 })
-const HIGH_A = staffDegree({ letter: 'A', octave: 5 })
 const BOTTOM_LINE_E = staffDegree({ letter: 'E', octave: 4 })
 const TOP_LINE_F = staffDegree({ letter: 'F', octave: 5 })
 

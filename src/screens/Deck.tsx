@@ -1,8 +1,9 @@
-import { Cassette } from '../components/Cassette'
-import { MonitorsSwitch } from '../components/Monitors'
+import { Cassette, DeckWell } from '../components/Cassette'
+import { GlossaryText } from '../components/GlossaryText'
+import { HeadphonesIcon, MonitorsSwitch } from '../components/Monitors'
 import { Fretboard, type Marker } from '../components/Fretboard'
 import { Staff } from '../components/Staff'
-import { BackHeader, Button, LabelTape } from '../components/ui'
+import { BackHeader, Button, LabelTape, LedBar } from '../components/ui'
 import { navigate } from '../lib/router'
 import { isListening, tapeNumber, UNITS, type LessonSpec } from '../music/curriculum'
 import { mastery } from '../game/questions'
@@ -41,8 +42,11 @@ export function DeckScreen({ unitId }: { unitId: string }) {
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-lg flex-col gap-5 p-4">
           <div className="panel px-6 pt-6 pb-4">
-            <div className="mx-auto max-w-[290px]">
-              <Cassette title={unit.title} number={tape} color={unit.color} recorded={recorded} total={unit.lessons.length} playing />
+            {/* The tape loaded in the deck, the same deck as on the Tapes tab. */}
+            <div className="mx-auto max-w-[320px]">
+              <DeckWell>
+                <Cassette title={unit.title} number={tape} color={unit.color} recorded={recorded} total={unit.lessons.length} playing listening={unit.lessons.some(isListening)} />
+              </DeckWell>
             </div>
             <p className="mt-3 text-center text-sm text-muted">{unit.description}</p>
             {spots.length > 0 && <FluencyMeter fluent={fluent} total={spots.length} />}
@@ -77,7 +81,9 @@ export function DeckScreen({ unitId }: { unitId: string }) {
             <h2 className="font-typed text-sm leading-[28px] underline underline-offset-4">Liner notes</h2>
             <ul className="font-typed text-[16px] leading-[28px]">
               {unit.tips.map((tip) => (
-                <li key={tip}>– {tip}</li>
+                <li key={tip}>
+                  – <GlossaryText text={tip} />
+                </li>
               ))}
             </ul>
           </section>
@@ -109,15 +115,10 @@ export function DeckScreen({ unitId }: { unitId: string }) {
 
 /** A 10-segment LED bar: how many of this tape's spots you know fast and cold. */
 function FluencyMeter({ fluent, total }: { fluent: number; total: number }) {
-  const lit = Math.round((fluent / total) * 10)
   return (
     <div className="mt-3 flex items-center justify-center gap-2" aria-label={`${fluent} of ${total} spots fluent`}>
       <span className="label-text text-[10px] text-muted">Fluent</span>
-      <span className="flex gap-0.5">
-        {Array.from({ length: 10 }, (_, i) => (
-          <span key={i} className={`h-2.5 w-1.5 rounded-[1px] ${i < lit ? 'bg-led shadow-[0_0_4px_var(--color-led)]' : 'bg-[#3a2f29]'}`} />
-        ))}
-      </span>
+      <LedBar value={fluent} total={total} />
       <span className="font-mono text-xs text-cream">
         {fluent}/{total}
       </span>
@@ -144,7 +145,15 @@ function TrackRow({
     <li className="flex items-center gap-3 border-b border-ink/15 py-2.5 last:border-b-0">
       <span className="w-5 font-typed text-sm text-ink/60">{number}</span>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-        <LabelTape className={unlocked ? '' : 'opacity-40'}>{lesson.title}</LabelTape>
+        <span className="flex items-center gap-1.5">
+          <LabelTape className={unlocked ? '' : 'opacity-40'}>{lesson.title}</LabelTape>
+          {isListening(lesson) && (
+            <>
+              <HeadphonesIcon className="h-3.5 w-3.5 shrink-0 text-ink/60" />
+              <span className="sr-only">Needs headphones</span>
+            </>
+          )}
+        </span>
         {rating && (
           <span className="label-text -rotate-2 rounded border border-[#b5473a] px-1.5 text-[10px] whitespace-nowrap text-[#b5473a]">
             {RATING_NAMES[rating]}

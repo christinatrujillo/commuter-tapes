@@ -36,11 +36,11 @@ import {
   type ScoreMeasure,
   type ScoreNote,
 } from '../music/score'
-import { buildSession, makeCountBeat, makeMeasureFill, makeTapRhythm, newQuestionId, type Listen, type Question, type Rng } from './questions'
+import { buildSession, makeCountBeat, makeMeasureFill, makeTapRhythm, newQuestionId, TAP_BPM, type Listen, type Question, type Rng } from './questions'
 import { pick, randomSpelling } from '../lib/random'
 import { capitalize } from '../lib/text'
 import { makeAccidentalRule, makeKeyName, makeKeyNote, makeMotion, makePhrase } from './reading'
-import { isTheoryItem, THEORY_ORDER, theoryCard, theoryCheck } from './theory'
+import { isIntroItem, isTheoryItem, THEORY_ORDER, theoryCard, theoryCheck } from './theory'
 
 /**
  * A rehearsal teaches a track's new material before the take tests it: a card for each new
@@ -55,6 +55,8 @@ export interface Card {
   subtitle: string
   /** A memory hook: how this relates to things you already know. */
   hook: string
+  /** Why it matters when you play, set apart under its own label. */
+  onGuitar?: string
   /** "New note 2 of 4" */
   counter: string
   board?: { region: Region; markers: Marker[] }
@@ -66,7 +68,7 @@ export interface Card {
   /** A rhythm to play (clicks and notes) when the card appears. */
   rhythm?: { measure: Measure; bpm: number }
   /** A worked example in real notation (key signature, accidentals, a marked note). */
-  score?: { measures: ScoreMeasure[]; keySig?: KeyId; meter?: Meter | null; labels?: string[]; marker?: number | null }
+  score?: { measures: ScoreMeasure[]; keySig?: KeyId; meter?: Meter | null; labels?: string[]; marker?: number | null; colors?: (string | undefined)[] }
   /** The circle of fifths with these major keys lit, and the relative minors of `minors`. */
   circle?: { majors: KeyId[]; minors?: KeyId[] }
   /** Ear-training examples, played even with answer sounds off. */
@@ -115,9 +117,7 @@ const metersOf = (l: LessonSpec): Meter[] => l.meters ?? ['4/4']
 
 /** Written pitches a staff lesson uses, low to high. */
 function staffNotes(l: LessonSpec): number[] {
-  return [...new Set(lessonPositions(l).map((p) => written(midiAt(p))))]
-    .filter((w) => !l.writtenRange || (w >= l.writtenRange[0] && w <= l.writtenRange[1]))
-    .sort((a, b) => a - b)
+  return [...new Set(lessonPositions(l).map((p) => written(midiAt(p))))].sort((a, b) => a - b)
 }
 
 /** Interval shapes change when they cross from the G string to the B string. */
@@ -210,7 +210,7 @@ function fretHook(p: Position, known: Position[]): string {
   if (p.fret === 0) {
     parts.push(p.string === 5 ? 'The open high E: the same note as the low E, two octaves up.' : 'The open string. It’s named after the string itself.')
   } else if (p.fret === 12) {
-    parts.push('The 12th fret (the double dot) is the open note again, one octave higher.')
+    parts.push('The 12th fret (the double dot) is the open string’s note again, one level higher: an octave up.')
   } else {
     if (p.string < 5 && midiAt(p) === TUNING[p.string + 1]) {
       parts.push(`Same note as the open ${stringName(p.string + 1)} string.`)
@@ -250,11 +250,12 @@ function staffHook(w: number, l: LessonSpec): string {
     const step = staffStep(w)
     if (step >= 0 && step <= 8) {
       parts.push(step % 2 === 0 ? 'Lines, bottom to top: E G B D F (Every Good Boy Does Fine).' : 'Spaces, bottom to top: F A C E.')
-    } else {
-      parts.push(`${capitalize(staffPlace(note))}.`)
+    } else if (step === -2 || step === 10) {
+      // Where it sits is the card's subtitle. The first ledger line each way is where ledger lines show up, so say what they are.
+      parts.push('Ledger lines are short extra lines that extend the staff up or down.')
     }
   }
-  if (w === 60) parts.push('This is middle C.')
+  if (w === 60) parts.push('This is middle C, the C in the middle of a piano keyboard.')
   const spot = positionsForMidi(w - WRITTEN_OCTAVE_SHIFT, l.region).sort((a, b) => a.fret - b.fret)[0]
   if (spot) {
     parts.push(`Play it on the ${describePosition(spot)}.`)
@@ -266,10 +267,10 @@ function staffHook(w: number, l: LessonSpec): string {
 
 const SHAPES: Record<number, { normal: string; cross: string }> = {
   12: { normal: '2 strings over, 2 frets up.', cross: 'Crossing the B string: 2 strings over, 3 frets up.' },
-  7: { normal: 'Next string, 2 frets up. That’s the power chord shape.', cross: 'Onto the B string: 3 frets up.' },
-  5: { normal: 'Next string, same fret.', cross: 'Onto the B string: 1 fret up.' },
-  4: { normal: 'Next string, 1 fret down.', cross: 'Onto the B string: same fret.' },
-  3: { normal: 'Next string, 2 frets down.', cross: 'Onto the B string: 1 fret down.' },
+  7: { normal: 'Next string over, 2 frets up. That’s the power chord shape.', cross: 'Onto the B string it’s 3 frets up: the B string adds a fret, just as with octaves.' },
+  5: { normal: 'Next string over, same fret.', cross: 'Onto the B string it’s 1 fret up: the B string adds a fret.' },
+  4: { normal: 'Next string over, 1 fret back toward the tuning pegs.', cross: 'Onto the B string it’s the same fret: the B string adds a fret back.' },
+  3: { normal: 'Next string over, 2 frets back toward the tuning pegs.', cross: 'Onto the B string it’s 1 fret back: the B string adds a fret.' },
 }
 
 // ---------------------------------------------------------------------------
@@ -285,11 +286,11 @@ const m2 = (...events: RhythmEvent[]): Measure => ({ meter: '2/4', events })
 const cut = (...events: RhythmEvent[]): Measure => ({ meter: '2/2', events })
 
 const SYMBOL_TEACHING: Record<SymbolId, { hook: string; example: Measure }> = {
-  whole: { hook: 'An open note head with no stem. Hold it through all four counts.', example: m4(n('w')) },
-  half: { hook: 'An open note head with a stem. Hold it for two counts.', example: m4(n('h'), n('h')) },
-  quarter: { hook: 'A filled note head with a stem. One count each.', example: m4(n('q'), n('q'), n('q'), n('q')) },
+  whole: { hook: 'A whole note is an open oval with no stem (the stick attached to most notes). Hold it for 4 beats: through 1, 2, 3 and 4.', example: m4(n('w')) },
+  half: { hook: 'A half note is an open oval with a stem. Hold it for 2 beats, half as long as a whole note.', example: m4(n('h'), n('h')) },
+  quarter: { hook: 'A quarter note is a filled-in oval with a stem. It lasts 1 beat, so four of them fill a measure of 4/4.', example: m4(n('q'), n('q'), n('q'), n('q')) },
   eighth: {
-    hook: 'A filled head with a flag, or a beam when there are two. Two fit in one beat: count “1 &”.',
+    hook: 'An eighth note is a filled oval with a stem and a little flag; two in a row are joined by a thick line called a beam. Each lasts half a beat, so two fit in one beat: count “1 &”.',
     example: m4(n('q'), n('8'), n('8'), n('q'), n('8'), n('8')),
   },
   dottedHalf: { hook: 'A dot adds half the note’s value: 2 + 1 = 3 beats. It fills a whole measure of 3/4.', example: m3(n('h', 1)) },
@@ -297,18 +298,18 @@ const SYMBOL_TEACHING: Record<SymbolId, { hook: string; example: Measure }> = {
     hook: 'A dot adds half: 1 + ½ = 1½ beats. It’s usually followed by an eighth to finish the beat.',
     example: m4(n('q', 1), n('8'), n('h')),
   },
-  wholeRest: { hook: 'A block hanging down from the fourth line: a whole measure of silence.', example: m4(r('w')) },
+  wholeRest: { hook: 'A rest means silence: you play nothing for that long. The whole rest is a block hanging down from the 4th line, and it silences a whole measure.', example: m4(r('w')) },
   halfRest: { hook: 'A block sitting on the middle line, like a hat: 2 beats of silence.', example: m4(n('h'), r('h')) },
   quarterRest: { hook: 'The squiggle: 1 beat of silence.', example: m4(n('q'), r('q'), n('q'), r('q')) },
   tie: {
-    hook: 'A curve joining two notes of the same pitch. Play the first and hold through the second: their beats add up.',
+    hook: 'A tie is a curve joining two of the same note. Play the first and keep holding through the second: their beats add up.',
     example: m4(n('q'), n('q', 0, true), n('q'), n('q')),
   },
 }
 
 const METER_TEACHING: Record<Meter, { hook: string; example: Measure }> = {
   '4/4': {
-    hook: 'The top number is how many beats are in each measure. The bottom 4 means a quarter note gets one beat.',
+    hook: 'The two numbers at the start are the time signature. The top 4 means four beats in each measure. The bottom 4 means each beat is a quarter note long.',
     example: m4(n('q'), n('q'), n('q'), n('q')),
   },
   '3/4': { hook: 'Three quarter-note beats per measure. Count 1 2 3, with the weight on 1, like a waltz.', example: m3(n('q'), n('q'), n('q')) },
@@ -329,14 +330,14 @@ const SKILL_TEACHING: Record<string, { title: string; subtitle: string; hook: st
   measureFill: {
     title: 'Full measures',
     subtitle: 'The beats always add up',
-    hook: 'The notes and rests in a measure add up to the time signature: 4 beats in 4/4. Here 3 beats are written, so 1 beat is missing.',
+    hook: 'The notes in a measure always add up to the top number of the time signature: 4 beats in 4/4. Here only 3 beats are written, so 1 beat is missing.',
     example: m4(n('h'), n('q')),
     blankBeats: 1,
   },
   tapRhythm: {
     title: 'Tapping rhythms',
     subtitle: 'One tap per note, right on its count',
-    hook: 'You’ll get one measure of count-in first. Then tap once at the start of each note and hold still for rests and long notes. On a laptop, Space taps too.',
+    hook: 'First you’ll hear one measure of clicks, a count-in, to set the speed. Then tap once at the start of each note, and wait through long notes. On a laptop, Space taps too.',
     example: m4(n('q'), n('q'), n('h')),
   },
 }
@@ -457,7 +458,7 @@ const READING_TEACHING: Record<string, ReadingTeaching> = {
   'key:G': {
     title: 'Key of G',
     subtitle: 'One sharp: F♯',
-    hook: 'The sharp after the clef is the key signature. In G major every F, on every line and space, is played F♯ for the whole piece.',
+    hook: 'The G major scale has one sharp, F♯ (you built it on tape 23). Instead of writing a ♯ on every F, music writes it once, right after the clef: that’s the key signature. Every F, on every line and space, is played F♯ for the whole piece.',
     measures: [[sn('E', 4), sn('F', 4), sn('G', 4), sn('A', 4)]],
     keySig: 'G',
     marker: 1,
@@ -501,7 +502,7 @@ const READING_TEACHING: Record<string, ReadingTeaching> = {
   'motion:skip': {
     title: 'Skips',
     subtitle: 'Line to line, or space to space',
-    hook: 'A skip jumps over one letter: E to G, both on lines. Skips are where melodies start to sound like chords.',
+    hook: 'A skip jumps over one letter: E to G, both on lines. Melodies that skip often trace out chords, groups of notes that sound good together.',
     measures: [[sn('E', 4, 'w'), sn('G', 4, 'w')]],
   },
   'motion:leap': {
@@ -636,10 +637,27 @@ function intervalCard(semi: number, cross: boolean, l: LessonSpec, counter: stri
   const targetString = root.string + stringsAcross(semi)
   const target: Position = { string: targetString, fret: midiAt(root) + semi - TUNING[targetString] }
   const info = intervalInfo(semi)
+  const where = (p: Position) => `${noteName(p)} at the ${ordinal(p.fret)} fret of the ${ordinal(6 - p.string)} string`
+  const octave =
+    semi === 12 &&
+    (cross
+      ? {
+          title: 'Crossing the B string',
+          subtitle: '2 strings over, 3 frets up',
+          hook: `The 2nd string, B, is tuned one fret lower than the pattern expects, so a shape that lands on it gains a fret. From the 4th or 3rd string, the octave is 2 strings over and 3 frets up: ${where(root)} → ${where(target)}.`,
+          onGuitar: 'That extra fret at the B string shows up in every shape that crosses it: octaves, intervals and chords.',
+        }
+      : {
+          title: 'From the 6th and 5th strings',
+          subtitle: '2 strings over, 2 frets up',
+          hook: `From a note on the 6th or 5th string, skip one string and go 2 frets up: the same note, an octave higher. ${where(root)} → ${where(target)}.`,
+          onGuitar: 'Guitarists use octave shapes to find the same note fast, and to play a melody in octaves for a fuller sound.',
+        })
   return {
     title: capitalize(info.name),
     subtitle: `${noteName(root)} → ${noteName(target)}`,
     hook: cross ? SHAPES[semi].cross : SHAPES[semi].normal,
+    ...(octave || {}),
     counter,
     board: {
       region: l.region,
@@ -695,7 +713,7 @@ function questionFor(item: string, turn: number, l: LessonSpec, rng: Rng): Quest
       }
       if (value === 'measureFill') return makeMeasureFill(id, meter, symbols, rng)
       if (value === 'countBeat') return makeCountBeat(id, meter, symbols, rng)
-      return makeTapRhythm(id, meter, symbols, l.bpm ?? 60, rng)
+      return makeTapRhythm(id, meter, symbols, TAP_BPM, rng)
     }
     case 'staff': {
       const w = Number(item.slice(6))
@@ -776,7 +794,8 @@ const READING_ORDER = [
 
 /** Puts new items in teaching order: landmarks first on the neck, lines before spaces on the staff, rhythm in method order. */
 function teachingOrder(items: string[]): string[] {
-  const families: Family[] = ['position', 'staff', 'interval', 'rhythm', 'reading', 'theory']
+  // Theory first, so a tape's explanations come before the shapes and notes that use them.
+  const families: Family[] = ['theory', 'position', 'staff', 'interval', 'rhythm', 'reading']
   return families.flatMap((family) => {
     const group = items.filter((i) => familyOf(i) === family)
     if (family === 'position') return group.map(parsePos).sort((a, b) => a.string - b.string || anchorRank(a) - anchorRank(b)).map(posKey)
@@ -810,7 +829,8 @@ export function buildRehearsal(lessonId: string, rng: Rng = Math.random): Rehear
   const fresh = teachingOrder(itemsFor(l).filter((item) => !known.has(item)))
   const families = new Set(fresh.map(familyOf))
   const only = families.size === 1 ? [...families][0] : null
-  const noun = only === 'interval' ? 'shape' : only === 'rhythm' || only === 'reading' || only === 'theory' ? 'idea' : 'note'
+  // "note" only when it's all notes; explanations and rhythm make it an "idea".
+  const noun = only === 'interval' ? 'shape' : only === 'position' || only === 'staff' ? 'note' : families.has('theory') || only ? 'idea' : 'note'
 
   if (fresh.length === 0) {
     const fretOnly = uses(l, BOARD) && !uses(l, STAFF) && !uses(l, RHYTHM)
@@ -829,7 +849,7 @@ export function buildRehearsal(lessonId: string, rng: Rng = Math.random): Rehear
 
   // Chunks: up to four items of a kind get a card each, two at a time; more are taught in groups of up to four.
   const chunks: { items: string[]; oneByOne: boolean }[] = []
-  for (const family of ['position', 'staff', 'interval', 'rhythm', 'reading', 'theory'] as Family[]) {
+  for (const family of ['theory', 'position', 'staff', 'interval', 'rhythm', 'reading'] as Family[]) {
     const group = fresh.filter((i) => familyOf(i) === family)
     if (!group.length) continue
     const oneByOne = group.length <= 4 || family === 'rhythm' || family === 'interval' || family === 'reading' || family === 'theory'
@@ -879,9 +899,14 @@ export function buildRehearsal(lessonId: string, rng: Rng = Math.random): Rehear
       steps.push({ kind: 'card', card })
       taught.push(...chunk.items)
     }
-    steps.push({ kind: 'check', questions: check(chunk.items, [...taught], Math.max(2, Math.min(6, chunk.items.length * 2)), l, rng) })
+    // Explanation-only cards (why it matters, what something is) aren't quizzed on their own.
+    const testable = chunk.items.filter((i) => !isIntroItem(i))
+    const pool = taught.filter((i) => !isIntroItem(i))
+    if (testable.length) steps.push({ kind: 'check', questions: check(testable, pool, Math.max(2, Math.min(6, testable.length * 2)), l, rng) })
   }
-  if (chunks.length > 1) steps.push({ kind: 'check', questions: check([], fresh, Math.min(6, fresh.length + 2), l, rng) })
+  const testable = fresh.filter((i) => !isIntroItem(i))
+  // A mixed check at the end needs at least two ideas to mix.
+  if (chunks.length > 1 && testable.length > 1) steps.push({ kind: 'check', questions: check([], testable, Math.min(6, testable.length + 2), l, rng) })
   steps.push({ kind: 'ready' })
   return { lesson: l, mode: 'learn', newCount: fresh.length, noun, steps }
 }

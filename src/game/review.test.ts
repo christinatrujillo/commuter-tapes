@@ -110,3 +110,20 @@ describe('trouble spots', () => {
     ])
   })
 })
+
+describe('fact names it doesn’t know', () => {
+  // Saved progress can hold names from an older version of the app, or a damaged backup.
+  const kinds = ['step', 'scale', 'minor', 'degree', 'key', 'rel', 'ivnum', 'ivn', 'invnum', 'inv', 'ear', 'staff', 'iv', 'sym', 'count', 'fill', 'rule', 'motion']
+  const values = ['ZZ', '', '99', '2.5', 'constructor', 'toString', '__proto__']
+  const junk = [...kinds.flatMap((k) => values.map((v) => `${k}:${v}`)), '6:3', '9:99', '0:40', 'nonsense']
+  const stats: Stats = Object.fromEntries(junk.map((f) => [f, learned('2026-01-01')]))
+
+  it('are skipped, without breaking review or Trouble spots', () => {
+    expect(buildReview(stats, DAY, 50, seeded(1))).toEqual([])
+    expect(buildTroubleSpots(stats, seeded(1)) ?? []).toEqual([])
+  })
+
+  it('don’t count as spots on the neck', () => {
+    expect(weakestFacts({ '6:3': learned(DAY), '9:99': learned(DAY), '0:40': learned(DAY) }, 5)).toEqual([])
+  })
+})

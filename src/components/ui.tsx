@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { useId, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { goBack, navigate, useRoute } from '../lib/router'
 import { currentStreak, todayNailed, useProgress } from '../store/progress'
 
@@ -63,13 +63,16 @@ export function LedButtons<T extends string | number>({
   options,
   selected,
   onToggle,
+  columns,
 }: {
   options: { value: T; label: ReactNode }[]
   selected: T[]
   onToggle: (value: T) => void
+  /** Lay the keys out in this many equal columns instead of wrapping. */
+  columns?: number
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={columns ? 'grid gap-1.5' : 'flex flex-wrap gap-2'} style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}>
       {options.map((o) => {
         const on = selected.includes(o.value)
         return (
@@ -77,7 +80,7 @@ export function LedButtons<T extends string | number>({
             key={String(o.value)}
             onClick={() => onToggle(o.value)}
             aria-pressed={on}
-            className="hw-btn hw-dark flex items-center gap-2 px-3 py-1.5 text-sm"
+            className={`hw-btn hw-dark flex items-center gap-2 py-1.5 text-sm ${columns ? 'justify-center px-1' : 'px-3'}`}
           >
             <span className={`led !h-2 !w-2 ${on ? 'led-amber' : ''}`} />
             <span className={on ? 'text-cream' : 'text-muted'}>{o.label}</span>
@@ -105,6 +108,18 @@ export function Toggle({ label, hint, checked, onChange }: { label: string; hint
   )
 }
 
+/** A 10-segment LED bar, lit in proportion to `value / total` (dark when there's nothing yet). */
+export function LedBar({ value, total }: { value: number; total: number }) {
+  const lit = total ? Math.round((value / total) * 10) : 0
+  return (
+    <span className="flex gap-0.5" aria-hidden>
+      {Array.from({ length: 10 }, (_, i) => (
+        <span key={i} className={`h-2.5 w-1.5 rounded-[1px] ${i < lit ? 'bg-led shadow-[0_0_4px_var(--color-led)]' : 'bg-[#3a2f29]'}`} />
+      ))}
+    </span>
+  )
+}
+
 /** A strip of label-maker tape, for names stuck onto things (tracks, takes, trouble spots). */
 export function LabelTape({ children, size = 'sm', className = '' }: { children: ReactNode; size?: 'sm' | 'lg'; className?: string }) {
   const sizing = size === 'lg' ? 'px-3 py-1 text-xl tracking-[0.18em]' : 'px-2 py-0.5 text-sm tracking-[0.16em]'
@@ -128,6 +143,7 @@ export function BackHeader({ title, subtitle }: { title: string; subtitle?: stri
 
 /** A VU meter whose needle shows today's progress toward the daily goal. */
 function VuMeter({ value, goal }: { value: number; goal: number }) {
+  const glass = useId()
   const p = Math.min(1.08, value / goal)
   const angle = -50 + p * 92
   const ticks = Array.from({ length: 11 }, (_, i) => -50 + i * 9.2)
@@ -153,6 +169,16 @@ function VuMeter({ value, goal }: { value: number; goal: number }) {
         style={{ transform: `rotate(${angle}deg)`, transformOrigin: '50px 52px', transition: 'transform 600ms cubic-bezier(.3,1.6,.5,1)' }}
       />
       <circle cx={50} cy={52} r={4} fill="#1d1916" />
+      {/* The glass front: a glare across the top half, and a shadow where it meets the case. */}
+      <defs>
+        <linearGradient id={`${glass}-glare`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity={0.5} />
+          <stop offset="0.42" stopColor="#fff" stopOpacity={0.12} />
+          <stop offset="0.43" stopColor="#fff" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <rect x={1} y={1} width={98} height={56} rx={5} fill={`url(#${glass}-glare)`} />
+      <rect x={1.5} y={1.5} width={97} height={55} rx={4.5} fill="none" stroke="#000" strokeOpacity={0.25} strokeWidth={1.5} />
     </svg>
   )
 }
@@ -174,8 +200,10 @@ function ConsoleStrip() {
       <div className="ml-auto flex items-center gap-2">
         <Readout label="Days" value={String(streak).padStart(2, '0')} />
         <Readout label="Notes" value={String(nailed).padStart(4, '0')} />
-        <button onClick={() => navigate('/settings')} className="ml-1 rounded-full p-0.5" aria-label="Settings">
+        {/* Labeled like the readouts beside it, so it's clear it's the settings. */}
+        <button onClick={() => navigate('/settings')} className="ml-1 flex flex-col items-center" aria-label="Settings">
           <Knob />
+          <span className="label-text mt-0.5 text-[9px] text-muted">Setup</span>
         </button>
       </div>
     </header>
@@ -194,7 +222,7 @@ function Readout({ label, value }: { label: string; value: string }) {
 /** An amp knob, used as the settings button. */
 function Knob() {
   return (
-    <svg viewBox="0 0 40 40" className="h-9 w-9" aria-hidden>
+    <svg viewBox="0 0 40 40" className="h-7 w-7" aria-hidden>
       {Array.from({ length: 9 }, (_, i) => (
         <line key={i} x1={20} y1={2} x2={20} y2={5} stroke="#9c8f80" strokeWidth={1.2} transform={`rotate(${-120 + i * 30} 20 20)`} />
       ))}

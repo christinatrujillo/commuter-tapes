@@ -20,8 +20,18 @@ describe('melody notation', () => {
     expect([...container.querySelectorAll('svg > text')].map((t) => t.textContent)).toEqual(['F♯', 'G', 'F', 'E', 'C', 'B♭'])
   })
 
+  it('leaves room under each note for its label, so long words don’t run together', async () => {
+    const chord = (letter: 'C' | 'E' | 'G'): ScoreMeasure => [{ letter: 'C', octave: 4, dur: 'w', with: [{ letter, octave: 4 }] }]
+    const labels = ['major', 'minor', 'diminished', 'augmented']
+    const { container } = render(<Score measures={[chord('E'), chord('E'), chord('G'), chord('G')]} labels={labels} />)
+    await waitFor(() => expect(container.querySelector('svg > text')).toBeTruthy())
+    const xs = [...container.querySelectorAll('svg > text')].map((t) => Number(t.getAttribute('x')))
+    // Neighboring labels sit at least half of each word apart (about 7.5 units a letter at 10pt), plus a gap.
+    for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeGreaterThan(((labels[i - 1].length + labels[i].length) / 2) * 7.5 + 6)
+  })
+
   it('draws two notes stacked on one stem, each with its own sign', async () => {
-    const measures: ScoreMeasure[] = [[{ letter: 'C', octave: 4, dur: 'w', with: { letter: 'E', octave: 4, sign: -1 } }]]
+    const measures: ScoreMeasure[] = [[{ letter: 'C', octave: 4, dur: 'w', with: [{ letter: 'E', octave: 4, sign: -1 }] }]]
     const { container } = render(<Score measures={measures} labels={['C–E♭']} />)
     await waitFor(() => expect(container.querySelector('svg')).toBeTruthy())
     expect([...container.querySelectorAll('svg > text')].map((t) => t.textContent)).toEqual(['C–E♭'])

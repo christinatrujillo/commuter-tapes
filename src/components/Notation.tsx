@@ -11,10 +11,9 @@ import {
   Voice,
   VoiceMode,
 } from 'vexflow/bravura'
+import { musicFontReady, SVG_NS } from './musicFont'
 import { METER_PULSE, METER_QUARTERS, onsets, type Measure } from '../music/rhythm'
 
-const fontReady: Promise<unknown> = globalThis.document?.fonts?.load('30px Bravura') ?? Promise.resolve()
-const SVG_NS = 'http://www.w3.org/2000/svg'
 
 export interface NotationProps {
   measure: Measure
@@ -45,7 +44,7 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
 
   useEffect(() => {
     let cancelled = false
-    void fontReady.then(() => {
+    void musicFontReady.then(() => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''

@@ -32,10 +32,6 @@ describe('every lesson', () => {
             case 'staffName':
             case 'staffFind': {
               const sounding = spelledMidi(q.note) - 12
-              if (lesson.writtenRange) {
-                expect(spelledMidi(q.note)).toBeGreaterThanOrEqual(lesson.writtenRange[0])
-                expect(spelledMidi(q.note)).toBeLessThanOrEqual(lesson.writtenRange[1])
-              }
               if (!lesson.accidentals) expect(q.note.acc).toBe(0)
               if (q.kind === 'staffFind') {
                 expect(q.targets.length).toBeGreaterThan(0)

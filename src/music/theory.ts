@@ -1,5 +1,5 @@
 import { LETTERS, pitchClass, spelledMidi, type Accidental, type Letter, type SpelledNote } from './notes'
-import { KEY_ORDER, keyLabel, type KeyId } from './score'
+import { KEY_ORDER, keyLabel, type KeyId, type ScoreMeasure, type ScoreNote } from './score'
 
 /** A note name without an octave: a letter and its sharp or flat. */
 export type Tone = Omit<SpelledNote, 'octave'>
@@ -50,8 +50,25 @@ export const majorKeyOfMinor = (tonic: string): KeyId | undefined => KEY_ORDER.f
 export const minorName = (key: KeyId) => `${toneName(relativeMinor(key))} minor`
 export const majorName = (key: KeyId) => `${keyLabel(key)} major`
 
+/** A scale written out on the staff, one octave up from the tonic, in two measures of four. */
+export function scaleScore(tones: Tone[]): ScoreMeasure[] {
+  const start = LETTERS.indexOf(tones[0].letter)
+  const notes = [...tones, tones[0]].map(
+    (t, i): ScoreNote => ({
+      letter: t.letter,
+      octave: 4 + (i === 7 || LETTERS.indexOf(t.letter) < start ? 1 : 0),
+      dur: 'q',
+      ...(t.acc ? { sign: t.acc } : {}),
+    }),
+  )
+  return [notes.slice(0, 4), notes.slice(4)]
+}
+
 /** The usual name for a major key on each of the 12 notes (D♭ rather than C♯, F♯ rather than G♭). */
 export const KEY_ON_PC: KeyId[] = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+
+/** Spellings so rare the tapes steer around them. */
+export const RARE_SPELLINGS = new Set(['E♯', 'B♯', 'C♭', 'F♭'])
 
 /** "1st", "2nd", ... for scale degrees. */
 export const degreeName = (d: number) => `${d}${d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}`
@@ -106,3 +123,45 @@ const FLIPPED: Record<Quality, Quality> = { P: 'P', M: 'm', m: 'M', A: 'd', d: '
 
 /** An interval turned upside down: the numbers add up to 9, major and minor swap, augmented and diminished swap. */
 export const invertInterval = (iv: Interval): Interval => ({ quality: FLIPPED[iv.quality], number: 9 - iv.number })
+
+// ---------------------------------------------------------------------------
+// Triads
+// ---------------------------------------------------------------------------
+
+/** Major, minor, diminished or augmented. */
+export type TriadQuality = 'maj' | 'min' | 'dim' | 'aug'
+
+export const TRIAD_NAMES: Record<TriadQuality, string> = { maj: 'major', min: 'minor', dim: 'diminished', aug: 'augmented' }
+
+/** The 3rd and the 5th above the root, for each kind: a major triad is a major 3rd and a perfect 5th. */
+const TRIAD_INTERVALS: Record<TriadQuality, [string, string]> = { maj: ['M3', 'P5'], min: ['m3', 'P5'], dim: ['m3', 'd5'], aug: ['M3', 'A5'] }
+
+/** A triad's notes from the root up (root, 3rd, 5th), or null if one would need a double sharp or flat. */
+export function triadTones(root: Tone, quality: TriadQuality): [Tone, Tone, Tone] | null {
+  const [third, fifth] = TRIAD_INTERVALS[quality].map((s) => intervalAbove(root, parseInterval(s)))
+  return third && fifth ? [root, third, fifth] : null
+}
+
+/** The interval between two of a triad's notes: the 3rd up to the 5th of a major triad is a minor 3rd. */
+export function triadGap(quality: TriadQuality, from: 0 | 1, to: 1 | 2): Interval {
+  const [third, fifth] = TRIAD_INTERVALS[quality].map(parseInterval)
+  if (from === 0) return to === 1 ? third : fifth
+  // The 3rd up to the 5th: whatever's left of the 5th, always a major or minor 3rd.
+  return { quality: intervalSize(fifth)! - intervalSize(third)! === 4 ? 'M' : 'm', number: 3 }
+}
+
+// ---------------------------------------------------------------------------
+// Chords in a key
+// ---------------------------------------------------------------------------
+
+/** The kind of triad on each note of every major key: major, minor, minor, major, major, minor, diminished. */
+const MAJOR_KEY_KINDS: TriadQuality[] = ['maj', 'min', 'min', 'maj', 'maj', 'min', 'dim']
+
+/** Each chord's Roman numeral: capitals for major, lowercase for minor, ° for diminished. */
+export const NUMERALS = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']
+
+/** The triad on each note of a major key's scale (every other note, from there), in scale order. */
+export function keyTriads(key: KeyId): { tones: Tone[]; quality: TriadQuality }[] {
+  const scale = majorScale(key)
+  return scale.map((_, d) => ({ tones: [0, 2, 4].map((s) => scale[(d + s) % 7]), quality: MAJOR_KEY_KINDS[d] }))
+}

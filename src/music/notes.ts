@@ -47,9 +47,11 @@ export const midiAt = (p: Position) => TUNING[p.string] + p.fret
 export const posKey = (p: Position) => `${p.string}:${p.fret}`
 export const samePos = (a: Position, b: Position) => a.string === b.string && a.fret === b.fret
 
+/** A spot's key ("0:5") back into the spot, or null if it isn't one on the neck. */
 export function parsePosKey(key: string): Position | null {
   const m = /^(\d):(\d+)$/.exec(key)
-  return m ? { string: Number(m[1]), fret: Number(m[2]) } : null
+  const pos = m && { string: Number(m[1]), fret: Number(m[2]) }
+  return pos && pos.string < NUM_STRINGS && pos.fret <= MAX_FRET ? pos : null
 }
 
 /** "C♯/D♭" for black keys, or one spelling when asked. */

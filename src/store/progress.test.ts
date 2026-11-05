@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mastery } from '../game/questions'
-import { schedule, useProgress } from './progress'
+import { exportData, readBackup, schedule, useProgress } from './progress'
 
 beforeEach(() => useProgress.getState().reset())
 
@@ -70,5 +70,55 @@ describe('spaced repetition', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('restoring a backup', () => {
+  it('restores everything a backup holds', () => {
+    const { recordAnswer, completeSession, recordBest, markRehearsed, updateSettings } = useProgress.getState()
+    recordAnswer(['0:5'], true, 1500, 2000)
+    completeSession({ lessonId: 'r1-1', nailed: 8, mistakes: 1 })
+    recordBest('low', 12)
+    markRehearsed('r1-1')
+    updateSettings({ dailyGoal: 50, metronome: 'vibrate' })
+    const before = useProgress.getState()
+    const backup = JSON.parse(exportData())
+    useProgress.getState().reset()
+    expect(useProgress.getState().importData(backup)).toBe(true)
+    const after = useProgress.getState()
+    for (const key of ['nailed', 'bests', 'rehearsed', 'lessons', 'stats', 'streak', 'daily', 'settings'] as const) expect(after[key]).toEqual(before[key])
+  })
+
+  it('turns down files that aren’t backups', () => {
+    for (const data of [null, 'text', 42, [], { stats: {} }, { lessons: {} }, { stats: [], lessons: {} }]) expect(readBackup(data)).toBeNull()
+  })
+
+  it('drops anything of the wrong shape and keeps the rest', () => {
+    const backup = readBackup({
+      nailed: 'lots',
+      bests: { low: 12, neck: 'high' },
+      rehearsed: { 'r1-1': true, 'r1-2': 'yes' },
+      lessons: { 'r1-1': { stars: 2, completions: 3 }, 'r1-2': { stars: 99, completions: 1 }, 'r1-3': 'done' },
+      stats: { '0:5': { seen: 3, correct: 2, recent: 0.7, ms: 1800, due: '2026-11-06', pace: 'fast' }, '0:6': { seen: -1, correct: 0, recent: 0, ms: 0 } },
+      streak: { count: Infinity, lastDate: '<b>yesterday</b>' },
+      daily: { date: 'today', nailed: 5 },
+      settings: { sound: 'off', dailyGoal: -5, metronome: 'drum', leftHanded: true, extra: 'ignored' },
+      extra: { anything: true },
+    })!
+    expect(backup.nailed).toBe(0)
+    expect(backup.bests).toEqual({ low: 12 })
+    expect(backup.rehearsed).toEqual({ 'r1-1': true })
+    expect(backup.lessons).toEqual({ 'r1-1': { stars: 2, completions: 3 } })
+    expect(backup.stats).toEqual({ '0:5': { seen: 3, correct: 2, recent: 0.7, ms: 1800, due: '2026-11-06' } })
+    expect(backup.streak).toEqual({ count: 0, lastDate: null })
+    expect(backup.daily.nailed).toBe(0)
+    expect(backup.settings).toEqual({ ...useProgress.getState().settings, leftHanded: true })
+    expect(backup).not.toHaveProperty('extra')
+  })
+
+  it('can’t change how objects behave through a crafted key', () => {
+    const backup = readBackup(JSON.parse('{"stats": {}, "lessons": {"__proto__": {"stars": 3, "completions": 1}}, "bests": {"__proto__": 5}}'))!
+    expect(Object.getPrototypeOf(backup.lessons)).toBe(Object.prototype)
+    expect(({} as Record<string, unknown>).stars).toBeUndefined()
   })
 })

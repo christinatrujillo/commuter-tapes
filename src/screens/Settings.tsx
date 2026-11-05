@@ -1,5 +1,5 @@
-import { useRef, type ChangeEvent, type ReactNode } from 'react'
-import { canVibrate } from '../audio/metronome'
+import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { canVibrate, testVibration } from '../audio/metronome'
 import { BackHeader, Button, LedButtons, Toggle } from '../components/ui'
 import { exportData, useProgress } from '../store/progress'
 
@@ -9,6 +9,8 @@ const GOALS = [
   { value: 50, label: 'Session · 50' },
   { value: 80, label: 'Marathon · 80' },
 ]
+
+const MAX_BACKUP_BYTES = 5 * 1024 * 1024
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -25,6 +27,15 @@ export function SettingsScreen() {
   const importData = useProgress((s) => s.importData)
   const reset = useProgress((s) => s.reset)
   const fileInput = useRef<HTMLInputElement>(null)
+  // Turning vibration on buzzes once, so you know straight away whether it works on this phone.
+  const [buzzed, setBuzzed] = useState<boolean | null>(null)
+  const vibrationHint = !canVibrate()
+    ? 'This device can’t vibrate'
+    : buzzed === false
+      ? 'Your browser blocked vibration'
+      : buzzed
+        ? 'It should have buzzed. If it didn’t, check silent mode, Do Not Disturb, battery saver and your phone’s vibration strength.'
+        : 'Buzz when you clip. Turn it off and on to test it.'
 
   const download = () => {
     const blob = new Blob([exportData()], { type: 'application/json' })
@@ -39,6 +50,8 @@ export function SettingsScreen() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    // A backup is well under 1 MB; anything far bigger isn't one, and reading it could stall the phone.
+    if (file.size > MAX_BACKUP_BYTES) return window.alert('That file doesn’t look like a Commuter Tapes backup.')
     try {
       const ok = importData(JSON.parse(await file.text()))
       window.alert(ok ? 'Progress restored.' : 'That file doesn’t look like a Commuter Tapes backup.')
@@ -54,7 +67,15 @@ export function SettingsScreen() {
         <div className="mx-auto flex max-w-lg flex-col gap-4 p-4">
           <Section title="Sound">
             <Toggle label="Sound" hint="Hear each note when you answer" checked={settings.sound} onChange={(sound) => update({ sound })} />
-            <Toggle label="Vibration" hint="Buzz when you clip" checked={settings.haptics} onChange={(haptics) => update({ haptics })} />
+            <Toggle
+              label="Vibration"
+              hint={vibrationHint}
+              checked={settings.haptics}
+              onChange={(haptics) => {
+                update({ haptics })
+                setBuzzed(haptics ? testVibration() : null)
+              }}
+            />
             <div className="flex items-center justify-between gap-4 py-3">
               <span>
                 <span className="label-text block text-sm text-cream">Metronome</span>

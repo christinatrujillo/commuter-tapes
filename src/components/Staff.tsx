@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Accidental, Annotation, AnnotationVerticalJustify, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode } from 'vexflow/bravura'
+import { musicFontReady } from './musicFont'
 
 interface Props {
   /** VexFlow keys at written pitch, e.g. ['c/4'] or ['f#/4', 'bb/4']. */
@@ -8,7 +9,6 @@ interface Props {
   color?: string
 }
 
-const fontReady: Promise<unknown> = globalThis.document?.fonts?.load('30px Bravura') ?? Promise.resolve()
 
 /** A treble-clef staff (with the guitar's "8" below the clef) showing one or more whole notes. */
 export function Staff({ keys, labels, color }: Props) {
@@ -17,7 +17,7 @@ export function Staff({ keys, labels, color }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    void fontReady.then(() => {
+    void musicFontReady.then(() => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''

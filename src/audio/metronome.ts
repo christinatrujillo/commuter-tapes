@@ -1,5 +1,5 @@
 import { METER_PULSE, playedIndexes, onsets, type Measure } from '../music/rhythm'
-import { audioContext, pluck } from './sound'
+import { audioContext, pluck, stopSounds, track } from './sound'
 
 export type MetronomeMode = 'click' | 'vibrate'
 
@@ -12,6 +12,9 @@ export function canVibrate(): boolean {
     window.matchMedia('(pointer: coarse)').matches
   )
 }
+
+/** One firm buzz, to check vibration works. Returns whether the browser accepted it (a phone setting can still mute it). */
+export const testVibration = () => canVibrate() && navigator.vibrate(200)
 
 export const effectiveMode = (setting: MetronomeMode): MetronomeMode => (setting === 'vibrate' && canVibrate() ? 'vibrate' : 'click')
 
@@ -35,6 +38,7 @@ function click(ac: AudioContext, when: number, accent: boolean): OscillatorNode 
   osc.connect(gain).connect(ac.destination)
   osc.start(when)
   osc.stop(when + 0.07)
+  track(osc, gain)
   return osc
 }
 
@@ -95,14 +99,16 @@ export function countIn(measure: Measure, bpm: number, mode: MetronomeMode, read
 
   if (!ac) {
     if (mode === 'vibrate') {
-      for (let i = 0; i < beats; i++) timers.push(setTimeout(() => navigator.vibrate(i === 0 ? 60 : 30), LEAD_MS + i * beatMs))
-      timers.push(setTimeout(() => navigator.vibrate(60), LEAD_MS + beats * beatMs))
+      // Long enough to feel: much shorter pulses barely register on many phones.
+      for (let i = 0; i < beats; i++) timers.push(setTimeout(() => navigator.vibrate(i === 0 ? 90 : 50), LEAD_MS + i * beatMs))
+      timers.push(setTimeout(() => navigator.vibrate(90), LEAD_MS + beats * beatMs))
     }
     ready({ start: Date.now() + LEAD_MS + beats * beatMs, latencyMs: 0, stop })
     return
   }
 
   whenRunning(ac, () => {
+    stopSounds()
     const t0 = ac.currentTime + LEAD_MS / 1000
     for (let i = 0; i < beats * 2; i++) oscillators.push(click(ac, t0 + (i * beatMs) / 1000, i % beats === 0))
     const beat1 = t0 + (beats * beatMs) / 1000
@@ -118,6 +124,7 @@ export function playRhythm(measure: Measure, bpm: number): Clock {
   const start = Date.now() + LEAD_MS
   const oscillators: OscillatorNode[] = []
   if (ac) {
+    stopSounds()
     const t0 = ac.currentTime + LEAD_MS / 1000
     const pulse = METER_PULSE[measure.meter]
     for (let i = 0; i < pulse.beats; i++) oscillators.push(click(ac, t0 + (i * beatMs) / 1000, i === 0))

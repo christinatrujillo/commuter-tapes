@@ -11,12 +11,16 @@ describe('the shelf', () => {
 
   it('numbers planned tapes too, and opens each tape after the recorded one before it', () => {
     const keys = findLesson('r9-1')!.unit
-    const planned = VOLUMES[4].tapes.find(isPlanned)!
+    const triads = findLesson('tr1-1')!.unit
+    const planned = VOLUMES[6].tapes.find(isPlanned)!
     expect(tapeNumber(UNITS[0])).toBe(1)
     expect(tapeNumber(findLesson('t1-1')!.unit)).toBe(22)
     expect(tapeNumber(keys)).toBe(25)
     expect(tapeBefore(keys)).toBe(24)
-    expect(tapeNumber(planned)).toBe(33)
+    expect(tapeNumber(triads)).toBe(33)
+    expect(tapeBefore(triads)).toBe(32)
+    expect(tapeNumber(findLesson('hk1-1')!.unit)).toBe(40)
+    expect(tapeNumber(planned)).toBe(45)
   })
 
   it('teaches a key signature before any track reads music in it', () => {

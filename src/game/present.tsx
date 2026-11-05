@@ -16,9 +16,9 @@ import {
   type Position,
 } from '../music/notes'
 import { beatsText, countAt, countName, METER_NAME, METER_PULSE, onsets, SYMBOLS } from '../music/rhythm'
-import { KEYS, MOTION_NAMES, motionBetween, resolveNotes, signName, staffDegree } from '../music/score'
+import { KEYS, keyLabel, MOTION_NAMES, motionBetween, resolveNotes, signName, staffDegree, type KeyId } from '../music/score'
 import { isPick, isTap, type Ask, type PickQuestion, type Question } from './questions'
-import { capitalize } from '../lib/text'
+import { aOrAn, capitalize } from '../lib/text'
 import { readingAnswerPc } from './reading'
 
 /** How a tapped rhythm went. */
@@ -59,7 +59,6 @@ export function phraseNotes(q: Extract<Question, { kind: 'phrase' }>) {
 const article = (semitones: number) => (semitones === 12 ? 'an' : 'a')
 const fretWord = (p: Position) => (p.fret === 0 ? 'open' : `${ordinal(p.fret)} fret`)
 const Hl = ({ children }: { children: ReactNode }) => <span className="text-amber">{children}</span>
-const aOrAn = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a')
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
 
 /** A theory question's words, with its key part in amber. */
@@ -184,7 +183,7 @@ export function hintText(q: Question, found: Position[]): string | null {
 
 export function answerSound(q: Question, tapped?: Position): number[] {
   if (isPick(q)) return q.sound
-  if (isTap(q)) return tapped ? [midiAt(q.from), midiAt(tapped)] : []
+  if (isTap(q)) return q.sound ?? (tapped ? [midiAt(q.from), midiAt(tapped)] : [])
   switch (q.kind) {
     case 'name':
       return [midiAt(q.target)]
@@ -312,7 +311,9 @@ export function feedbackDetail(q: Question, a: Answer): string {
       const target = noteAt(q.targets[0])
       return a.ok
         ? `${noteAt(q.root)} → ${target} is ${article(q.semitones)} ${info.name}.`
-        : `That’s ${tapped ? noteAt(tapped) : '?'}. ${article(q.semitones) === 'an' ? 'An' : 'A'} ${info.name} above ${noteAt(q.root)} is ${target}.`
+        : `That’s ${tapped ? noteAt(tapped) : '?'}. ${article(q.semitones) === 'an' ? 'An' : 'A'} ${info.name} above ${noteAt(q.root)} is ${target}.${
+            q.semitones === 12 ? ` Skip one string and go ${q.root.string === 2 || q.root.string === 3 ? '3 frets up (the B string adds a fret)' : '2 frets up'}.` : ''
+          }`
     }
     case 'intervalName': {
       const info = intervalInfo(q.semitones)
@@ -371,7 +372,8 @@ export function feedbackDetail(q: Question, a: Answer): string {
     case 'keyName': {
       const k = KEYS[q.key]
       const picked = a.picked !== undefined ? KEYS[q.options[a.picked]] : null
-      return a.ok ? `${k.name}: ${k.signature}.` : `It’s ${k.name} (${k.signature})${picked ? `, not ${picked.name}` : ''}.`
+      const how = keyNameHow(q.key)
+      return a.ok ? `${k.name}: ${how}` : `It’s ${k.name}${picked ? `, not ${picked.name}` : ''}. ${capitalize(how)}`
     }
     case 'keyNote': {
       const k = KEYS[q.key]
@@ -408,3 +410,12 @@ export function feedbackDetail(q: Question, a: Answer): string {
   }
 }
 
+/** How to name a key from its signature, worked through for this one. */
+function keyNameHow(key: KeyId): string {
+  const { count, signature } = KEYS[key]
+  const signs = signature.split(': ')[1]?.split(/, | and /) ?? []
+  if (count === 0) return 'no sharps or flats means C major.'
+  if (count === -1) return 'one flat on its own always means F major.'
+  if (count > 0) return `${signature}. The last sharp is ${signs[signs.length - 1]}, and one fret above it is ${keyLabel(key)}.`
+  return `${signature}. With two or more flats, the key is named after the second-to-last flat: ${signs[signs.length - 2]}.`
+}

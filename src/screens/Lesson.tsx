@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { playNotes, playStrum, playWrong } from '../audio/sound'
 import { useLandscape } from '../components/Fretboard'
+import { GlossaryText } from '../components/GlossaryText'
 import { MonitorsOffScreen } from '../components/Monitors'
 import { QuestionStage, useQuestionInput } from '../components/QuestionStage'
 import { Button, ClipLeds, LabelTape, Reels } from '../components/ui'
@@ -178,7 +179,6 @@ function LessonRunner({
 
   function finish() {
     const { streakExtended } = completeSession({ lessonId, nailed: correct, mistakes })
-    playStrum()
     setSummary({
       nailed: correct,
       accuracy: correct / (correct + mistakes),
@@ -274,7 +274,9 @@ function FeedbackPanel({ q, answer, rounded, onContinue }: { q: Question; answer
         {ok && <Pace kind={q.kind} ms={answer.ms} />}
         {reviewMiss && <span className="ml-auto text-xs text-muted">No clip. It’ll come back soon.</span>}
       </div>
-      <p className="mt-1.5 min-h-[2.75rem] text-[15px] leading-snug text-cream">{feedbackDetail(q, answer)}</p>
+      <p className="mt-1.5 min-h-[2.75rem] text-[15px] leading-snug text-cream">
+        <GlossaryText text={feedbackDetail(q, answer)} />
+      </p>
       <Button variant={ok ? 'amber' : 'cream'} className="mt-3" onClick={onContinue}>
         Next ▸▸
       </Button>
@@ -309,6 +311,8 @@ function EndReadout({ label, value }: { label: string; value: string }) {
 
 function CompleteScreen({ summary, title }: { summary: Summary; title: string }) {
   const streak = useProgress((s) => currentStreak(s.streak))
+  // The strum plays here, after the last question has stopped its own sounds.
+  useEffect(() => playStrum(), [])
   const date = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   return (
     <div className="flex h-dvh flex-col px-6 py-8">

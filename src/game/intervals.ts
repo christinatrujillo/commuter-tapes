@@ -2,7 +2,8 @@ import type { Card } from './rehearsal'
 import type { Marker } from '../components/Fretboard'
 import type { LessonSpec } from '../music/curriculum'
 import { between, pick, type Rng } from '../lib/random'
-import { capitalize } from '../lib/text'
+import { isOneOf } from '../lib/guards'
+import { aOrAn, capitalize } from '../lib/text'
 import {
   LETTERS,
   midiAt,
@@ -10,11 +11,12 @@ import {
   pcName,
   pitchClass,
   positionsForMidi,
+  positionsForPc,
   spelledMidi,
   WRITTEN_OCTAVE_SHIFT,
   type Region,
 } from '../music/notes'
-import { KEYS, staffDegree, stepFrom, type KeyId, type ScoreMeasure, type ScoreNote } from '../music/score'
+import { HIGH_A, KEYS, MIDDLE_C, stepFrom, type KeyId, type ScoreMeasure, type ScoreNote } from '../music/score'
 import {
   degreeName,
   intervalAbove,
@@ -25,6 +27,7 @@ import {
   majorScale,
   parseInterval,
   parseTone,
+  RARE_SPELLINGS,
   spellOn,
   toneName,
   tonePc,
@@ -40,8 +43,7 @@ import type { Question } from './questions'
 
 /** An interval's name as a button label: “Major 3rd”, “Octave”. */
 export const intervalLabel = (iv: Interval) => capitalize(intervalName(iv))
-const aOrAn = (iv: Interval) => (/^[aeiou]/.test(intervalName(iv)) ? 'an' : 'a')
-const named = (iv: Interval) => `${aOrAn(iv)} ${intervalName(iv)}`
+const named = (iv: Interval) => `${aOrAn(intervalName(iv))} ${intervalName(iv)}`
 const sizeOf = (short: string) => intervalSize(parseInterval(short))!
 
 /** Every interval within an octave that these tapes name. */
@@ -62,15 +64,14 @@ function choicesFor(right: Interval, pool: string[], rng: Rng): { options: strin
   return { options, answer: options.indexOf(intervalLabel(right)) }
 }
 
-// Roots to name intervals from, and spellings too rare to be worth meeting here.
+// Roots to name intervals from.
 const ROOTS: Tone[] = [...LETTERS.map((letter): Tone => ({ letter, acc: 0 })), ...['Bb', 'Eb', 'F#', 'Ab'].map(parseTone)]
-const RARE = new Set(['E♯', 'B♯', 'C♭', 'F♭'])
 
 /** A root and the note an interval above it, spelled the usual way. */
 function spellPair(iv: Interval, rng: Rng, roots = ROOTS): { root: Tone; top: Tone } | null {
   const pairs = roots
     .map((root) => ({ root, top: intervalAbove(root, iv) }))
-    .filter((p): p is { root: Tone; top: Tone } => !!p.top && !RARE.has(toneName(p.top)) && !RARE.has(toneName(p.root)))
+    .filter((p): p is { root: Tone; top: Tone } => !!p.top && !RARE_SPELLINGS.has(toneName(p.top)) && !RARE_SPELLINGS.has(toneName(p.root)))
   return pairs.length ? pick(pairs, rng) : null
 }
 
@@ -80,6 +81,25 @@ function lettersBetween(root: Tone, n: number): string {
 }
 
 const lowMidi = (root: Tone) => 48 + tonePc(root)
+
+/** Two spelled notes on the staff, one after the other or stacked, with their signs printed. */
+function pairScore(root: Tone, top: Tone, stacked = false): ScoreMeasure[] {
+  const low = { letter: root.letter, octave: 4, ...(root.acc ? { sign: root.acc } : {}) }
+  const high = { letter: top.letter, octave: 4 + (LETTERS.indexOf(top.letter) <= LETTERS.indexOf(root.letter) ? 1 : 0), ...(top.acc ? { sign: top.acc } : {}) }
+  return stacked ? [[{ ...low, dur: 'w', with: [high] }]] : [[{ ...low, dur: 'w' }, { ...high, dur: 'w' }]]
+}
+
+/** How an interval's quality follows from its size: "one half step smaller than major". */
+function sizeReason(iv: Interval): string {
+  const perfect = [1, 4, 5, 8].includes(iv.number)
+  return {
+    P: 'the perfect size',
+    M: 'the major size',
+    m: 'one half step smaller than major',
+    A: `one half step bigger than ${perfect ? 'perfect' : 'major'}`,
+    d: `one half step smaller than ${perfect ? 'perfect' : 'minor'}`,
+  }[iv.quality]
+}
 
 // ---------------------------------------------------------------------------
 // Naming intervals
@@ -103,6 +123,7 @@ export function makeIvNumber(id: number, rng: Rng, only?: number): Question | nu
     options: NUMBERS,
     answer: n - 2,
     why: `${capitalize(what)} spans ${n} letters (${lettersBetween(pair.root, n)}), so it’s ${numberWord(n)}.`,
+    score: { measures: pairScore(pair.root, pair.top), labels: [toneName(pair.root), toneName(pair.top)] },
     sound: [low, low + intervalSize(iv)!],
     facts: [`ivnum:${n}`],
   }
@@ -121,7 +142,8 @@ export function makeIvName(id: number, names: string[], rng: Rng, only?: string)
     kind: 'ivName',
     ask: { text: `What’s the interval from ${what}?`, hl: what },
     ...choicesFor(iv, names, rng),
-    why: `${capitalize(what)}: ${iv.number} letters and ${size} half steps make ${named(iv)}.`,
+    why: `${capitalize(what)}: ${lettersBetween(pair.root, iv.number)} is ${iv.number} letters, so it’s ${numberWord(iv.number)}. ${size} half steps is ${sizeReason(iv)}, so it’s ${named(iv)}.`,
+    score: { measures: pairScore(pair.root, pair.top), labels: [toneName(pair.root), toneName(pair.top)] },
     sound: [low, low + size],
     facts: [`ivn:${intervalShort(iv)}`],
   }
@@ -131,8 +153,6 @@ export function makeIvName(id: number, names: string[], rng: Rng, only?: string)
 // Intervals on the staff
 // ---------------------------------------------------------------------------
 
-const MIDDLE_C = staffDegree({ letter: 'C', octave: 4 })
-const HIGH_A = staffDegree({ letter: 'A', octave: 5 })
 
 /** Two natural notes on the staff: what number interval? */
 export function makeIvReadNumber(id: number, rng: Rng, only?: number): Question {
@@ -173,7 +193,7 @@ export function makeIvReadName(id: number, keys: KeyId[], names: string[], stack
   const topOctave = 4 + (LETTERS.indexOf(top.letter) <= LETTERS.indexOf(root.letter) ? 1 : 0)
   const low = { letter: root.letter, octave: 4, sign: printedSign(root, key) }
   const high = { letter: top.letter, octave: topOctave, sign: printedSign(top, key) }
-  const measures: ScoreMeasure[] = stacked ? [[{ ...low, dur: 'w', with: high }]] : [[{ ...low, dur: 'w' }, { ...high, dur: 'w' }]]
+  const measures: ScoreMeasure[] = stacked ? [[{ ...low, dur: 'w', with: [high] }]] : [[{ ...low, dur: 'w' }, { ...high, dur: 'w' }]]
   const names2 = [toneName(root), toneName(top)]
   const size = intervalSize(iv)!
   const lowSound = spelledMidi({ ...root, octave: 4 }) - WRITTEN_OCTAVE_SHIFT
@@ -205,7 +225,7 @@ export function makeIvFlip(id: number, rng: Rng, only?: number): Question {
     options: ['2', '3', '4', '5', '6', '7'],
     answer: 9 - n - 2,
     why: `Move the bottom note up an octave and the numbers always add up to 9: a ${degreeName(n)} turns into a ${degreeName(9 - n)}.`,
-    score: { measures: [[{ letter: 'C', octave: 4, dur: 'w', with: top }]], after: [`C–${top.letter}`] },
+    score: { measures: [[{ letter: 'C', octave: 4, dur: 'w', with: [top] }]], after: [`C–${top.letter}`] },
     sound: [48, 48 + MAJOR_OR_PERFECT[n]],
     facts: [`invnum:${n}`],
   }
@@ -243,6 +263,7 @@ export function makeIvInvert(id: number, names: string[], rng: Rng, only?: strin
     ask: { text: `Turn ${named(iv)} upside down. What is it now?`, hl: intervalName(iv) },
     ...near,
     why: `${capitalize(named(iv))} turns into ${named(flipped)}: ${iv.number} + ${flipped.number} = 9, and ${QUALITY_RULE[iv.quality]}.`,
+    score: { measures: pairScore(pair.root, pair.top, true), labels: [`${toneName(pair.root)}–${toneName(pair.top)}`] },
     sound: [low, low + size, low + 12],
     facts: [`inv:${intervalShort(iv)}`],
   }
@@ -259,7 +280,7 @@ export function makeIvBelow(id: number, names: string[], rng: Rng, only?: string
     const below = spellOn(LETTERS[(LETTERS.indexOf(root.letter) + 8 - iv.number) % 7], pitchClass(midiAt(from) - size))
     const region: Region = { strings: [0, 1, 2, 3, 4, 5], minFret: Math.max(0, from.fret - 4), maxFret: Math.min(12, from.fret + 3) }
     const targets = positionsForMidi(midiAt(from) - size, region)
-    if (!below || RARE.has(toneName(below)) || !targets.length) continue
+    if (!below || RARE_SPELLINGS.has(toneName(below)) || !targets.length) continue
     const flipped = invertInterval(iv)
     return {
       id,
@@ -344,16 +365,26 @@ export function makeIvHearFind(id: number, names: string[], rng: Rng, only?: str
 
 /** Interval ideas in the order they're taught. */
 export const INTERVAL_ORDER = [
+  'ivshape:what',
+  'ivshape:why',
+  'oct:what',
+  'oct:why',
+  'oct:e-strings',
+  'ivname:parts',
   'ivname:number',
   'ivname:major',
   'ivname:minor',
   'ivname:altered',
+  'ivname:tritone',
+  'ivstaff:why',
   'ivstaff:number',
   'ivstaff:name',
   'ivstaff:stacked',
+  'invert:what',
   'invert:numbers',
   'invert:qualities',
   'invert:neck',
+  'ear:why',
   'ear:octave-fifth',
   'ear:fourth',
   'ear:thirds',
@@ -362,7 +393,7 @@ export const INTERVAL_ORDER = [
   'ear:neck',
 ]
 
-export const isIntervalItem = (item: string) => /^(ivname|ivstaff|invert|ear):/.test(item)
+export const isIntervalItem = (item: string) => /^(ivshape|oct|ivname|ivstaff|invert|ear):/.test(item)
 
 /** Which ear idea teaches each interval's sound. */
 const EAR_TOPIC: Record<string, string> = {
@@ -393,7 +424,7 @@ export function intervalItemFor(fact: string): string | null {
     case 'inv':
       return 'invert:qualities'
     case 'ear':
-      return EAR_TOPIC[value] ?? null
+      return Object.hasOwn(EAR_TOPIC, value) ? EAR_TOPIC[value] : null
     default:
       return null
   }
@@ -404,6 +435,7 @@ const FOCUS: Record<string, (s: string) => boolean> = {
   'ivname:major': (s) => s[0] === 'M' || s[0] === 'P',
   'ivname:minor': (s) => s[0] === 'm',
   'ivname:altered': (s) => s[0] === 'A' || s[0] === 'd',
+  'ivname:tritone': (s) => s === 'A4' || s === 'd5',
 }
 
 /** One question on a taught interval idea. */
@@ -419,6 +451,7 @@ export function intervalCheck(item: string, l: LessonSpec, turn: number, rng: Rn
     case 'ivname:major':
     case 'ivname:minor':
     case 'ivname:altered':
+    case 'ivname:tritone':
       return makeIvName(id, names, rng, focused(FOCUS[item]))
     case 'ivstaff:number':
       return makeIvReadNumber(id, rng)
@@ -442,17 +475,20 @@ export function intervalCheck(item: string, l: LessonSpec, turn: number, rng: Rn
 /** A review question on one interval fact, or null if it isn't one. */
 export function intervalReview(fact: string, id: number, rng: Rng): Question | null {
   const [kind, value] = fact.split(':')
+  const n = Number(value)
   switch (kind) {
     case 'ivnum':
-      return rng() < 0.5 ? makeIvNumber(id, rng, Number(value)) : makeIvReadNumber(id, rng, Number(value))
+      if (!Number.isInteger(n) || n < 2 || n > 8) return null
+      return rng() < 0.5 ? makeIvNumber(id, rng, n) : makeIvReadNumber(id, rng, n)
     case 'ivn':
+      if (!isOneOf(value, ALL_NAMES)) return null
       return (rng() < 0.5 && makeIvReadName(id, ['C', 'G', 'D', 'F'], ALL_NAMES, rng() < 0.5, rng, value)) || makeIvName(id, ALL_NAMES, rng, value)
     case 'invnum':
-      return makeIvFlip(id, rng, Number(value))
+      return Number.isInteger(n) && n >= 2 && n <= 7 ? makeIvFlip(id, rng, n) : null
     case 'inv':
-      return makeIvInvert(id, ALL_NAMES, rng, value)
+      return isOneOf(value, ALL_NAMES) ? makeIvInvert(id, ALL_NAMES, rng, value) : null
     case 'ear':
-      return EAR_TOPIC[value] ? makeIvHear(id, [], ['up', 'down'], rng, value) : null
+      return Object.hasOwn(EAR_TOPIC, value) ? makeIvHear(id, [], ['up', 'down'], rng, value) : null
     default:
       return null
   }
@@ -460,21 +496,76 @@ export function intervalReview(fact: string, id: number, rng: Rng): Question | n
 
 // Worked examples for the cards.
 const w = (letter: ScoreNote['letter'], octave: number, sign?: ScoreNote['sign']): ScoreNote => ({ letter, octave, dur: 'w', ...(sign !== undefined ? { sign } : {}) })
-const stack = (low: ScoreNote, high: ScoreNote): ScoreNote => ({ ...low, with: { letter: high.letter, octave: high.octave, sign: high.sign } })
-const on = (string: number, fret: number, tone: Marker['tone'] = 'target'): Marker => ({ pos: { string, fret }, tone, label: noteAt({ string, fret }) })
+const stack = (low: ScoreNote, high: ScoreNote): ScoreNote => ({ ...low, with: [{ letter: high.letter, octave: high.octave, sign: high.sign }] })
+/** A labeled dot on the neck, for the worked examples on cards. */
+export const on = (string: number, fret: number, tone: Marker['tone'] = 'target'): Marker => ({ pos: { string, fret }, tone, label: noteAt({ string, fret }) })
 
 const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
+  'ivshape:what': () => ({
+    title: 'What an interval is',
+    subtitle: 'The distance between two notes',
+    hook: 'An interval is the distance between two notes: how far one is above the other. Every melody and every chord is built from intervals, and each one has a name, like “perfect 5th” or “major 3rd”. This tape learns them as shapes on the neck; the next tape explains how the names work.',
+    score: { measures: [[w('C', 4), w('G', 4)]], labels: ['C', 'G'] },
+    board: { region: { strings: [1, 2], minFret: 1, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 5)] },
+    sound: [48, 55],
+  }),
+  'ivshape:why': () => ({
+    title: 'Why shapes',
+    subtitle: 'Same distance, same shape',
+    hook: 'On the guitar, an interval makes the same shape wherever you start. From any note, a perfect 5th is one string over and two frets up. Learn the shape once and you can find that interval from every note on the neck.',
+    onGuitar: 'The perfect 5th shape is the power chord: the two-note chord behind most rock riffs.',
+    board: {
+      region: { strings: [0, 1, 2], minFret: 1, maxFret: 8 },
+      markers: [{ ...on(1, 3), tone: 'root' }, on(2, 5), { ...on(0, 5), tone: 'root' }, on(1, 7)],
+    },
+    sound: [48, 55, 45, 52],
+  }),
+  'oct:what': () => ({
+    title: 'What an octave is',
+    subtitle: 'Same name, one level up',
+    hook: 'Two notes with the same name, one higher than the other, like A and the next A up. They sound like the same note in a higher voice. Count up a scale and the octave is the 8th note (A B C D E F G A), which is where the name comes from: “oct” means eight. On one string, the octave is 12 frets up, at the double dot.',
+    score: { measures: [[w('A', 3), w('A', 4)]], labels: ['A', 'A'] },
+    board: { region: { strings: [1], minFret: 0, maxFret: 12 }, markers: [{ ...on(1, 0), tone: 'root' }, on(1, 12)] },
+    sound: [45, 57],
+  }),
+  'oct:why': () => ({
+    title: 'Why octaves matter',
+    subtitle: 'Every note lives in several places',
+    hook: 'Each note shows up in several places on the neck. If you know one, an octave shape takes you straight to the same note somewhere else, with no counting along the string. Here are all the G’s.',
+    onGuitar: 'A melody played in octaves (the same tune on two notes an octave apart) is a classic jazz and rock sound.',
+    board: { region: { strings: [0, 1, 2, 3, 4, 5], minFret: 0, maxFret: 12 }, markers: positionsForPc(7, { strings: [0, 1, 2, 3, 4, 5], minFret: 0, maxFret: 12 }).map((p) => ({ pos: p, tone: 'root', label: 'G' })) },
+    sound: [43, 55, 67],
+  }),
+  'oct:e-strings': () => ({
+    title: 'The two E strings',
+    subtitle: 'Same fret, two octaves apart',
+    hook: 'The thickest and thinnest strings are both E, two octaves apart (two levels up). They have the same notes on the same frets, so if you know one, you know the other.',
+    board: { region: { strings: [0, 5], minFret: 0, maxFret: 5 }, markers: [0, 5].flatMap((s) => [0, 1, 3, 5].map((f) => on(s, f, f === 0 ? 'root' : 'note'))) },
+    sound: [40, 64],
+  }),
+  'ivname:parts': () => ({
+    title: 'Number and quality',
+    subtitle: 'Two parts to every name',
+    hook: 'Every interval’s name has two parts. The number says how many letters it spans: C up to E is C D E, a 3rd. The quality says its exact size: major, minor, perfect, augmented or diminished. Together they make names like “major 3rd”.',
+    onGuitar: 'The number tells you roughly where to look on the neck; the quality tells you the exact fret.',
+    score: { measures: [[w('C', 4), w('E', 4)]], labels: ['C', 'E'] },
+    board: { region: { strings: [1], minFret: 1, maxFret: 8 }, markers: [{ ...on(1, 3), tone: 'root' }, on(1, 7)] },
+    sound: [48, 52],
+  }),
   'ivname:number': () => ({
     title: 'Interval numbers',
     subtitle: 'Count the letters',
     hook: 'Count the letters from the lower note to the higher one, including both. C up to G is C D E F G: a 5th. Sharps and flats don’t change the number: C up to G♯ is still a 5th.',
+    onGuitar: 'Counting letters works the same whether the two notes are on one string or across strings.',
     score: { measures: [[w('C', 4), w('G', 4)]], labels: ['C', 'G'] },
+    board: { region: { strings: [1, 2], minFret: 1, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 5)] },
     sound: [48, 55],
   }),
   'ivname:major': () => ({
     title: 'Major and perfect',
-    subtitle: 'Measured from the root of a major scale',
-    hook: 'Up from the root of a major scale, every note makes a major or a perfect interval. 2nds, 3rds, 6ths and 7ths are major; 4ths, 5ths and octaves are perfect.',
+    subtitle: 'Measured up from a scale’s root',
+    hook: 'Count up from the root of a major scale and every note makes a major or a perfect interval with it. 2nds, 3rds, 6ths and 7ths come out major; 4ths, 5ths and the octave come out perfect.',
+    onGuitar: 'Here’s C major around the 3rd fret, each note labeled with its interval from the root C.',
     score: {
       measures: [
         [w('C', 4), w('D', 4), w('E', 4), w('F', 4)].map((n) => ({ ...n, dur: 'q' as const })),
@@ -482,26 +573,63 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
       ],
       labels: ['1', 'M2', 'M3', 'P4', 'P5', 'M6', 'M7', 'P8'],
     },
+    board: {
+      region: { strings: [1, 2, 3], minFret: 1, maxFret: 6 },
+      markers: [
+        { ...on(1, 3), tone: 'root', label: '1' },
+        { ...on(1, 5), tone: 'note', label: 'M2' },
+        { ...on(2, 2), tone: 'note', label: 'M3' },
+        { ...on(2, 3), tone: 'note', label: 'P4' },
+        { ...on(2, 5), tone: 'note', label: 'P5' },
+        { ...on(3, 2), tone: 'note', label: 'M6' },
+        { ...on(3, 4), tone: 'note', label: 'M7' },
+        { ...on(3, 5), tone: 'note', label: 'P8' },
+      ],
+    },
     sound: [48, 50, 52, 53, 55, 57, 59, 60],
   }),
   'ivname:minor': () => ({
     title: 'Minor intervals',
     subtitle: 'A half step smaller than major',
-    hook: 'Make a major interval a half step smaller and it becomes minor: C up to E is a major 3rd, and C up to E♭ is a minor 3rd. Perfect intervals are never minor.',
+    hook: 'Make a major interval a half step smaller and it becomes minor: C up to E is a major 3rd, and C up to E♭ is a minor 3rd, one fret less. Perfect intervals never become minor.',
+    onGuitar: 'On one string you can see it: the minor 3rd is one fret short of the major 3rd.',
     score: { measures: [[w('C', 4), w('E', 4)], [w('C', 4), w('E', 4, -1)]], labels: ['C', 'E', 'C', 'E♭'] },
+    board: {
+      region: { strings: [1], minFret: 1, maxFret: 8 },
+      markers: [{ ...on(1, 3), tone: 'root' }, { ...on(1, 6), label: 'E♭' }, { ...on(1, 7), tone: 'correct' }],
+    },
     sound: [48, 52, 48, 51],
   }),
   'ivname:altered': () => ({
+    title: 'Augmented and diminished',
+    subtitle: 'A half step past the usual size',
+    hook: 'Make a perfect or major interval a half step bigger and it becomes augmented. Make a perfect or minor interval a half step smaller and it becomes diminished. C up to G♯ is an augmented 5th: one fret past the perfect 5th, G.',
+    score: { measures: [[w('C', 4), w('G', 4)], [w('C', 4), w('G', 4, 1)]], labels: ['C', 'G', 'C', 'G♯'] },
+    board: { region: { strings: [1, 2], minFret: 1, maxFret: 7 }, markers: [{ ...on(1, 3), tone: 'root' }, { ...on(2, 5), tone: 'note' }, { ...on(2, 6), label: 'G♯' }] },
+    sound: [48, 55, 48, 56],
+  }),
+  'ivname:tritone': () => ({
     title: 'The tritone',
-    subtitle: 'Augmented and diminished',
-    hook: 'A perfect or major interval made a half step bigger is augmented. A perfect or minor one made a half step smaller is diminished. C up to F♯ (augmented 4th) and C up to G♭ (diminished 5th) are the same sound: the tritone, 6 half steps. C up to G♯ is an augmented 5th.',
+    subtitle: 'Six half steps, two names',
+    hook: 'Halfway between a 4th and a 5th sits the tritone: 6 half steps. Spelled C up to F♯ it’s an augmented 4th; spelled C up to G♭ it’s a diminished 5th. Same sound, two names, depending on the letters.',
+    onGuitar: 'The tritone sounds tense and unsettled, which is why blues and rock lean on it for grit.',
     score: { measures: [[w('C', 4), w('F', 4, 1)], [w('C', 4), w('G', 4, -1)]], labels: ['C', 'F♯', 'C', 'G♭'] },
+    board: { region: { strings: [1, 2], minFret: 1, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, { ...on(2, 4), label: 'F♯/G♭' }] },
     sound: [48, 54],
+  }),
+  'ivstaff:why': () => ({
+    title: 'Why read intervals',
+    subtitle: 'See the distance, not just the notes',
+    hook: 'Good readers don’t name every note. They see how far the next note is, the way you saw steps and skips on tape 18. Spot the interval on the staff and your hand already knows which shape to play.',
+    onGuitar: 'A 3rd on the staff is a 3rd shape on the neck, wherever it’s written.',
+    score: { measures: [[w('E', 4), w('G', 4), w('B', 4), w('D', 5)]], labels: ['E', 'G', 'B', 'D'] },
+    sound: [52, 55, 59, 62],
   }),
   'ivstaff:number': () => ({
     title: 'Numbers on the staff',
     subtitle: 'Lines and spaces',
     hook: 'Line to line, or space to space, is an odd number: a 3rd is the next line up, a 5th skips a line. A line and a space make an even number: 2nd, 4th, 6th.',
+    onGuitar: 'Stacked 3rds, line to line to line, are the notes most chords are built from.',
     score: { measures: [[w('E', 4), w('G', 4)], [w('E', 4), w('B', 4)]], labels: ['E', 'G', 'E', 'B'] },
     sound: [52, 55, 52, 59],
   }),
@@ -510,18 +638,30 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     subtitle: 'Read the key signature first',
     hook: 'Name both notes with the key signature in mind, then name the interval. In D major, F is F♯, so F up to A is a minor 3rd, not a major one.',
     score: { measures: [[w('F', 4), w('A', 4)]], keySig: 'D', labels: ['F♯', 'A'] },
+    board: { region: { strings: [2, 3], minFret: 1, maxFret: 5 }, markers: [{ ...on(2, 4), tone: 'root', label: 'F♯' }, on(3, 2)] },
     sound: [54, 57],
   }),
   'ivstaff:stacked': () => ({
     title: 'Stacked notes',
     subtitle: 'Two notes at once',
     hook: 'Notes written one above the other are played together. Read the bottom note first, then count up to the top one: here, C up to E is a major 3rd.',
+    onGuitar: 'Two notes played together usually sit on neighboring strings, in the shapes from tape 28.',
     score: { measures: [[stack(w('C', 4), w('E', 4)), stack(w('D', 4), w('A', 4))]], labels: ['C–E', 'D–A'] },
+    board: { region: { strings: [1, 2], minFret: 0, maxFret: 5 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 2)] },
     sound: [48, 52],
   }),
+  'invert:what': () => ({
+    title: 'What inverting means',
+    subtitle: 'Same two notes, swapped',
+    hook: 'To invert an interval, take its bottom note up an octave so it ends up on top. The two letters stay the same, but the distance changes: C up to E becomes E up to C.',
+    onGuitar: 'Inverting is how you find a note below instead of above, and later it’s how chords get rearranged into new shapes.',
+    score: { measures: [[stack(w('C', 4), w('E', 4)), stack(w('E', 4), w('C', 5))]], labels: ['C–E', 'E–C'] },
+    board: { region: { strings: [1, 2, 3], minFret: 0, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 2), { ...on(3, 5), tone: 'root' }] },
+    sound: [48, 52, 52, 60],
+  }),
   'invert:numbers': () => ({
-    title: 'Turning intervals over',
-    subtitle: 'The numbers add up to 9',
+    title: 'The numbers add up to 9',
+    subtitle: 'Count it both ways',
     hook: 'Move the bottom note up an octave and the interval turns upside down. The two numbers always add up to 9: a 3rd becomes a 6th, a 2nd becomes a 7th, a 4th becomes a 5th.',
     score: { measures: [[stack(w('C', 4), w('E', 4)), stack(w('E', 4), w('C', 5))]], labels: ['3rd', '6th'] },
     sound: [48, 52, 52, 60],
@@ -543,10 +683,21 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     },
     sound: [48, 53, 48, 41],
   }),
+  'ear:why': () => ({
+    title: 'Why train your ear',
+    subtitle: 'Hearing distances',
+    hook: 'Ear training here isn’t about naming a single note by its sound. It’s hearing the distance between two notes. That skill, called relative pitch, is what lets musicians pick out a melody and play it back.',
+    onGuitar: 'Hear a jump of a 5th and you already know the shape: one string over, two frets up.',
+    board: { region: { strings: [1, 2], minFret: 1, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 5)] },
+    listen: { notes: [48, 55] },
+    sound: [],
+  }),
   'ear:octave-fifth': () => ({
     title: 'Octaves and 5ths',
     subtitle: 'The widest, most open sounds',
-    hook: 'An octave sounds like the same note, higher. A perfect 5th sounds open and strong: the sound of a power chord. Memory aid: “Twinkle, Twinkle, Little Star” leaps up a 5th on its second “twinkle”.',
+    hook: 'An octave sounds like the same note, higher. A perfect 5th sounds open and strong. Memory aid: “Twinkle, Twinkle, Little Star” leaps up a 5th on its second “twinkle”.',
+    onGuitar: 'The 5th is the power chord shape; the octave is the shape from tape 21.',
+    board: { region: { strings: [1, 2, 3], minFret: 1, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 5), on(3, 5)] },
     listen: { notes: [48, 60, 48, 55] },
     sound: [],
   }),
@@ -554,13 +705,17 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'Perfect 4ths',
     subtitle: 'A call to begin',
     hook: 'A perfect 4th sounds settled but not finished, like a call to start something. Memory aid: “Here Comes the Bride” opens with one.',
+    onGuitar: 'Next string over, same fret.',
+    board: { region: { strings: [1, 2], minFret: 1, maxFret: 5 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 3)] },
     listen: { notes: [48, 53] },
     sound: [],
   }),
   'ear:thirds': () => ({
     title: 'Major and minor 3rds',
     subtitle: 'Bright and dark',
-    hook: 'A major 3rd sounds bright; a minor 3rd sounds darker. They’re the difference between major and minor chords. Memory aids: “When the Saints Go Marching In” opens with a major 3rd, “Greensleeves” with a minor 3rd.',
+    hook: 'A major 3rd sounds bright; a minor 3rd sounds darker. Memory aids: “When the Saints Go Marching In” opens with a major 3rd, “Greensleeves” with a minor 3rd.',
+    onGuitar: 'These two are what make a chord sound happy or sad. On the neck they’re one fret apart.',
+    board: { region: { strings: [1, 2], minFret: 0, maxFret: 5 }, markers: [{ ...on(1, 3), tone: 'root' }, on(2, 2), { ...on(2, 1), label: 'E♭' }] },
     listen: { notes: [48, 52, 48, 51] },
     sound: [],
   }),
@@ -568,6 +723,8 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: '2nds',
     subtitle: 'Next-door neighbors',
     hook: 'A major 2nd is a whole step, like the start of a scale: “Frère Jacques” opens with one. A minor 2nd is a half step that rubs: “Für Elise” rocks back and forth on one.',
+    onGuitar: 'On one string, a major 2nd is two frets and a minor 2nd is one.',
+    board: { region: { strings: [1], minFret: 1, maxFret: 6 }, markers: [{ ...on(1, 3), tone: 'root' }, on(1, 5), { ...on(1, 4), label: 'D♭' }] },
     listen: { notes: [48, 50, 48, 49] },
     sound: [],
   }),
@@ -575,6 +732,11 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: '6ths, 7ths and the tritone',
     subtitle: 'Wide, sweet and tense',
     hook: '6ths sound wide and sweet: “My Bonnie Lies Over the Ocean” opens with a major 6th. A minor 7th sounds bluesy and wants to move on; a major 7th is almost an octave and clashes. The tritone sounds tense and unsettled.',
+    onGuitar: 'From C on the 5th string: the 6th, 7th and tritone all sit on the next string, a few frets up.',
+    board: {
+      region: { strings: [1, 2], minFret: 1, maxFret: 10 },
+      markers: [{ ...on(1, 3), tone: 'root' }, { ...on(2, 4), label: 'F♯' }, on(2, 7), { ...on(2, 8), label: 'B♭' }, on(2, 9)],
+    },
     listen: { notes: [48, 57, 48, 58, 48, 54] },
     sound: [],
   }),

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Accidental, Dot, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode } from 'vexflow/bravura'
+import { musicFontReady, SVG_NS } from './musicFont'
 import { METER_QUARTERS, type Meter } from '../music/rhythm'
 import { KEYS, scoreKey, signSymbol, staffDegree, type KeyId, type ScoreMeasure } from '../music/score'
 
-const fontReady: Promise<unknown> = globalThis.document?.fonts?.load('30px Bravura') ?? Promise.resolve()
-const SVG_NS = 'http://www.w3.org/2000/svg'
+/** Roughly how wide one letter of a 10pt label is, with a little air between neighbors. */
+const LABEL_CHAR_PX = 8
 
 export interface ScoreProps {
   measures: ScoreMeasure[]
@@ -27,12 +28,17 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
 
   useEffect(() => {
     let cancelled = false
-    void fontReady.then(() => {
+    void musicFontReady.then(() => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''
       const lead = 44 + Object.keys(KEYS[keySig].altered).length * 12 + (meter ? 28 : 0)
-      const widths = measures.map((m, i) => (i === 0 ? lead : 0) + Math.max(70, 28 + m.length * 46))
+      // Each note gets room for its label underneath too, so long words like "diminished" don't run together.
+      let at = 0
+      const widths = measures.map((m, i) => {
+        const slots = m.map(() => Math.max(46, (labels?.[at++]?.length ?? 0) * LABEL_CHAR_PX))
+        return (i === 0 ? lead : 0) + Math.max(70, 28 + slots.reduce((a, b) => a + b, 0))
+      })
       const width = widths.reduce((a, b) => a + b, 0) + 4
       const height = labels ? 160 : 140
       const renderer = new Renderer(el, Renderer.Backends.SVG)
@@ -55,7 +61,7 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
         if (!measure.length) return
         const notes = measure.map((n, k) => {
           // A stacked note shares the stem, written bottom to top.
-          const heads = [n, ...(n.with ? [n.with] : [])].sort((a, b) => staffDegree(a) - staffDegree(b))
+          const heads = [n, ...(n.with ?? [])].sort((a, b) => staffDegree(a) - staffDegree(b))
           const note = new StaveNote({ keys: heads.map(scoreKey), duration: n.dur, clef: 'treble' })
           heads.forEach((h, i) => h.sign !== undefined && note.addModifier(new Accidental(signSymbol(h.sign)), i))
           if (n.dots) Dot.buildAndAttach([note], { all: true })

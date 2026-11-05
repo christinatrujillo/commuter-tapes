@@ -157,7 +157,6 @@ function SprintRunner({ preset, questions, onAgain }: { preset: SprintPreset; qu
     setPhase('done')
     completeSession({ nailed: score, mistakes: misses.length })
     setNewBest(recordBest(preset.id, score))
-    playStrum()
     // Runs when the clock passes the end; score and misses are current at that render.
   }, [now, phase])
 
@@ -269,6 +268,8 @@ function SprintDone({
   onAgain: () => void
 }) {
   const uniqueMisses = [...new Set(misses.map(missLabel))].filter(Boolean).slice(0, 6)
+  // The strum plays here, after the last question has stopped its own sounds.
+  useEffect(() => playStrum(), [])
   return (
     <div className="flex h-dvh flex-col px-6 py-8">
       <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">

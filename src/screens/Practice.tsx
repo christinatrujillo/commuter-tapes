@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Button, LabelTape, LedButtons, TabShell, Toggle } from '../components/ui'
-import { DEFAULT_DRILL, drillToQuery, type DrillOptions } from '../game/drill'
+import { drillToQuery, type DrillOptions } from '../game/drill'
 import { recordedOn, THEORY_JAMS } from '../game/jams'
 import { describeFact, dueFacts, weakestFacts } from '../game/review'
 import { today } from '../lib/date'
@@ -44,13 +44,17 @@ export function PracticeScreen() {
   const listening = useProgress((s) => listeningOff(s) === null)
   const weak = weakestFacts(stats, 5, listening)
   const due = dueFacts(stats, today(), listening).length
-  const [sprint, setSprint] = useState(() => (SPRINT_PRESETS[0].ready(stats, lessons) ? SPRINT_PRESETS[0].id : 'low'))
+  const jam = useProgress((s) => s.jam)
+  const saveJam = useProgress((s) => s.saveJam)
+  // Your last choices stay put between visits (after a jam, a ruined take, or closing the app).
+  const sprint = jam.sprint && SPRINT_PRESETS.some((p) => p.id === jam.sprint) ? jam.sprint : SPRINT_PRESETS[0].ready(stats, lessons) ? SPRINT_PRESETS[0].id : 'low'
+  const setSprint = (id: string) => saveJam({ sprint: id })
   const preset = SPRINT_PRESETS.find((p) => p.id === sprint)!
   const sprintReady = preset.ready(stats, lessons)
   // Theory jams appear once you've recorded a track they draw on.
   const jams = THEORY_JAMS.map((j) => ({ ...j, ready: recordedOn(j.tapes, lessons).length > 0 }))
-  const [drill, setDrill] = useState<DrillOptions>(DEFAULT_DRILL)
-  const update = (patch: Partial<DrillOptions>) => setDrill((d) => ({ ...d, ...patch }))
+  const drill = jam.setup
+  const update = (patch: Partial<DrillOptions>) => saveJam({ setup: { ...drill, ...patch } })
   const canStart = drill.strings.length > 0 && drill.exercises.length > 0
 
   return (
@@ -147,6 +151,7 @@ export function PracticeScreen() {
 
           <Channel label="Strings">
             <LedButtons
+              columns={6}
               options={STRING_LABELS.map((label, s) => ({ value: s, label }))}
               selected={drill.strings}
               onToggle={(s) => update({ strings: toggle(drill.strings, s).sort((a, b) => a - b) })}

@@ -9,6 +9,7 @@ import { buildReview, tapeOf } from './review'
 import {
   makeDegreeFind,
   makeDegreeName,
+  makeCircleNext,
   makeKeySignature,
   makeMinorNote,
   makeRelativeFind,
@@ -160,17 +161,65 @@ describe('theory questions', () => {
   })
 })
 
+describe('every theory idea on the shelf', () => {
+  it('has a card, a place in the teaching order, and a quiz unless it’s explanation-only', async () => {
+    const { ALL_LESSONS } = await import('../music/curriculum')
+    const { THEORY_ORDER, theoryCard, theoryCheck, isIntroItem } = await import('./theory')
+    for (const l of ALL_LESSONS) {
+      for (const topic of l.topics ?? []) {
+        expect(THEORY_ORDER, `${l.id}: ${topic}`).toContain(topic)
+        expect(theoryCard(topic, '').title.length, topic).toBeGreaterThan(0)
+        if (!isIntroItem(topic)) expect(theoryCheck(topic, l, 0, seeded(1), 1), topic).not.toBeNull()
+      }
+    }
+  })
+})
+
+describe('Vol. 3 help and feedback', () => {
+  it('counts five letters up to the next key around the circle', () => {
+    for (const rng of seeds) {
+      const q = asPick(makeCircleNext(1, ['C', 'G', 'D', 'A', 'E', 'B'], rng))
+      const from = q.ask.text.match(/from (\S+)\./)![1]
+      const fifth = toneName(majorScale(KEY_ORDER.find((k) => toneName(majorScale(k)[0]) === from)!)[4])
+      expect(chosen(q)).toBe(`${fifth} major`)
+      expect(new Set(q.options).size).toBe(q.options.length)
+    }
+  })
+
+  it('shows a scale question’s root on the neck, then the whole shape spelled the scale’s way', () => {
+    for (const rng of seeds) {
+      const q = asPick(makeScaleNote(1, ['Bb', 'Eb', 'D', 'E'], rng))
+      expect(q.board!.markers).toHaveLength(1)
+      const key = q.facts[0].slice(6) as 'Bb'
+      const names = majorScale(key).map(toneName)
+      for (const m of q.board!.after!) expect(names).toContain(m.label)
+      expect(q.why).toMatch(/^Count up the /)
+    }
+  })
+
+  it('says how to name a key from its signature', async () => {
+    const { feedbackDetail } = await import('./present')
+    const name = (key: 'D' | 'Eb' | 'F' | 'C') => feedbackDetail({ id: 1, kind: 'keyName', key, options: [key], facts: [] }, { ok: true, ms: 0 })
+    expect(name('D')).toContain('The last sharp is C♯, and one fret above it is D.')
+    expect(name('Eb')).toContain('second-to-last flat: E♭')
+    expect(name('F')).toContain('one flat on its own always means F major')
+    expect(name('C')).toContain('no sharps or flats means C major')
+  })
+})
+
 describe('teaching and reviewing theory', () => {
   it('teaches each new idea on a card before checking it', () => {
     const steps = buildRehearsal('t1-1', seeded(1))!
     expect(steps.mode).toBe('learn')
-    expect(steps.steps.filter((s) => s.kind === 'card').map((s) => s.kind === 'card' && s.card.title)).toEqual(['Half step', 'Whole step'])
-    const sharps = buildRehearsal('t4-1', seeded(1))!
-    const cards = sharps.steps.flatMap((s) => (s.kind === 'card' ? [s.card] : []))
-    expect(cards.map((c) => c.title)).toEqual(['Sharp keys'])
-    expect(cards[0].circle?.majors).toContain('C#')
-    // Review tracks and the all-keys track have nothing new.
-    for (const id of ['t1-4', 't2-4', 't3-3', 't4-3', 't5-4']) expect(buildRehearsal(id, seeded(1))!.mode).toBe('warmup')
+    expect(steps.steps.filter((s) => s.kind === 'card').map((s) => s.kind === 'card' && s.card.title)).toEqual(['Why steps matter', 'Half step', 'Whole step'])
+    const circle = buildRehearsal('t4-1', seeded(1))!
+    const cards = circle.steps.flatMap((s) => (s.kind === 'card' ? [s.card] : []))
+    expect(cards.map((c) => c.title)).toEqual(['Why the circle of fifths', 'Counting up a fifth', 'Each step adds a sharp'])
+    expect(cards[0].circle?.majors).toContain('G')
+    // The why card is explained, not quizzed: the first check comes after the next two cards.
+    expect(circle.steps.map((s) => s.kind).slice(0, 4)).toEqual(['card', 'card', 'check', 'card'])
+    // Review tracks have nothing new.
+    for (const id of ['t1-4', 't2-4', 't3-3', 't5-4']) expect(buildRehearsal(id, seeded(1))!.mode).toBe('warmup')
   })
 
   it('checks each idea with questions about it', () => {
