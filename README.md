@@ -4,7 +4,9 @@
 
 **[▶ Try it in your browser](https://christinatrujillo.github.io/commuter-tapes/)**. On Android, open it in Chrome and choose **Install app**. Once installed, it works offline.
 
-https://github.com/user-attachments/assets/47038d3a-b0a9-4cb0-a2e4-f165bac6b280
+<p align="center">
+  <img width="300" alt="Commuter Tapes demo" src="https://github.com/user-attachments/assets/b96cd7c7-2e84-4123-8b18-3195ea2fbb49" />
+</p>
 
 Commuter Tapes is set in an analog recording studio. Each topic is a cassette on your tape rack, each lesson is a track you record, and the tapes are grouped into volumes, one per chapter. Your progress shows up on VU meters, CLIP lights and LCD readouts. There are no accounts and no ads, and nothing leaves your phone.
 
