@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { playListen, playNotes, stopSounds } from '../audio/sound'
+import { ChordChart } from '../components/ChordChart'
+import { ChordDiagram } from '../components/ChordDiagram'
 import { CircleOfFifths } from '../components/CircleOfFifths'
 import { GlossaryText } from '../components/GlossaryText'
 import { MonitorsOffScreen } from '../components/Monitors'
@@ -159,6 +161,14 @@ function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; on
   ) : card.circle ? (
     <div className="paper h-full p-2">
       <CircleOfFifths majors={card.circle.majors} minors={card.circle.minors} />
+    </div>
+  ) : card.diagram ? (
+    <div className="paper mx-auto h-full max-h-80 w-full max-w-[240px] px-3 py-2">
+      <ChordDiagram {...card.diagram} />
+    </div>
+  ) : card.chart ? (
+    <div className="paper w-full px-2 py-2">
+      <ChordChart {...card.chart} />
     </div>
   ) : null
   // Three equal slots, centered: back, hear, next. Empty slots keep the others from shifting.

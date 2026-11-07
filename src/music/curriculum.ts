@@ -1,7 +1,8 @@
 import { ALL_STRINGS, FULL_NECK, stringName, type Region } from './notes'
 import type { Meter, SymbolId } from './rhythm'
 import { KEY_ORDER, type AccidentalRule, type KeyId, type MotionKind } from './score'
-import type { TriadQuality } from './theory'
+import type { ChordKind, TriadQuality } from './theory'
+import { capitalize } from '../lib/text'
 
 export type ExerciseType =
   | 'name' // a dot on the fretboard: pick its note name
@@ -64,6 +65,54 @@ export type ExerciseType =
   | 'cadenceHear' // hear a progression: does it end at home?
   | 'fourFiveHear' // hear I and another chord: IV or V?
   | 'progressionHear' // hear a progression: which one?
+  | 'chordSymbolRead' // "what does F♯m mean?"
+  | 'chordSymbolWrite' // "how is B diminished written?"
+  | 'chordSpell' // "what notes make G7?"
+  | 'chordKind' // "G B D F: which chord?"
+  | 'seventhOnDegree' // "what's the 7th chord on the 5th note of G major?"
+  | 'seventhNumeral' // "in F major, which numeral is Gm7?"
+  | 'twoFiveSpell' // "in D major, what are the chords of ii7–V7–Imaj7?"
+  | 'diagramName' // an open chord's diagram: which chord?
+  | 'diagramRole' // a dot in a chord diagram: root, 3rd or 5th?
+  | 'cagedShape' // a chord shape up the neck: which CAGED shape?
+  | 'cagedChord' // a chord shape up the neck: which chord?
+  | 'cagedNext' // which CAGED shape comes next up the neck?
+  | 'seventhHear' // hear a 7th chord: which kind?
+  | 'minorChordOnDegree' // "what's the chord on the 4th note of A minor?"
+  | 'minorDegreeQuality' // "in any minor key, what kind of chord is on the 3rd note?"
+  | 'minorNumeral' // "in E minor, which numeral is C major?"
+  | 'minorNumeralToChord' // "in D minor, what's the VII chord?"
+  | 'harmonicNote' // "what's the 7th note of E harmonic minor?"
+  | 'harmonicV' // "in A minor, with the raised 7th, what's the V7 chord?"
+  | 'minorDim7' // "in A minor, what's the vii°7 chord?"
+  | 'minorProgressionSpell' // "in A minor, what are the chords of i–iv–V7–i?"
+  | 'minorProgressionName' // "in E minor, which progression is Em – C – D – Em?"
+  | 'keyFromHome' // a key signature and the chord a song ends on: which key?
+  | 'keyFromChords' // a progression: which key?
+  | 'keyModeHear' // hear a progression: major key or minor?
+  | 'minorVHear' // hear i, v or V, i: which?
+  | 'pentMissing' // "which note of E minor does E minor pentatonic leave out?"
+  | 'pentSpell' // "which notes make A minor pentatonic?"
+  | 'pentDegree' // the minor pentatonic on the staff, a note marked: which degree?
+  | 'majorPentMissing' // "which note of C major does C major pentatonic leave out?"
+  | 'majorPentSpell' // "which notes make G major pentatonic?"
+  | 'pentRelative' // "C major pentatonic has the same notes as which minor pentatonic?"
+  | 'blueNote' // "what's the blue note in the A blues scale?"
+  | 'bluesSpell' // "which notes make the E blues scale?"
+  | 'boxDegree' // the pentatonic box, a note marked: which degree?
+  | 'boxRoot' // the pentatonic box: tap a root
+  | 'boxKey' // the box somewhere on the neck: which key?
+  | 'patternMissing' // a pentatonic pattern with a note hidden: tap it
+  | 'patternRoot' // a pentatonic pattern: tap a root
+  | 'patternCaged' // a pattern with its relative major chord lit: which CAGED shape?
+  | 'pentHear' // hear a pentatonic scale: major or minor?
+  | 'bluesHear' // hear a scale: minor pentatonic or blues?
+  | 'quickHear' // hear four bars of blues: quick change or not?
+  | 'twelveNumeral' // the 12-bar chart in numerals, a bar hidden: which chord?
+  | 'twelveChord' // "in a 12-bar blues in A, what chord is in bar 5?"
+  | 'twelveSpell' // "in a 12-bar blues in G, what are the I7, IV7 and V7 chords?"
+  | 'twelveVariation' // a quick change or turnaround: what chord is in bar 2 or 12?
+  | 'minorBlues' // "in a minor blues in A minor, what chord is in bar 9?"
 
 export interface LessonSpec {
   id: string
@@ -100,6 +149,14 @@ export interface LessonSpec {
   inverted?: boolean
   /** Progressions a track's questions use, by numerals ("I-V-vi-IV"). */
   progressions?: string[]
+  /** The kinds of chord a track's spelling, naming and hearing questions use. */
+  chords?: ChordKind[]
+  /** Chord shapes a track's diagram questions use: open chords ("Am") or CAGED shapes ("E"). */
+  shapes?: string[]
+  /** Minor keys a track uses, by their home notes ("A" for A minor). */
+  minorKeys?: string[]
+  /** Pentatonic patterns (1 to 5) a track's neck questions use. */
+  patterns?: number[]
   /** Early relative-key and triad questions show the scale on the staff to count along (later tracks take that help away). */
   showScale?: boolean
   count?: number
@@ -155,7 +212,7 @@ function stringUnit(n: number, string: number, description: string, tips: string
   const name = stringName(string)
   return {
     id,
-    title: `The ${name} string`,
+    title: `${capitalize(name)} String · Neck`,
     description,
     color: COLORS[(n - 1) % COLORS.length],
     tips,
@@ -198,7 +255,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r2',
-    title: 'The 1st string',
+    title: 'High E String · Staff',
     description: 'E, F and G on the high E string',
     color: COLORS[1],
     tips: [
@@ -223,7 +280,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r3',
-    title: 'The 2nd string',
+    title: 'B String · Staff',
     description: 'B, C and D, plus rests',
     color: COLORS[2],
     tips: [
@@ -249,7 +306,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r4',
-    title: 'The 3rd string',
+    title: 'G String · Staff',
     description: 'G and A, plus 3/4 time',
     color: COLORS[3],
     tips: [
@@ -287,7 +344,7 @@ const TAPES: Unit[] = [
   ]),
   {
     id: 'r5',
-    title: 'The 4th string',
+    title: 'D String · Staff',
     description: 'D, E and F, plus eighth notes',
     color: COLORS[4],
     tips: [
@@ -320,7 +377,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r6',
-    title: 'The 5th string',
+    title: 'A String · Staff',
     description: 'A, B and C, plus ties and dotted quarters',
     color: COLORS[5],
     tips: [
@@ -355,7 +412,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r7',
-    title: 'The 6th string',
+    title: 'Low E String · Staff',
     description: 'E, F and G, down on the ledger lines',
     color: COLORS[6],
     tips: [
@@ -398,7 +455,7 @@ const TAPES: Unit[] = [
   ]),
   {
     id: 'u3',
-    title: 'Low E & A together',
+    title: 'Low E / A · Neck',
     description: 'The root notes of most chords',
     color: COLORS[2],
     tips: [
@@ -415,7 +472,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r8',
-    title: 'Sharps, flats & naturals',
+    title: 'Sharps & Flats · Staff',
     description: 'Accidentals and how long they last',
     color: COLORS[4],
     tips: [
@@ -464,7 +521,7 @@ const TAPES: Unit[] = [
   ]),
   {
     id: 'u8',
-    title: 'The whole neck',
+    title: 'Whole Neck',
     description: 'Every string, every natural note',
     color: COLORS[0],
     tips: [
@@ -482,7 +539,7 @@ const TAPES: Unit[] = [
   },
   {
     id: 'u9',
-    title: 'Sharps & flats',
+    title: 'Sharps & Flats · Neck',
     description: 'The notes in between',
     color: COLORS[1],
     tips: [
@@ -1183,6 +1240,343 @@ const TAPES: Unit[] = [
       { id: 'hk5-3', title: 'Which progression', exercises: ['progressionHear'], region: FULL_NECK, progressions: ['I-IV-V-I', 'I-V-vi-IV', 'I-vi-IV-V'], topics: ['harm:ear-prog'] },
       { id: 'hk5-4', title: 'Hearing review', exercises: ['cadenceHear', 'fourFiveHear', 'progressionHear'], region: FULL_NECK, progressions: ['I-IV-V-I', 'I-V-vi-IV', 'I-vi-IV-V'], count: 10 },
     ],
+  },  {
+    id: 'cb1',
+    title: 'Chord Symbols',
+    description: 'How chords are written above songs',
+    color: COLORS[4],
+    tips: [
+      'A letter on its own is a major chord: C. A small m makes it minor: Cm.',
+      '° means diminished (B°), and + means augmented (C+).',
+      'The letter is the root. Build the rest the way you build triads.',
+    ],
+    lessons: [
+      { id: 'cb1-1', title: 'Major and minor', exercises: ['chordSymbolRead', 'chordSymbolWrite'], region: FULL_NECK, chords: ['maj', 'min'], keys: ['C', 'G', 'D', 'A', 'E', 'F'], topics: ['chord:symbols-why', 'chord:symbols'] },
+      { id: 'cb1-2', title: '° and +', exercises: ['chordSymbolRead', 'chordSymbolWrite'], region: FULL_NECK, chords: ['maj', 'min', 'dim', 'aug'], keys: ['C', 'D', 'E', 'F', 'G', 'A', 'B'], topics: ['chord:dim-aug-symbols'] },
+      { id: 'cb1-3', title: 'Spelling from symbols', exercises: ['chordSpell'], region: FULL_NECK, chords: ['maj', 'min', 'dim', 'aug'], keys: ['C', 'D', 'E', 'F', 'G', 'A', 'B'], topics: ['chord:symbol-spell'] },
+      { id: 'cb1-4', title: 'Symbols review', exercises: ['chordSymbolRead', 'chordSymbolWrite', 'chordSpell'], region: FULL_NECK, chords: ['maj', 'min', 'dim', 'aug'], keys: ['C', 'D', 'E', 'F', 'G', 'A', 'B'], count: 12 },
+    ],
+  },
+  {
+    id: 'cb2',
+    title: '7th Chords',
+    description: 'Four-note chords',
+    color: COLORS[5],
+    tips: [
+      'A 7th chord is a triad with one more 3rd on top: root, 3rd, 5th and 7th.',
+      'maj7 is a major triad with a major 7th (Cmaj7: C E G B). 7 is a major triad with a minor 7th (G7: G B D F).',
+      'm7 is a minor triad with a minor 7th (Am7: A C E G). m7♭5 is a diminished triad with a minor 7th (Bm7♭5: B D F A).',
+    ],
+    lessons: [
+      { id: 'cb2-1', title: 'Major 7ths', exercises: ['chordSpell'], region: FULL_NECK, chords: ['maj7'], keys: ['C', 'F', 'G', 'D', 'A'], topics: ['chord:seventh-what', 'chord:maj7'] },
+      { id: 'cb2-2', title: 'Dominant 7ths', exercises: ['chordSpell'], region: FULL_NECK, chords: ['7'], keys: ['G', 'C', 'D', 'A', 'E'], topics: ['chord:dom7'] },
+      { id: 'cb2-3', title: 'Minor 7ths', exercises: ['chordSpell'], region: FULL_NECK, chords: ['m7', 'm7b5'], keys: ['A', 'E', 'D', 'B', 'G'], topics: ['chord:m7', 'chord:m7b5'] },
+      { id: 'cb2-4', title: 'Which 7th?', exercises: ['chordKind'], region: FULL_NECK, chords: ['maj7', '7', 'm7', 'm7b5'], keys: ['C', 'G', 'D', 'A', 'E', 'F'], topics: ['chord:seventh-which'] },
+      { id: 'cb2-5', title: '7ths review', exercises: ['chordSpell', 'chordKind'], region: FULL_NECK, chords: ['maj7', '7', 'm7', 'm7b5'], keys: ['C', 'G', 'D', 'A', 'E', 'F', 'B'], count: 12 },
+    ],
+  },
+  {
+    id: 'cb3',
+    title: '7ths in a Key',
+    description: 'Seven 7th chords, one pattern',
+    color: COLORS[3],
+    tips: [
+      'Every major key: Imaj7, ii7, iii7, IVmaj7, V7, vi7, viiø7.',
+      'In C major: Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, Bm7♭5.',
+      'V7 is the only dominant 7th in a key, and it pulls home to I the hardest.',
+    ],
+    lessons: [
+      { id: 'cb3-1', title: 'Seven 7th chords', exercises: ['seventhOnDegree'], region: FULL_NECK, keys: ['C', 'G'], topics: ['chord:key7-stack'] },
+      { id: 'cb3-2', title: 'Numerals', exercises: ['seventhNumeral'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F'], topics: ['chord:key7-numerals'] },
+      { id: 'cb3-3', title: 'V7 and ii–V–I', exercises: ['seventhOnDegree', 'twoFiveSpell'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F', 'A'], topics: ['chord:key7-dominant', 'chord:key7-two-five'] },
+      { id: 'cb3-4', title: 'Key review', exercises: ['seventhOnDegree', 'seventhNumeral', 'twoFiveSpell'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F', 'A', 'Bb'], count: 12 },
+    ],
+  },
+  {
+    id: 'cb4',
+    title: 'Sus, Add & 6',
+    description: 'Color beyond triads',
+    color: COLORS[0],
+    tips: [
+      'sus4 swaps the 3rd for the 4th (Csus4: C F G); sus2 swaps it for the 2nd (Csus2: C D G).',
+      'add9 keeps the triad and adds the 9th, the 2nd an octave up (Cadd9: C E G D).',
+      '6 chords add the 6th: C6 is C E G A, and Cm6 is C E♭ G A.',
+    ],
+    lessons: [
+      { id: 'cb4-1', title: 'Sus chords', exercises: ['chordSpell', 'chordKind'], region: FULL_NECK, chords: ['sus2', 'sus4'], keys: ['C', 'D', 'E', 'G', 'A'], topics: ['chord:sus'] },
+      { id: 'cb4-2', title: 'Add9', exercises: ['chordSpell', 'chordKind'], region: FULL_NECK, chords: ['add9'], keys: ['C', 'D', 'G', 'A', 'E'], topics: ['chord:add9'] },
+      { id: 'cb4-3', title: '6 chords', exercises: ['chordSpell', 'chordKind'], region: FULL_NECK, chords: ['6', 'm6'], keys: ['C', 'G', 'D', 'A', 'E'], topics: ['chord:six'] },
+      { id: 'cb4-4', title: 'Color review', exercises: ['chordSpell', 'chordKind'], region: FULL_NECK, chords: ['sus2', 'sus4', 'add9', '6', 'm6'], keys: ['C', 'D', 'E', 'G', 'A'], count: 12 },
+    ],
+  },
+  {
+    id: 'cb5',
+    title: 'Chord Diagrams',
+    description: 'Reading chord boxes',
+    color: COLORS[1],
+    tips: [
+      'Strings run down the diagram, low E on the left; frets run across, with the nut at the top.',
+      'A dot means press there, and its number is the finger. ○ means play the string open; × means leave it out.',
+      'Every dot is the root, the 3rd or the 5th of the chord.',
+    ],
+    lessons: [
+      { id: 'cb5-1', title: 'Major chords', exercises: ['diagramName'], region: FULL_NECK, shapes: ['C', 'A', 'G', 'E', 'D'], topics: ['chord:diagram-read', 'chord:open-major'] },
+      { id: 'cb5-2', title: 'Minor chords', exercises: ['diagramName'], region: FULL_NECK, shapes: ['Am', 'Em', 'Dm', 'A', 'E', 'D'], topics: ['chord:open-minor'] },
+      { id: 'cb5-3', title: 'Root, 3rd and 5th', exercises: ['diagramRole'], region: FULL_NECK, shapes: ['C', 'A', 'G', 'E', 'D', 'Am', 'Em', 'Dm'], topics: ['chord:roles'] },
+      { id: 'cb5-4', title: 'Diagrams review', exercises: ['diagramName', 'diagramRole'], region: FULL_NECK, shapes: ['C', 'A', 'G', 'E', 'D', 'Am', 'Em', 'Dm'], count: 12 },
+    ],
+  },
+  {
+    id: 'cb6',
+    title: 'CAGED',
+    description: 'Five shapes up the neck',
+    color: COLORS[2],
+    tips: [
+      'Each open major chord, C A G E D, is a shape you can slide up the neck as a barre chord.',
+      'Up the neck, the shapes come in order: C, A, G, E, D, then C again.',
+      'Find the root to name a shape: on the low E string for the E and G shapes, the A string for C and A, the D string for D.',
+    ],
+    lessons: [
+      { id: 'cb6-1', title: 'Moving shapes', exercises: ['cagedChord'], region: FULL_NECK, shapes: ['E', 'A'], topics: ['chord:caged-why', 'chord:caged-move'] },
+      { id: 'cb6-2', title: 'Five shapes', exercises: ['cagedShape', 'cagedNext'], region: FULL_NECK, shapes: ['C', 'A', 'G', 'E', 'D'], topics: ['chord:caged-order'] },
+      { id: 'cb6-3', title: 'Naming them', exercises: ['cagedChord', 'cagedShape'], region: FULL_NECK, shapes: ['C', 'A', 'G', 'E', 'D'], topics: ['chord:caged-name'] },
+      { id: 'cb6-4', title: 'CAGED review', exercises: ['cagedShape', 'cagedChord', 'cagedNext'], region: FULL_NECK, shapes: ['C', 'A', 'G', 'E', 'D'], count: 12 },
+    ],
+  },
+  {
+    id: 'cb7',
+    title: 'Hearing 7ths',
+    description: 'Ear training: headphones on',
+    color: COLORS[6],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
+      'A major 7th sounds dreamy; a dominant 7th sounds bluesy and restless.',
+      'A minor 7th sounds mellow; half-diminished sounds dark and tense.',
+    ],
+    lessons: [
+      { id: 'cb7-1', title: 'Major or dominant', exercises: ['seventhHear'], region: FULL_NECK, chords: ['maj7', '7'], ear: ['up'], topics: ['chord:ear-why', 'chord:ear-maj-dom'] },
+      { id: 'cb7-2', title: 'Add minor 7ths', exercises: ['seventhHear'], region: FULL_NECK, chords: ['maj7', '7', 'm7'], ear: ['up', 'together'], topics: ['chord:ear-m7'] },
+      { id: 'cb7-3', title: 'Half-diminished', exercises: ['seventhHear'], region: FULL_NECK, chords: ['maj7', '7', 'm7', 'm7b5'], ear: ['up', 'together'], topics: ['chord:ear-m7b5'] },
+      { id: 'cb7-4', title: 'Hearing review', exercises: ['seventhHear'], region: FULL_NECK, chords: ['maj7', '7', 'm7', 'm7b5'], ear: ['up', 'together'], count: 10 },
+    ],
+  },  {
+    id: 'mk1',
+    title: 'Chords in Minor',
+    description: 'Seven chords, a new home',
+    color: COLORS[4],
+    tips: [
+      'A minor key shares its notes, and so its chords, with its relative major. Only home changes.',
+      'The pattern in every minor key: minor, diminished, major, minor, minor, major, major.',
+      'Numerals count from the minor home note: i, ii°, III, iv, v, VI, VII. In A minor: Am, B°, C, Dm, Em, F, G.',
+    ],
+    lessons: [
+      { id: 'mk1-1', title: 'Chords on the minor scale', exercises: ['minorChordOnDegree'], region: FULL_NECK, minorKeys: ['A'], showScale: true, topics: ['mkey:why', 'mkey:stack'] },
+      { id: 'mk1-2', title: 'The minor pattern', exercises: ['minorDegreeQuality'], region: FULL_NECK, topics: ['mkey:pattern'] },
+      { id: 'mk1-3', title: 'Minor numerals', exercises: ['minorNumeral', 'minorNumeralToChord'], region: FULL_NECK, minorKeys: ['A', 'E', 'D'], topics: ['mkey:numerals'] },
+      {
+        id: 'mk1-4',
+        title: 'Minor chords review',
+        exercises: ['minorChordOnDegree', 'minorDegreeQuality', 'minorNumeral'],
+        region: FULL_NECK,
+        minorKeys: ['A', 'E', 'D', 'B', 'G'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'mk2',
+    title: 'Harmonic Minor',
+    description: 'The raised 7th',
+    color: COLORS[5],
+    tips: [
+      'Harmonic minor raises the 7th note a half step: A B C D E F G♯ in A minor.',
+      'The raised 7th turns v into a major V (E) and V7 (E7), which pull home much harder.',
+      'On the raised 7th sits a diminished 7th: G♯°7 is G♯ B D F, all minor 3rds.',
+    ],
+    lessons: [
+      { id: 'mk2-1', title: 'The raised 7th', exercises: ['harmonicNote'], region: FULL_NECK, minorKeys: ['A', 'E', 'D'], topics: ['mkey:harmonic-why', 'mkey:harmonic-scale'] },
+      { id: 'mk2-2', title: 'A major V', exercises: ['harmonicV'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'B'], topics: ['mkey:harmonic-v'] },
+      { id: 'mk2-3', title: 'Diminished 7ths', exercises: ['minorDim7'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'B', 'G'], topics: ['mkey:dim7'] },
+      { id: 'mk2-4', title: 'Harmonic review', exercises: ['harmonicNote', 'harmonicV', 'minorDim7'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'B', 'G', 'C'], count: 12 },
+    ],
+  },
+  {
+    id: 'mk3',
+    title: 'Minor Progressions',
+    description: 'The chord orders of minor songs',
+    color: COLORS[3],
+    tips: [
+      'i–iv–v–i (Am Dm Em Am) and i–VI–VII–i (Am F G Am) use only the natural minor chords.',
+      'With the raised 7th: i–iv–V7–i (Am Dm E7 Am), and the minor ii–V–I, ii°–V7–i (B° E7 Am).',
+    ],
+    lessons: [
+      { id: 'mk3-1', title: 'i–iv–v and i–VI–VII', exercises: ['minorProgressionSpell'], region: FULL_NECK, minorKeys: ['A', 'E', 'D'], progressions: ['i-iv-v-i', 'i-VI-VII-i'], topics: ['mkey:progressions'] },
+      { id: 'mk3-2', title: 'With V7', exercises: ['minorProgressionSpell', 'minorProgressionName'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'B'], progressions: ['i-iv-v-i', 'i-VI-VII-i', 'i-iv-V7-i', 'iidim-V7-i'], topics: ['mkey:harmonic-progressions'] },
+      { id: 'mk3-3', title: 'Progressions review', exercises: ['minorProgressionSpell', 'minorProgressionName'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'B', 'G'], progressions: ['i-iv-v-i', 'i-VI-VII-i', 'i-iv-V7-i', 'iidim-V7-i'], count: 12 },
+    ],
+  },
+  {
+    id: 'mk4',
+    title: 'Finding the Key',
+    description: 'Major, or its relative minor?',
+    color: COLORS[0],
+    tips: [
+      'Every key signature belongs to a major key and its relative minor.',
+      'Find home: songs usually start, and especially end, on their home chord.',
+      'A raised 7th (a G♯ with no sharps in the key, or an E7) points to the minor key.',
+    ],
+    lessons: [
+      { id: 'mk4-1', title: 'Find home', exercises: ['keyFromHome'], region: FULL_NECK, topics: ['mkey:find-why', 'mkey:find-home'] },
+      { id: 'mk4-2', title: 'The raised 7th clue', exercises: ['keyFromChords'], region: FULL_NECK, topics: ['mkey:find-raised'] },
+      { id: 'mk4-3', title: 'Key review', exercises: ['keyFromHome', 'keyFromChords'], region: FULL_NECK, count: 12 },
+    ],
+  },
+  {
+    id: 'mk5',
+    title: 'Hearing Minor Keys',
+    description: 'Ear training: headphones on',
+    color: COLORS[6],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
+      'Listen to home: a major key settles on a bright chord, a minor key on a dark one.',
+      'The harmonic V pulls home strongly; the minor v leads back gently.',
+    ],
+    lessons: [
+      { id: 'mk5-1', title: 'Major or minor key', exercises: ['keyModeHear'], region: FULL_NECK, topics: ['mkey:ear-why', 'mkey:ear-mode'] },
+      { id: 'mk5-2', title: 'v or V', exercises: ['minorVHear'], region: FULL_NECK, topics: ['mkey:ear-v'] },
+      { id: 'mk5-3', title: 'Hearing review', exercises: ['keyModeHear', 'minorVHear'], region: FULL_NECK, count: 10 },
+    ],
+  },
+  {
+    id: 'bp1',
+    title: 'Minor Pentatonic',
+    description: 'Five notes for soloing',
+    color: COLORS[1],
+    tips: [
+      'The minor pentatonic is the natural minor scale without its 2nd and 6th notes: A C D E G in A.',
+      'With no half steps, none of its notes rub against each other.',
+      'Its notes are the 1st, 3rd, 4th, 5th and 7th of the minor scale.',
+    ],
+    lessons: [
+      { id: 'bp1-1', title: 'Five notes', exercises: ['pentMissing'], region: FULL_NECK, minorKeys: ['A'], showScale: true, topics: ['blues:pent-why', 'blues:pent-what'] },
+      { id: 'bp1-2', title: 'In any key', exercises: ['pentSpell', 'pentMissing'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'G'], topics: ['blues:pent-keys'] },
+      { id: 'bp1-3', title: 'Numbering the notes', exercises: ['pentDegree'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'G', 'C', 'B'], topics: ['blues:pent-degrees'] },
+      {
+        id: 'bp1-4',
+        title: 'Minor pentatonic review',
+        exercises: ['pentSpell', 'pentMissing', 'pentDegree'],
+        region: FULL_NECK,
+        minorKeys: ['A', 'E', 'D', 'G', 'C', 'B'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'bp2',
+    title: 'Major Pentatonic',
+    description: 'Bright, and related',
+    color: COLORS[2],
+    tips: [
+      'The major pentatonic is the major scale without its 4th and 7th notes: C D E G A in C.',
+      'Every major pentatonic has the same notes as the minor pentatonic on its 6th note: C major and A minor.',
+    ],
+    lessons: [
+      { id: 'bp2-1', title: 'Five major notes', exercises: ['majorPentMissing'], region: FULL_NECK, keys: ['C', 'G'], showScale: true, topics: ['blues:major-pent'] },
+      { id: 'bp2-2', title: 'Spell it', exercises: ['majorPentSpell', 'majorPentMissing'], region: FULL_NECK, keys: ['C', 'G', 'D', 'A', 'E', 'F'] },
+      { id: 'bp2-3', title: 'Same notes, new home', exercises: ['pentRelative'], region: FULL_NECK, keys: ['C', 'G', 'D', 'A', 'E', 'F'], topics: ['blues:pent-relative'] },
+      {
+        id: 'bp2-4',
+        title: 'Major pentatonic review',
+        exercises: ['majorPentSpell', 'majorPentMissing', 'pentRelative'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'E', 'F'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'bp3',
+    title: 'Blues Scale',
+    description: 'The blue note',
+    color: COLORS[4],
+    tips: [
+      'The blues scale is the minor pentatonic plus the blue note: A C D E♭ E G in A.',
+      'The blue note is the 5th, lowered a half step. It sits between the 4th and the 5th.',
+      'Blues players slide through the blue note rather than stopping on it.',
+    ],
+    lessons: [
+      { id: 'bp3-1', title: 'The blue note', exercises: ['blueNote'], region: FULL_NECK, minorKeys: ['A', 'E', 'D'], topics: ['blues:blues-why', 'blues:blue-note'] },
+      { id: 'bp3-2', title: 'Spelling it', exercises: ['bluesSpell', 'blueNote'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'G', 'C', 'B'], topics: ['blues:blues-spell'] },
+      { id: 'bp3-3', title: 'Blues scale review', exercises: ['blueNote', 'bluesSpell'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'G', 'C', 'B'], count: 12 },
+    ],
+  },
+  {
+    id: 'bp4',
+    title: 'Pentatonic Patterns',
+    description: 'Five shapes up the neck',
+    color: COLORS[5],
+    tips: [
+      'Pattern 1, the box, has its roots on both E strings and on the D string two frets up.',
+      'Slide the box along the neck: the note under its root on the low E string names the key.',
+      'Each pattern starts where the last one ends, and all five hold the same five notes.',
+    ],
+    lessons: [
+      { id: 'bp4-1', title: 'The box', exercises: ['boxDegree', 'boxRoot'], region: FULL_NECK, topics: ['blues:box-why', 'blues:box'] },
+      { id: 'bp4-2', title: 'Moving the box', exercises: ['boxKey', 'boxRoot'], region: FULL_NECK, topics: ['blues:box-move'] },
+      { id: 'bp4-3', title: 'Patterns join up', exercises: ['patternMissing', 'patternCaged'], region: FULL_NECK, patterns: [1, 2], topics: ['blues:patterns', 'blues:caged-link'] },
+      { id: 'bp4-4', title: 'All five patterns', exercises: ['patternRoot', 'patternMissing'], region: FULL_NECK, patterns: [1, 2, 3, 4, 5], topics: ['blues:all-patterns'] },
+      {
+        id: 'bp4-5',
+        title: 'Patterns review',
+        exercises: ['boxKey', 'patternRoot', 'patternMissing', 'patternCaged'],
+        region: FULL_NECK,
+        patterns: [1, 2, 3, 4, 5],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'bp5',
+    title: '12-Bar Blues',
+    description: 'Three chords, twelve bars',
+    color: COLORS[3],
+    tips: [
+      'The 12 bars read in three lines of four: I I I I, IV IV I I, V IV I I.',
+      'Blues plays every chord as a dominant 7th: A7, D7 and E7 in A.',
+      'A quick change puts IV in bar 2; a turnaround puts V in bar 12.',
+    ],
+    lessons: [
+      { id: 'bp5-1', title: 'The 12 bars', exercises: ['twelveNumeral'], region: FULL_NECK, topics: ['blues:twelve-why', 'blues:twelve'] },
+      { id: 'bp5-2', title: 'In a key', exercises: ['twelveChord', 'twelveSpell'], region: FULL_NECK, keys: ['A', 'E', 'G'], topics: ['blues:twelve-sevenths'] },
+      { id: 'bp5-3', title: 'Quick change & turnaround', exercises: ['twelveVariation'], region: FULL_NECK, keys: ['A', 'E', 'G', 'D', 'C'], topics: ['blues:quick-change', 'blues:turnaround'] },
+      { id: 'bp5-4', title: 'Minor blues', exercises: ['minorBlues'], region: FULL_NECK, minorKeys: ['A', 'E', 'D'], topics: ['blues:minor-blues'] },
+      {
+        id: 'bp5-5',
+        title: '12-bar review',
+        exercises: ['twelveNumeral', 'twelveChord', 'twelveVariation', 'minorBlues'],
+        region: FULL_NECK,
+        keys: ['A', 'E', 'G', 'D', 'C'],
+        minorKeys: ['A', 'E', 'D'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'bp6',
+    title: 'Hearing the Blues',
+    description: 'Ear training: headphones on',
+    color: COLORS[6],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? ���Can’t listen now” pauses listening questions for 15 minutes.',
+      'The major pentatonic climbs a whole step first; the minor pentatonic leaps up a minor 3rd.',
+      'The blue note squeezes three half steps in a row between the 4th and the 5th.',
+    ],
+    lessons: [
+      { id: 'bp6-1', title: 'Major or minor pentatonic', exercises: ['pentHear'], region: FULL_NECK, topics: ['blues:ear-why', 'blues:ear-pent'] },
+      { id: 'bp6-2', title: 'The blue note', exercises: ['bluesHear'], region: FULL_NECK, topics: ['blues:ear-blues'] },
+      { id: 'bp6-3', title: 'Quick change', exercises: ['quickHear'], region: FULL_NECK, topics: ['blues:ear-quick'] },
+      { id: 'bp6-4', title: 'Hearing review', exercises: ['pentHear', 'bluesHear', 'quickHear'], region: FULL_NECK, count: 10 },
+    ],
   },
 ]
 
@@ -1206,11 +1600,11 @@ export const VOLUMES: Volume[] = [
     tapes: ['tr1', 'tr2', 'tr3', 'tr4', 'tr5', 'tr6', 'tr7'].map(tape),
   },
   { label: 'Vol. 6', title: 'Chords in a Key', tapes: ['hk1', 'hk2', 'hk3', 'hk4', 'hk5'].map(tape) },
-  { label: 'Vol. 7', title: 'Building Chords', tapes: [soon('7th chords'), soon('Sus, add & 6 chords'), soon('Chord symbols & diagrams')] },
-  { label: 'Vol. 8', title: 'Minor Keys', tapes: [soon('Chords in minor keys'), soon('Finding the key')] },
-  { label: 'Vol. 9', title: 'Blues & Pentatonics', tapes: [soon('Pentatonic patterns'), soon('The 12-bar blues')] },
+  { label: 'Vol. 7', title: 'Building Chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb5', 'cb6', 'cb7'].map(tape) },
+  { label: 'Vol. 8', title: 'Minor Keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4', 'mk5'].map(tape) },
+  { label: 'Vol. 9', title: 'Blues & Pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5', 'bp6'].map(tape) },
   { label: 'Vol. 10', title: 'Modes', tapes: [soon('The modes'), soon('Modal sounds')] },
-  { label: 'Vol. 11', title: 'More Scales & Arpeggios', tapes: [soon('Harmonic & melodic minor'), soon('Arpeggio shapes')] },
+  { label: 'Vol. 11', title: 'More Scales & Arpeggios', tapes: [soon('Melodic minor'), soon('Arpeggio shapes')] },
   { label: 'Vol. 12', title: 'Chord Swaps', tapes: [soon('Substitutions'), soon('Reharmonizing')] },
   { label: 'Bonus Vol.', title: 'Reading Extras', tapes: [soon('Road signs'), soon('6/8 & triplets'), soon('Reading TAB')] },
 ]
@@ -1221,7 +1615,20 @@ export const UNITS: Unit[] = VOLUMES.flatMap((v) => v.tapes.filter((t): t is Uni
 export const ALL_LESSONS: LessonSpec[] = UNITS.flatMap((u) => u.lessons)
 
 /** Tracks you can only do with sound: ear training. */
-const LISTENING: ExerciseType[] = ['ivHear', 'ivHearFind', 'triadHear', 'cadenceHear', 'fourFiveHear', 'progressionHear']
+const LISTENING: ExerciseType[] = [
+  'ivHear',
+  'ivHearFind',
+  'triadHear',
+  'cadenceHear',
+  'fourFiveHear',
+  'progressionHear',
+  'seventhHear',
+  'keyModeHear',
+  'minorVHear',
+  'pentHear',
+  'bluesHear',
+  'quickHear',
+]
 export const isListening = (l: LessonSpec) => l.exercises.some((e) => LISTENING.includes(e))
 
 // Planned tapes get numbers too, so a tape's number never changes when the ones before it are recorded.

@@ -31,7 +31,8 @@ const TONE_FILL: Record<Exclude<MarkerTone, 'heat'>, string> = {
   alt: '#3f9d63',
   root: '#5fc3c9',
   note: '#efe5cf',
-  accidental: '#b8ab90',
+  // Sharps and flats: dark dots ringed in cream, like the black keys of a piano.
+  accidental: '#1b1512',
 }
 /** Lit markers glow like indicator lamps. */
 const GLOWS = new Set<MarkerTone>(['target', 'correct', 'wrong', 'root'])
@@ -237,10 +238,10 @@ export function Fretboard({
               <circle
                 cx={cx}
                 cy={cy}
-                r={m.tone === 'accidental' ? r * 0.88 : r}
+                r={r}
                 fill={fill}
-                stroke="#15110f"
-                strokeWidth={plain ? 1 : 2}
+                stroke={m.tone === 'accidental' ? '#efe5cf' : '#15110f'}
+                strokeWidth={m.tone === 'accidental' ? 1.5 : plain ? 1 : 2}
                 style={GLOWS.has(m.tone) ? { filter: `drop-shadow(0 0 5px ${fill})` } : undefined}
               />
               {label && (
@@ -252,7 +253,7 @@ export function Fretboard({
                   fontSize={label.length > 2 ? r * 0.62 : label.length > 1 ? r * 0.82 : r * 0.95}
                   fontWeight={700}
                   className="font-label"
-                  fill={m.tone === 'wrong' ? '#fff6ee' : '#15110f'}
+                  fill={m.tone === 'wrong' ? '#fff6ee' : m.tone === 'accidental' ? '#efe5cf' : '#15110f'}
                 >
                   {label}
                 </text>

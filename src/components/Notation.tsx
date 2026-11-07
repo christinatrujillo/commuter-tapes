@@ -1,17 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
-import {
-  Beam,
-  Dot,
-  Formatter,
-  Fraction,
-  Renderer,
-  Stave,
-  StaveNote,
-  StaveTie,
-  Voice,
-  VoiceMode,
-} from 'vexflow/bravura'
-import { musicFontReady, SVG_NS } from './musicFont'
+import { loadVexFlow, SVG_NS } from './musicFont'
 import { METER_PULSE, METER_QUARTERS, onsets, type Measure } from '../music/rhythm'
 
 
@@ -44,7 +32,7 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
 
   useEffect(() => {
     let cancelled = false
-    void musicFontReady.then(() => {
+    void loadVexFlow().then(({ Beam, Dot, Formatter, Fraction, Renderer, Stave, StaveNote, StaveTie, Voice, VoiceMode }) => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''

@@ -1,3 +1,4 @@
+import type { ChartSpec } from '../components/ChordChart'
 import type { Marker } from '../components/Fretboard'
 import type { ExerciseType, LessonSpec } from '../music/curriculum'
 import { KEYS, type AccidentalRule, type KeyId, type Motion, type ScoreMeasure, type ScoreNote } from '../music/score'
@@ -32,6 +33,30 @@ import {
   makeTriadThird,
 } from './triads'
 import {
+  makeBlueNote,
+  makeBluesHear,
+  makeBluesSpell,
+  makeBoxDegree,
+  makeBoxKey,
+  makeBoxRoot,
+  makeMajorPentMissing,
+  makeMajorPentSpell,
+  makePatternCaged,
+  makePatternMissing,
+  makePatternRoot,
+  makePentDegree,
+  makePentHear,
+  makePentMissing,
+  makePentRelative,
+  makePentSpell,
+  makeQuickHear,
+  makeMinorBlues,
+  makeTwelveChord,
+  makeTwelveNumeral,
+  makeTwelveSpell,
+  makeTwelveVariation,
+} from './blues'
+import {
   makeBoxFind,
   makeCadenceHear,
   makeChordOnDegree,
@@ -45,6 +70,37 @@ import {
   makeProgressionName,
   makeProgressionSpell,
 } from './harmony'
+import {
+  makeCagedChord,
+  makeCagedNext,
+  makeCagedShape,
+  makeChordKind,
+  makeChordSpell,
+  makeDiagramName,
+  makeDiagramRole,
+  makeSeventhHear,
+  makeSeventhNumeral,
+  makeSeventhOnDegree,
+  makeSymbolRead,
+  makeSymbolWrite,
+  makeTwoFiveSpell,
+} from './chords'
+import type { DiagramSpec } from '../music/chordShapes'
+import {
+  makeHarmonicNote,
+  makeHarmonicV,
+  makeKeyFromChords,
+  makeKeyFromHome,
+  makeKeyModeHear,
+  makeMinorChordOnDegree,
+  makeMinorDegreeQuality,
+  makeMinorDim7,
+  makeMinorNumeral,
+  makeMinorNumeralToChord,
+  makeMinorProgressionName,
+  makeMinorProgressionSpell,
+  makeMinorVHear,
+} from './minor'
 import {
   eventQuarters,
   NAMEABLE,
@@ -129,6 +185,10 @@ export interface TheoryPick {
     afterMeasures?: ScoreMeasure[]
     marker?: number | null
   }
+  /** A chord diagram to look at, with more printed on it once it's answered. */
+  diagram?: DiagramSpec & { after?: Partial<DiagramSpec> }
+  /** A chord chart to read, with the hidden bar filled in once it's answered. */
+  chart?: ChartSpec & { after?: Partial<ChartSpec> }
   /** Notes to play once it's answered (sounding MIDI). */
   sound: number[]
   /** For ear questions: what to play when it appears, with a button to hear it again. */
@@ -196,8 +256,53 @@ const PICK_KINDS = [
   'cadenceHear',
   'fourFiveHear',
   'progressionHear',
+  'chordSymbolRead',
+  'chordSymbolWrite',
+  'chordSpell',
+  'chordKind',
+  'seventhOnDegree',
+  'seventhNumeral',
+  'twoFiveSpell',
+  'diagramName',
+  'diagramRole',
+  'cagedShape',
+  'cagedChord',
+  'cagedNext',
+  'seventhHear',
+  'minorChordOnDegree',
+  'minorDegreeQuality',
+  'minorNumeral',
+  'minorNumeralToChord',
+  'harmonicNote',
+  'harmonicV',
+  'minorDim7',
+  'minorProgressionSpell',
+  'minorProgressionName',
+  'keyFromHome',
+  'keyFromChords',
+  'keyModeHear',
+  'minorVHear',
+  'pentMissing',
+  'pentSpell',
+  'pentDegree',
+  'majorPentMissing',
+  'majorPentSpell',
+  'pentRelative',
+  'blueNote',
+  'bluesSpell',
+  'boxDegree',
+  'boxKey',
+  'patternCaged',
+  'pentHear',
+  'bluesHear',
+  'quickHear',
+  'twelveNumeral',
+  'twelveChord',
+  'twelveSpell',
+  'twelveVariation',
+  'minorBlues',
 ] as const
-const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind'] as const
+const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind', 'boxRoot', 'patternMissing', 'patternRoot'] as const
 export type PickKind = (typeof PICK_KINDS)[number]
 export type TapKind = (typeof TAP_KINDS)[number]
 
@@ -298,6 +403,55 @@ export const FLUENT_MS: Partial<Record<Question['kind'], number>> = {
   cadenceHear: 9000,
   fourFiveHear: 6000,
   progressionHear: 10000,
+  chordSymbolRead: 3000,
+  chordSymbolWrite: 3000,
+  chordSpell: 6000,
+  chordKind: 5000,
+  seventhOnDegree: 6000,
+  seventhNumeral: 5000,
+  twoFiveSpell: 8000,
+  diagramName: 4000,
+  diagramRole: 4000,
+  cagedShape: 4000,
+  cagedChord: 6000,
+  cagedNext: 3000,
+  seventhHear: 6000,
+  minorChordOnDegree: 5000,
+  minorDegreeQuality: 3000,
+  minorNumeral: 5000,
+  minorNumeralToChord: 5000,
+  harmonicNote: 4000,
+  harmonicV: 5000,
+  minorDim7: 5000,
+  minorProgressionSpell: 8000,
+  minorProgressionName: 8000,
+  keyFromHome: 5000,
+  keyFromChords: 6000,
+  // Progressions take a few seconds to play: 1.6 seconds a chord.
+  keyModeHear: 9000,
+  minorVHear: 7000,
+  pentMissing: 4000,
+  pentSpell: 6000,
+  pentDegree: 3000,
+  majorPentMissing: 4000,
+  majorPentSpell: 6000,
+  pentRelative: 5000,
+  blueNote: 4000,
+  bluesSpell: 6000,
+  boxDegree: 3000,
+  boxRoot: 3000,
+  boxKey: 4000,
+  patternMissing: 5000,
+  patternRoot: 4000,
+  patternCaged: 6000,
+  pentHear: 7000,
+  bluesHear: 7000,
+  quickHear: 10000,
+  twelveNumeral: 4000,
+  twelveChord: 5000,
+  twelveSpell: 6000,
+  twelveVariation: 5000,
+  minorBlues: 5000,
 }
 
 /** Whether a question needs you to listen. */
@@ -367,6 +521,8 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
   // Reading notes in a key stops at four sharps or flats; the rarer keys are learned by name and signature.
   const readKeys = (spec.keys ?? ['G']).filter((k) => Math.abs(KEYS[k].count) <= 4)
   const triads = spec.triads ?? ['maj']
+  const chords = spec.chords ?? ['maj', 'min']
+  const minorKeys = spec.minorKeys ?? []
 
   const make = (kind: ExerciseType): Question | null => {
     const id = newQuestionId()
@@ -539,6 +695,102 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
         return makeFourFiveHear(id, rng)
       case 'progressionHear':
         return makeProgressionHear(id, spec.progressions ?? [], rng)
+      case 'chordSymbolRead':
+        return makeSymbolRead(id, spec.keys ?? [], chords, rng)
+      case 'chordSymbolWrite':
+        return makeSymbolWrite(id, spec.keys ?? [], chords, rng)
+      case 'chordSpell':
+        return makeChordSpell(id, spec.keys ?? [], chords, rng)
+      case 'chordKind':
+        return makeChordKind(id, spec.keys ?? [], chords, rng)
+      case 'seventhOnDegree':
+        return makeSeventhOnDegree(id, spec.keys ?? ['C'], rng)
+      case 'seventhNumeral':
+        return makeSeventhNumeral(id, spec.keys ?? ['C'], rng)
+      case 'twoFiveSpell':
+        return makeTwoFiveSpell(id, spec.keys ?? ['C'], rng)
+      case 'diagramName':
+        return makeDiagramName(id, spec.shapes ?? [], rng)
+      case 'diagramRole':
+        return makeDiagramRole(id, spec.shapes ?? [], rng)
+      case 'cagedShape':
+        return makeCagedShape(id, spec.shapes ?? [], rng)
+      case 'cagedChord':
+        return makeCagedChord(id, spec.shapes ?? [], rng)
+      case 'cagedNext':
+        return makeCagedNext(id, rng)
+      case 'seventhHear':
+        return makeSeventhHear(id, chords, (spec.ear ?? ['up']).filter((e) => e !== 'down'), rng)
+      case 'minorChordOnDegree':
+        return makeMinorChordOnDegree(id, minorKeys, rng, spec.showScale)
+      case 'minorDegreeQuality':
+        return makeMinorDegreeQuality(id, rng)
+      case 'minorNumeral':
+        return makeMinorNumeral(id, minorKeys, rng)
+      case 'minorNumeralToChord':
+        return makeMinorNumeralToChord(id, minorKeys, rng)
+      case 'harmonicNote':
+        return makeHarmonicNote(id, minorKeys, rng)
+      case 'harmonicV':
+        return makeHarmonicV(id, minorKeys, rng)
+      case 'minorDim7':
+        return makeMinorDim7(id, minorKeys, rng)
+      case 'minorProgressionSpell':
+        return makeMinorProgressionSpell(id, minorKeys, spec.progressions ?? [], rng)
+      case 'minorProgressionName':
+        return makeMinorProgressionName(id, minorKeys, spec.progressions ?? [], rng)
+      case 'keyFromHome':
+        return makeKeyFromHome(id, rng)
+      case 'keyFromChords':
+        return makeKeyFromChords(id, rng)
+      case 'keyModeHear':
+        return makeKeyModeHear(id, rng)
+      case 'minorVHear':
+        return makeMinorVHear(id, rng)
+      case 'pentMissing':
+        return makePentMissing(id, minorKeys, rng, spec.showScale)
+      case 'pentSpell':
+        return makePentSpell(id, minorKeys, rng)
+      case 'pentDegree':
+        return makePentDegree(id, minorKeys, rng)
+      case 'majorPentMissing':
+        return makeMajorPentMissing(id, spec.keys ?? [], rng, spec.showScale)
+      case 'majorPentSpell':
+        return makeMajorPentSpell(id, spec.keys ?? [], rng)
+      case 'pentRelative':
+        return makePentRelative(id, spec.keys ?? [], rng)
+      case 'blueNote':
+        return makeBlueNote(id, minorKeys, rng)
+      case 'bluesSpell':
+        return makeBluesSpell(id, minorKeys, rng)
+      case 'boxDegree':
+        return makeBoxDegree(id, rng)
+      case 'boxRoot':
+        return makeBoxRoot(id, rng)
+      case 'boxKey':
+        return makeBoxKey(id, rng)
+      case 'patternMissing':
+        return makePatternMissing(id, spec.patterns ?? [], rng)
+      case 'patternRoot':
+        return makePatternRoot(id, spec.patterns ?? [], rng)
+      case 'patternCaged':
+        return makePatternCaged(id, spec.patterns ?? [], rng)
+      case 'pentHear':
+        return makePentHear(id, rng)
+      case 'bluesHear':
+        return makeBluesHear(id, rng)
+      case 'quickHear':
+        return makeQuickHear(id, rng)
+      case 'twelveNumeral':
+        return makeTwelveNumeral(id, rng)
+      case 'twelveChord':
+        return makeTwelveChord(id, spec.keys ?? [], rng)
+      case 'twelveSpell':
+        return makeTwelveSpell(id, spec.keys ?? [], rng)
+      case 'twelveVariation':
+        return makeTwelveVariation(id, spec.keys ?? [], rng)
+      case 'minorBlues':
+        return makeMinorBlues(id, minorKeys, rng)
     }
   }
 

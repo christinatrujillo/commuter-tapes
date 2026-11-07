@@ -12,6 +12,8 @@ export const tonePc = (t: Tone) => pitchClass(spelledMidi({ ...t, octave: 4 }))
 export const toneName = (t: Tone) => `${t.letter}${t.acc === 1 ? '♯' : t.acc === -1 ? '♭' : ''}`
 /** "F#" / "Bb" / "C": the same spelling key ids use. */
 export const toneId = (t: Tone) => `${t.letter}${t.acc === 1 ? '#' : t.acc === -1 ? 'b' : ''}`
+/** Notes as text: "A C♯ E". */
+export const spelled = (tones: Tone[]) => tones.map(toneName).join(' ')
 
 export function parseTone(id: string): Tone {
   return { letter: id[0] as Letter, acc: id[1] === '#' ? 1 : id[1] === 'b' ? -1 : 0 }
@@ -50,13 +52,23 @@ export const majorKeyOfMinor = (tonic: string): KeyId | undefined => KEY_ORDER.f
 export const minorName = (key: KeyId) => `${toneName(relativeMinor(key))} minor`
 export const majorName = (key: KeyId) => `${keyLabel(key)} major`
 
-/** A scale written out on the staff, one octave up from the tonic, in two measures of four. */
+/** A scale as sounding pitches, climbing from its root around the A string's range, then the root an octave up. */
+export function scaleSound(tones: Tone[]): number[] {
+  const out = [45 + pitchClass(tonePc(tones[0]) - 9)]
+  for (let i = 1; i < tones.length; i++) out.push(out[i - 1] + pitchClass(tonePc(tones[i]) - tonePc(tones[i - 1])))
+  return [...out, out[0] + 12]
+}
+
+/** "A minor", from its home note ("A"). */
+export const minorKeyName = (tonic: string) => `${toneName(parseTone(tonic))} minor`
+
+/** A scale written out on the staff, one octave up from the tonic, four notes to a measure. */
 export function scaleScore(tones: Tone[]): ScoreMeasure[] {
   const start = LETTERS.indexOf(tones[0].letter)
   const notes = [...tones, tones[0]].map(
     (t, i): ScoreNote => ({
       letter: t.letter,
-      octave: 4 + (i === 7 || LETTERS.indexOf(t.letter) < start ? 1 : 0),
+      octave: 4 + (i === tones.length || LETTERS.indexOf(t.letter) < start ? 1 : 0),
       dur: 'q',
       ...(t.acc ? { sign: t.acc } : {}),
     }),
@@ -164,4 +176,121 @@ export const NUMERALS = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']
 export function keyTriads(key: KeyId): { tones: Tone[]; quality: TriadQuality }[] {
   const scale = majorScale(key)
   return scale.map((_, d) => ({ tones: [0, 2, 4].map((s) => scale[(d + s) % 7]), quality: MAJOR_KEY_KINDS[d] }))
+}
+
+// ---------------------------------------------------------------------------
+// Chords beyond triads
+// ---------------------------------------------------------------------------
+
+/** Every kind of chord the tapes build: the four triads, four 7th chords, and sus, add and 6 chords. */
+export type ChordKind = TriadQuality | 'maj7' | '7' | 'm7' | 'm7b5' | 'dim7' | 'sus2' | 'sus4' | 'add9' | '6' | 'm6'
+
+/** Every kind, in the order they're taught. */
+export const CHORD_KINDS: ChordKind[] = ['maj', 'min', 'dim', 'aug', 'maj7', '7', 'm7', 'm7b5', 'dim7', 'sus2', 'sus4', 'add9', '6', 'm6']
+
+/** The notes above the root, as intervals. add9's 2nd is stacked an octave up, where it's a 9th. */
+const CHORD_INTERVALS: Record<ChordKind, string[]> = {
+  maj: ['M3', 'P5'],
+  min: ['m3', 'P5'],
+  dim: ['m3', 'd5'],
+  aug: ['M3', 'A5'],
+  maj7: ['M3', 'P5', 'M7'],
+  '7': ['M3', 'P5', 'm7'],
+  m7: ['m3', 'P5', 'm7'],
+  m7b5: ['m3', 'd5', 'm7'],
+  dim7: ['m3', 'd5', 'd7'],
+  sus2: ['M2', 'P5'],
+  sus4: ['P4', 'P5'],
+  add9: ['M3', 'P5', 'M2'],
+  '6': ['M3', 'P5', 'M6'],
+  m6: ['m3', 'P5', 'M6'],
+}
+
+/** How each kind is written after its root: C, Cm, C°, C+, Cmaj7, C7, Cm7, Cm7♭5, Csus2, Csus4, Cadd9, C6, Cm6. */
+export const CHORD_SUFFIX: Record<ChordKind, string> = {
+  maj: '',
+  min: 'm',
+  dim: '°',
+  aug: '+',
+  maj7: 'maj7',
+  '7': '7',
+  m7: 'm7',
+  m7b5: 'm7♭5',
+  dim7: '°7',
+  sus2: 'sus2',
+  sus4: 'sus4',
+  add9: 'add9',
+  '6': '6',
+  m6: 'm6',
+}
+
+export const CHORD_NAMES: Record<ChordKind, string> = {
+  ...TRIAD_NAMES,
+  maj7: 'major 7th',
+  '7': 'dominant 7th',
+  m7: 'minor 7th',
+  m7b5: 'half-diminished',
+  dim7: 'diminished 7th',
+  sus2: 'sus2',
+  sus4: 'sus4',
+  add9: 'add9',
+  '6': 'major 6',
+  m6: 'minor 6',
+}
+
+/** A chord's notes from the root up, or null if one would need a double sharp or flat. */
+export function chordTones(root: Tone, kind: ChordKind): Tone[] | null {
+  const above = CHORD_INTERVALS[kind].map((s) => intervalAbove(root, parseInterval(s)))
+  return above.every((t) => t !== null) ? [root, ...(above as Tone[])] : null
+}
+
+/** The interval each note of a chord makes with its root. */
+export const chordIntervals = (kind: ChordKind) => CHORD_INTERVALS[kind].map(parseInterval)
+
+/** "F♯m7♭5" */
+export const chordSymbol = (root: Tone, kind: ChordKind) => `${toneName(root)}${CHORD_SUFFIX[kind]}`
+
+/** The kind of 7th chord on each note of every major key, and their numerals. */
+const MAJOR_KEY_SEVENTHS: ChordKind[] = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5']
+export const SEVENTH_NUMERALS = ['Imaj7', 'ii7', 'iii7', 'IVmaj7', 'V7', 'vi7', 'viiø7']
+
+/** The 7th chord on each note of a major key's scale: four notes, every other one, from there. */
+export function keySevenths(key: KeyId): { tones: Tone[]; kind: ChordKind }[] {
+  const scale = majorScale(key)
+  return scale.map((_, d) => ({ tones: [0, 2, 4, 6].map((s) => scale[(d + s) % 7]), kind: MAJOR_KEY_SEVENTHS[d] }))
+}
+
+// ---------------------------------------------------------------------------
+// Minor keys
+// ---------------------------------------------------------------------------
+
+/** The kind of triad on each note of every natural minor key: minor, diminished, major, minor, minor, major, major. */
+const MINOR_KEY_KINDS: TriadQuality[] = ['min', 'dim', 'maj', 'min', 'min', 'maj', 'maj']
+
+/** Minor-key numerals, counted from the minor key's home note. */
+export const MINOR_NUMERALS = ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII']
+
+/** The natural minor scale on a home note ("A"), through its relative major. */
+export const minorScaleOn = (tonic: string) => naturalMinorScale(majorKeyOfMinor(tonic)!)
+
+/** The harmonic minor scale: natural minor with its 7th raised a half step (G♯ in A minor). */
+export function harmonicMinorScale(tonic: string): Tone[] {
+  const scale = minorScaleOn(tonic)
+  return [...scale.slice(0, 6), spellOn(scale[6].letter, tonePc(scale[6]) + 1)!]
+}
+
+/** The triad on each note of a natural minor key, in scale order. */
+export function minorKeyTriads(tonic: string): { tones: Tone[]; quality: TriadQuality }[] {
+  const scale = minorScaleOn(tonic)
+  return scale.map((_, d) => ({ tones: [0, 2, 4].map((s) => scale[(d + s) % 7]), quality: MINOR_KEY_KINDS[d] }))
+}
+
+/** The chords the raised 7th makes: a major V, V7, and vii°7 (a diminished 7th) on the raised note. */
+export function harmonicChords(tonic: string): Record<'V' | 'V7' | 'vii°7', { tones: Tone[]; kind: ChordKind }> {
+  const s = harmonicMinorScale(tonic)
+  return {
+    V: { tones: [s[4], s[6], s[1]], kind: 'maj' },
+    V7: { tones: [s[4], s[6], s[1], s[3]], kind: '7' },
+    'vii°7': { tones: [s[6], s[1], s[3], s[5]], kind: 'dim7' },
+  }
 }

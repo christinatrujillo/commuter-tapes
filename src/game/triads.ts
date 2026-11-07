@@ -23,6 +23,7 @@ import {
   intervalName,
   intervalSize,
   KEY_ON_PC,
+  keyTriads,
   majorName,
   majorScale,
   naturalMinorScale,
@@ -30,13 +31,13 @@ import {
   parseTone,
   RARE_SPELLINGS,
   scaleScore,
+  spelled,
   spellOn,
   toneId,
   toneName,
   tonePc,
-  keyTriads,
-  triadGap,
   TRIAD_NAMES,
+  triadGap,
   triadTones,
   type Tone,
   type TriadQuality,
@@ -84,7 +85,6 @@ const M2 = parseInterval('M2')
 const P4 = parseInterval('P4')
 
 /** "D F♯ A" */
-const spelled = (tones: Tone[]) => tones.map(toneName).join(' ')
 const triadName = (root: Tone, quality: TriadQuality) => `${toneName(root)} ${TRIAD_NAMES[quality]}`
 /** "an E", "a D": letter names that start with a vowel sound take "an". */
 const article = (root: Tone) => (['A', 'E', 'F'].includes(root.letter) ? 'an' : 'a')
@@ -139,6 +139,9 @@ export function triadScore(tones: Tone[], together: boolean, key: KeyId = 'C', o
   return together ? [{ ...notes[0], with: notes.slice(1).map(({ letter, octave, sign }) => ({ letter, octave, sign })) }] : notes
 }
 
+/** Chords written one to a measure, so their names have room underneath. */
+export const chordMeasures = (...chords: Tone[][]): ScoreMeasure[] => chords.map((c) => triadScore(c, true))
+
 /** Sounding pitches, low to high, for the notes as `triadScore` writes them. */
 export function triadSound(tones: Tone[], octave = 4): number[] {
   const octaves = stackedOctaves(tones, octave)
@@ -165,7 +168,7 @@ function triadNeck(tones: Tone[], others: Marker['tone'] = 'correct'): { root: M
 }
 
 /** For questions: the root on the neck, and once answered, the whole triad around it. */
-function triadBoard(tones: Tone[]): NonNullable<PickQuestion['board']> {
+export function triadBoard(tones: Tone[]): NonNullable<PickQuestion['board']> {
   const { root, region, notes } = triadNeck(tones)
   return { region, markers: [root], after: notes }
 }

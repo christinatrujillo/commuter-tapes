@@ -28,6 +28,9 @@ import { coveredBy, firstTaughtIn } from './rehearsal'
 import { theoryItemFor, theoryReview } from './theory'
 import { describeTriadFact } from './triads'
 import { describeHarmonyFact } from './harmony'
+import { describeChordFact } from './chords'
+import { describeMinorFact } from './minor'
+import { describeBluesFact } from './blues'
 
 /**
  * Spaced repetition, folded into normal practice: material from earlier tapes comes back
@@ -172,7 +175,7 @@ export function mixInReview(questions: Question[], lesson: LessonSpec, stats: St
 // ---------------------------------------------------------------------------
 
 /** Facts Trouble spots works on: spots on the neck, and scales, keys, intervals and triads once you've met them. */
-const TROUBLE = /^(step|scale|minor|degree|key|rel|ivnum|ivn|invnum|inv|ear|triad|tri|tq|tinv|tneck|hd|hrn|hprim|hbox|hprog):/
+const TROUBLE = /^(step|scale|minor|degree|key|rel|ivnum|ivn|invnum|inv|ear|triad|tri|tq|tinv|tneck|hd|hrn|hprim|hbox|hprog|chd|chq|csym|h7|diag|caged|mh|mrn|hmin|hmv|mprog|kfind|pmin|pdeg|pmaj|prel|pblues|pbox|ppat|b12|b12key|b12var|bminor):/
 
 /** The facts you've practiced that need the most work, worst first (listening ones only while listening is on). */
 export function weakestFacts(stats: Stats, limit: number, listening = true): string[] {
@@ -199,7 +202,7 @@ export function buildTroubleSpots(stats: Stats, rng: Rng = Math.random, listenin
 export function describeFact(fact: string): string {
   const pos = parsePosKey(fact)
   if (pos) return `${noteAt(pos)} · ${describePosition(pos)}`
-  const named = describeTriadFact(fact) ?? describeHarmonyFact(fact)
+  const named = describeTriadFact(fact) ?? describeHarmonyFact(fact) ?? describeChordFact(fact) ?? describeMinorFact(fact) ?? describeBluesFact(fact)
   if (named) return named
   const [kind, value] = fact.split(':')
   const interval = () => intervalLabel(parseInterval(value))

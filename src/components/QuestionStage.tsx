@@ -8,6 +8,8 @@ import { KEYS, MOTION_NAMES, resolveNotes } from '../music/score'
 import { Score } from './Score'
 import { IntervalButtons, NoteButtons, OptionButtons } from './AnswerButtons'
 import { Fretboard, useLandscape } from './Fretboard'
+import { ChordChart } from './ChordChart'
+import { ChordDiagram } from './ChordDiagram'
 import { CantListenButton, HeadphonesIcon } from './Monitors'
 import { Notation } from './Notation'
 import { Staff } from './Staff'
@@ -204,8 +206,20 @@ export function QuestionStage({ q, answer, found, label, feedback, onTap, onPick
   else if (q.kind === 'motion')
     controls = <OptionButtons options={q.options.map((m, i) => ({ value: i, label: MOTION_NAMES[m] }))} onPick={onPick} result={result} />
 
+  const diagram = isPick(q) && q.diagram
+  const chart = isPick(q) && q.chart
   const visual = notation ? (
     <div className="paper h-full max-h-60 w-full px-3 py-2">{notation}</div>
+  ) : diagram ? (
+    // A chord diagram, printed on paper like a page of a chord book.
+    <div className="paper mx-auto h-full max-h-64 w-full max-w-[220px] px-3 py-2">
+      <ChordDiagram {...diagram} {...(answer ? diagram.after : {})} />
+    </div>
+  ) : chart ? (
+    // A chord chart, printed on paper like a page of a method book.
+    <div className="paper w-full max-w-md px-2 py-2">
+      <ChordChart {...chart} {...(answer ? chart.after : {})} />
+    </div>
   ) : (
     listenKeys &&
     !usesBoard(q) && (

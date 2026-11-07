@@ -46,11 +46,14 @@ import { makeKeyName } from './reading'
 import { INTERVAL_ORDER, intervalCard, intervalCheck, intervalItemFor, intervalReview, isIntervalItem, on } from './intervals'
 import { isTriadFact, isTriadItem, TRIAD_INTRO, TRIAD_ORDER, triadCard, triadCheck, triadItemFor, triadReview } from './triads'
 import { HARMONY_INTRO, HARMONY_ORDER, harmonyCard, harmonyCheck, harmonyItemFor, harmonyReview, isHarmonyFact, isHarmonyItem } from './harmony'
+import { CHORD_INTRO, CHORD_ORDER, chordCard, chordCheck, chordItemFor, chordReview, isChordFact, isChordItem } from './chords'
+import { isMinorFact, isMinorItem, MINOR_INTRO, MINOR_ORDER, minorCard, minorCheck, minorItemFor, minorReview } from './minor'
+import { BLUES_INTRO, BLUES_ORDER, bluesCard, bluesCheck, bluesItemFor, bluesReview, isBluesFact, isBluesItem } from './blues'
 
 /**
  * Theory questions and teaching: whole and half steps, the major scale and its patterns on the
  * neck, the circle of fifths, and relative minor keys. Intervals and triads have files of their
- * own (so do chords in a key); everything theory reaches them through here.
+ * own (so do chords in a key, building chords and minor keys); everything theory reaches them through here.
  */
 
 const HALF = 'Half step'
@@ -527,6 +530,9 @@ export const THEORY_ORDER = [
   ...INTERVAL_ORDER,
   ...TRIAD_ORDER,
   ...HARMONY_ORDER,
+  ...CHORD_ORDER,
+  ...MINOR_ORDER,
+  ...BLUES_ORDER,
 ]
 
 /** Ideas that are explained on a card but not tested on their own (the why, the sound of major and minor, what an octave is). */
@@ -546,10 +552,13 @@ const INTRO = new Set([
   'ear:why',
   ...TRIAD_INTRO,
   ...HARMONY_INTRO,
+  ...CHORD_INTRO,
+  ...MINOR_INTRO,
+  ...BLUES_INTRO,
 ])
 export const isIntroItem = (item: string) => INTRO.has(item) || /^(oct|basics|intro|ivshape):/.test(item)
 
-export const isTheoryItem = (item: string) => /^(basics|intro|step|scale|pattern|circle|rel|minor):/.test(item) || isIntervalItem(item) || isTriadItem(item) || isHarmonyItem(item)
+export const isTheoryItem = (item: string) => /^(basics|intro|step|scale|pattern|circle|rel|minor):/.test(item) || isIntervalItem(item) || isTriadItem(item) || isHarmonyItem(item) || isChordItem(item) || isMinorItem(item) || isBluesItem(item)
 
 const SHARP_KEYS = KEY_ORDER.filter((k) => KEYS[k].count > 0)
 const FLAT_KEYS = KEY_ORDER.filter((k) => KEYS[k].count < 0)
@@ -558,7 +567,7 @@ const READ_KEYS: KeyId[] = ['C', 'G', 'D', 'F']
 
 /** The idea a practiced fact belongs to, for the theory facts that don't share its name. */
 export function theoryItemFor(fact: string): string | null {
-  const own = intervalItemFor(fact) ?? triadItemFor(fact) ?? harmonyItemFor(fact)
+  const own = intervalItemFor(fact) ?? triadItemFor(fact) ?? harmonyItemFor(fact) ?? chordItemFor(fact) ?? minorItemFor(fact) ?? bluesItemFor(fact)
   if (own) return own
   const [kind, value] = fact.split(':')
   if (kind === 'scale' && value !== 'formula') return 'scale:degrees'
@@ -574,6 +583,9 @@ export function theoryCheck(item: string, l: LessonSpec, turn: number, rng: Rng,
   if (isIntervalItem(item)) return intervalCheck(item, l, turn, rng, id)
   if (isTriadItem(item)) return triadCheck(item, l, turn, rng, id)
   if (isHarmonyItem(item)) return harmonyCheck(item, l, turn, rng, id)
+  if (isChordItem(item)) return chordCheck(item, l, turn, rng, id)
+  if (isMinorItem(item)) return minorCheck(item, l, turn, rng, id)
+  if (isBluesItem(item)) return bluesCheck(item, l, turn, rng, id)
   const keys = l.keys ?? ['C']
   const even = turn % 2 === 0
   switch (item) {
@@ -629,6 +641,9 @@ export function theoryReview(fact: string, id: number, rng: Rng): Question | nul
   if (intervalItemFor(fact)) return intervalReview(fact, id, rng)
   if (isTriadFact(fact)) return triadReview(fact, id, rng)
   if (isHarmonyFact(fact)) return harmonyReview(fact, id, rng)
+  if (isChordFact(fact)) return chordReview(fact, id, rng)
+  if (isMinorFact(fact)) return minorReview(fact, id, rng)
+  if (isBluesFact(fact)) return bluesReview(fact, id, rng)
   const [kind, value] = fact.split(':')
   switch (kind) {
     case 'step': {
@@ -1030,5 +1045,8 @@ export function theoryCard(item: string, counter: string): Card {
   if (isIntervalItem(item)) return intervalCard(item, counter)
   if (isTriadItem(item)) return triadCard(item, counter)
   if (isHarmonyItem(item)) return harmonyCard(item, counter)
+  if (isChordItem(item)) return chordCard(item, counter)
+  if (isMinorItem(item)) return minorCard(item, counter)
+  if (isBluesItem(item)) return bluesCard(item, counter)
   return { ...THEORY_CARDS[item](), counter }
 }

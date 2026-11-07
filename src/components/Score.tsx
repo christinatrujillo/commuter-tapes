@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Accidental, Dot, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode } from 'vexflow/bravura'
-import { musicFontReady, SVG_NS } from './musicFont'
+import { loadVexFlow, SVG_NS } from './musicFont'
 import { METER_QUARTERS, type Meter } from '../music/rhythm'
 import { KEYS, scoreKey, signSymbol, staffDegree, type KeyId, type ScoreMeasure } from '../music/score'
 
@@ -28,7 +27,7 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
 
   useEffect(() => {
     let cancelled = false
-    void musicFontReady.then(() => {
+    void loadVexFlow().then(({ Accidental, Dot, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode }) => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''

@@ -1,3 +1,4 @@
+import type { ChartSpec } from '../components/ChordChart'
 import type { Marker } from '../components/Fretboard'
 import { ALL_LESSONS, findLesson, type ExerciseType, type LessonSpec } from '../music/curriculum'
 import {
@@ -36,6 +37,7 @@ import {
   type ScoreMeasure,
   type ScoreNote,
 } from '../music/score'
+import type { DiagramSpec } from '../music/chordShapes'
 import { buildSession, makeCountBeat, makeMeasureFill, makeTapRhythm, newQuestionId, TAP_BPM, type Listen, type Question, type Rng } from './questions'
 import { pick, randomSpelling } from '../lib/random'
 import { capitalize } from '../lib/text'
@@ -73,6 +75,10 @@ export interface Card {
   circle?: { majors: KeyId[]; minors?: KeyId[] }
   /** Ear-training examples, played even with answer sounds off. */
   listen?: Listen
+  /** A chord diagram, the way chord books draw them. */
+  diagram?: DiagramSpec
+  /** A chord chart, the way method books write one. */
+  chart?: ChartSpec
 }
 
 export type RehearsalStep = { kind: 'card'; card: Card } | { kind: 'check'; questions: Question[] } | { kind: 'ready' }

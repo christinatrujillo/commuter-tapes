@@ -10,6 +10,7 @@ import {
   majorScale,
   NUMERALS,
   scaleScore,
+  spelled,
   toneName,
   TRIAD_NAMES,
   type Tone,
@@ -17,7 +18,7 @@ import {
 } from '../music/theory'
 import { between, pick, shuffle, type Rng } from '../lib/random'
 import { isOneOf } from '../lib/guards'
-import { PAPER_HIGHLIGHT } from '../lib/color'
+import { PAPER_HIGHLIGHT, PAPER_RUST } from '../lib/color'
 import { capitalize } from '../lib/text'
 import type { Question } from './questions'
 import { triadScore, triadSound } from './triads'
@@ -30,7 +31,6 @@ import { on } from './intervals'
 
 type Chord = { tones: Tone[]; quality: TriadQuality }
 const chordName = (c: Chord) => `${toneName(c.tones[0])} ${TRIAD_NAMES[c.quality]}`
-const spelled = (c: Chord) => c.tones.map(toneName).join(' ')
 const KINDS: TriadQuality[] = ['maj', 'min', 'dim']
 /** "A, B and C" */
 const list = (items: string[]) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0])
@@ -94,10 +94,10 @@ export function makeChordOnDegree(id: number, keys: KeyId[], rng: Rng, help = fa
     ask: { text: `What’s the chord on the ${where}?`, hl: where },
     options,
     answer: options.indexOf(right),
-    why: `Count up ${majorName(key)}: ${scale.slice(0, d + 1).map(toneName).join(' ')}. The chord on the ${degreeName(d + 1)} note is always ${TRIAD_NAMES[chord.quality]}, so it’s ${right} (${spelled(chord)}).`,
+    why: `Count up ${majorName(key)}: ${scale.slice(0, d + 1).map(toneName).join(' ')}. The chord on the ${degreeName(d + 1)} note is always ${TRIAD_NAMES[chord.quality]}, so it’s ${right} (${spelled(chord.tones)}).`,
     score: help
-      ? { measures: scaleScore(scale), labels: names, marker: d, afterMeasures: [chordScore(key, d, 'C')], after: [spelled(chord)] }
-      : { measures: [[]], keySig: key, afterMeasures: [chordScore(key, d)], after: [spelled(chord)] },
+      ? { measures: scaleScore(scale), labels: names, marker: d, afterMeasures: [chordScore(key, d, 'C')], after: [spelled(chord.tones)] }
+      : { measures: [[]], keySig: key, afterMeasures: [chordScore(key, d)], after: [spelled(chord.tones)] },
     sound: chordSound(key, d),
     facts: [`hd:${d + 1}`],
   }
@@ -142,7 +142,7 @@ export function makeNumeralToChord(id: number, keys: KeyId[], rng: Rng, only?: n
     options,
     answer: options.indexOf(right),
     why: `${NUMERALS[d]} is the chord on the ${degreeName(d + 1)} note: count ${scale.slice(0, d + 1).map(toneName).join(' ')}. ${CASE[chord.quality]}, so it’s ${right}.`,
-    score: { measures: [[]], keySig: key, afterMeasures: [chordScore(key, d)], after: [spelled(chord)] },
+    score: { measures: [[]], keySig: key, afterMeasures: [chordScore(key, d)], after: [spelled(chord.tones)] },
     sound: chordSound(key, d),
     facts: [`hrn:${d + 1}`],
   }
@@ -162,7 +162,7 @@ export function makeChordToNumeral(id: number, keys: KeyId[], rng: Rng, only?: n
     options,
     answer: options.indexOf(NUMERALS[d]),
     why: `${toneName(chord.tones[0])} is the ${degreeName(d + 1)} note of ${majorName(key)} (${scale.slice(0, d + 1).map(toneName).join(' ')}), and the chord is ${TRIAD_NAMES[chord.quality]}, so it’s ${NUMERALS[d]}.`,
-    score: { measures: [chordScore(key, d)], keySig: key, after: [spelled(chord)] },
+    score: { measures: [chordScore(key, d)], keySig: key, after: [spelled(chord.tones)] },
     sound: chordSound(key, d),
     facts: [`hrn:${d + 1}`],
   }
@@ -174,7 +174,7 @@ export function makeNumeralRead(id: number, keys: KeyId[], rng: Rng, only?: numb
   const d = only ?? between(0, 6, rng)
   const chord = keyTriads(key)[d]
   const options = nearNumerals(d)
-  const notes = key === 'C' ? `The notes are ${spelled(chord)}` : `In ${majorName(key)} (${KEYS[key].signature}), the notes are ${spelled(chord)}`
+  const notes = key === 'C' ? `The notes are ${spelled(chord.tones)}` : `In ${majorName(key)} (${KEYS[key].signature}), the notes are ${spelled(chord.tones)}`
   return {
     id,
     kind: 'numeralRead',
@@ -182,7 +182,7 @@ export function makeNumeralRead(id: number, keys: KeyId[], rng: Rng, only?: numb
     options,
     answer: options.indexOf(NUMERALS[d]),
     why: `${notes}: ${chordName(chord)}, on the key’s ${degreeName(d + 1)} note. So it’s ${NUMERALS[d]}.`,
-    score: { measures: [chordScore(key, d)], keySig: key, after: [spelled(chord)] },
+    score: { measures: [chordScore(key, d)], keySig: key, after: [spelled(chord.tones)] },
     sound: chordSound(key, d),
     facts: [`hrn:${d + 1}`],
   }
@@ -221,7 +221,7 @@ export function makePrimaryChord(id: number, keys: KeyId[], byJob: boolean, rng:
     why: byJob
       ? `${NUMERALS[d]} ${JOB[d].name}. In ${majorName(key)}, that’s ${right}.`
       : `Count up ${majorName(key)} to the ${degreeName(d + 1)} note: ${scale.slice(0, d + 1).map(toneName).join(' ')}. ${NUMERALS[d]} is major, so it’s ${right}.`,
-    score: { measures: [[]], keySig: key, afterMeasures: [chordScore(key, d)], after: [spelled(chords[d])] },
+    score: { measures: [[]], keySig: key, afterMeasures: [chordScore(key, d)], after: [spelled(chords[d].tones)] },
     // V and IV are heard going home to I.
     sound: [...chordSound(key, d), ...(d ? chordSound(key, 0) : [])],
     facts: [`hprim:${NUMERALS[d]}`],
@@ -560,9 +560,8 @@ export function describeHarmonyFact(fact: string): string | null {
 // Cards
 // ---------------------------------------------------------------------------
 
-const RUST = '#b5473a'
 /** The chords of a key, colored by kind: minor in amber, diminished in rust. */
-const kindColors = (key: KeyId) => keyTriads(key).map((c) => (c.quality === 'min' ? PAPER_HIGHLIGHT : c.quality === 'dim' ? RUST : undefined))
+const kindColors = (key: KeyId) => keyTriads(key).map((c) => (c.quality === 'min' ? PAPER_HIGHLIGHT : c.quality === 'dim' ? PAPER_RUST : undefined))
 const rootNames = (key: KeyId, degrees = ALL_DEGREES) => degrees.map((d) => toneName(keyTriads(key)[d].tones[0]))
 /** The I, IV and V roots on the neck, from G at the 3rd fret of the 6th string. */
 const G_BOX: Card['board'] = { region: { strings: [0, 1], minFret: 1, maxFret: 6 }, markers: [on(0, 3, 'root'), on(1, 3), on(1, 5)] }

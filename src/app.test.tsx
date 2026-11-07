@@ -295,6 +295,78 @@ function chordIn(key: string, d: number): string {
   return `${notes[0]} ${kindOf(notes)}`
 }
 
+// Chord symbols worked out independently: each suffix's notes above the root, as [letters up, half steps up].
+const CHORD_STEPS: Record<string, [number, number][]> = {
+  '': [[2, 4], [4, 7]],
+  m: [[2, 3], [4, 7]],
+  '°': [[2, 3], [4, 6]],
+  '+': [[2, 4], [4, 8]],
+  maj7: [[2, 4], [4, 7], [6, 11]],
+  '7': [[2, 4], [4, 7], [6, 10]],
+  m7: [[2, 3], [4, 7], [6, 10]],
+  'm7♭5': [[2, 3], [4, 6], [6, 10]],
+  '°7': [[2, 3], [4, 6], [6, 9]],
+  sus2: [[1, 2], [4, 7]],
+  sus4: [[3, 5], [4, 7]],
+  add9: [[2, 4], [4, 7], [1, 2]],
+  '6': [[2, 4], [4, 7], [5, 9]],
+  m6: [[2, 3], [4, 7], [5, 9]],
+}
+const CHORD_WORDS: Record<string, string> = {
+  '': 'major',
+  m: 'minor',
+  '°': 'diminished',
+  '+': 'augmented',
+  maj7: 'major 7th',
+  '7': 'dominant 7th',
+  m7: 'minor 7th',
+  'm7♭5': 'half-diminished',
+  '°7': 'diminished 7th',
+}
+const splitSymbol = (symbol: string) => {
+  const [, root, suffix] = symbol.match(/^([A-G][♯♭]?)(.*)$/)!
+  return [root, suffix] as const
+}
+const spellSymbol = (symbol: string) => {
+  const [root, suffix] = splitSymbol(symbol)
+  return [root, ...CHORD_STEPS[suffix].map(([letters, semis]) => noteAbove(root, letters, semis))].join(' ')
+}
+/** The symbol whose spelling is exactly these notes, root first. */
+const chordSymbolOf = (notes: string[]) => Object.keys(CHORD_STEPS).map((s) => notes[0] + s).find((symbol) => spellSymbol(symbol) === notes.join(' '))!
+/** A 7th chord's numeral from its scale note and kind: capitals for a major triad, ø for half-diminished. */
+const seventhNumeral = (d: number, suffix: string) =>
+  (suffix === 'maj7' || suffix === '7' ? ROMAN[d - 1].toUpperCase() : ROMAN[d - 1]) + ({ maj7: 'maj7', '7': '7', m7: '7', 'm7♭5': 'ø7' } as Record<string, string>)[suffix]
+const diagramFrets = () => document.querySelector<SVGElement>('svg[aria-label="Chord diagram"]')!.dataset.frets!.split(',').map(Number)
+// Minor keys worked out independently: the natural minor scale from its home note, and the raised 7th.
+const KEY_BUTTON = /^[A-G][♯♭]? (major|minor)$/
+/** The triad on note `d` (from 1) of a natural minor key. */
+const minorTriad = (tonic: string, d: number) => [d, d + 2, d + 4].map((x) => scaleDegree(tonic, ((x - 1) % 7) + 1, true))
+/** A minor progression's step as a chord symbol; V7 takes the raised 7th. */
+function minorStepSymbol(tonic: string, step: string): string {
+  if (step === 'V7') {
+    const root = scaleDegree(tonic, 5, true)
+    return chordSymbolOf([root, noteAbove(root, 2, 4), noteAbove(root, 4, 7), noteAbove(root, 6, 10)])
+  }
+  return chordSymbolOf(minorTriad(tonic, degreeOfNumeral(step)))
+}
+
+// The 12-bar blues, as books write it: three lines of four bars.
+const TWELVE_BARS = ['I', 'I', 'I', 'I', 'IV', 'IV', 'I', 'I', 'V', 'IV', 'I', 'I']
+/** The root of I, IV or V in a key (or a minor key's i, iv or v). */
+const bluesRoot = (key: string, numeral: string, minor = false) => scaleDegree(key, { I: 1, IV: 4, V: 5 }[numeral]!, minor)
+
+// Pentatonics worked out independently: the minor scale without its 2nd and 6th, the major without its 4th and 7th.
+const PENT_DEGREES: Record<string, number[]> = { minor: [1, 3, 4, 5, 7], major: [1, 2, 3, 5, 6] }
+
+/** The five open shapes CAGED moves up the neck, low E string first. */
+const OPEN_SHAPES: Record<string, number[]> = {
+  C: [-1, 3, 2, 0, 1, 0],
+  A: [-1, 0, 2, 2, 2, 0],
+  G: [3, 2, 0, 0, 0, 3],
+  E: [0, 2, 2, 1, 0, 0],
+  D: [-1, -1, 0, 2, 3, 2],
+}
+
 /** The chords just heard, as numerals: each group of three notes is a chord, its root at the bottom. */
 function heardChords(): string[] {
   const chords = Array.from({ length: heard.notes.length / 3 }, (_, i) => heard.notes.slice(i * 3, i * 3 + 3))
@@ -461,6 +533,174 @@ function answerTheory(text: string, correctly: boolean): boolean {
     pickOption(heardChords()[1], (b) => b === 'IV' || b === 'V', correctly)
   } else if (text === 'Which progression do you hear?') {
     pickOption(heardChords().join('–'), (b) => PROGRESSION_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^What does (\S+) mean\?$/))) {
+    const [root, suffix] = splitSymbol(m[1])
+    pickOption(`${root} ${CHORD_WORDS[suffix]}`, (b) => /^[A-G][♯♭]? \w/.test(b), correctly)
+  } else if ((m = text.match(/^How is (\S+) (.+) written\?$/))) {
+    const suffix = Object.keys(CHORD_WORDS).find((s) => CHORD_WORDS[s] === m![2])!
+    pickOption(m[1] + suffix, (b) => /^[A-G][♯♭]?\S*$/.test(b), correctly)
+  } else if ((m = text.match(/^What notes make (\S+)\?$/))) {
+    pickOption(spellSymbol(m[1]), (b) => /^([A-G][♯♭]? ?)+$/.test(b), correctly)
+  } else if ((m = text.match(/^(.+): which chord\?$/))) {
+    pickOption(chordSymbolOf(m[1].split(' ')), (b) => /^[A-G][♯♭]?\S*$/.test(b), correctly)
+  } else if ((m = text.match(/^What’s the 7th chord on the (\d)\w+ note of (\S+) major\?$/))) {
+    const d = Number(m[1])
+    pickOption(chordSymbolOf([d, d + 2, d + 4, d + 6].map((x) => scaleDegree(m![2], ((x - 1) % 7) + 1))), (b) => /^[A-G]/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which numeral is (\S+)\?$/))) {
+    const [root, suffix] = splitSymbol(m[2])
+    pickOption(seventhNumeral(letterGap(m[1], root) + 1, suffix), (b) => /^[ivIV]+/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, what are the chords of ii7–V7–Imaj7\?$/))) {
+    const sevenths = [2, 5, 1].map((d) => chordSymbolOf([d, d + 2, d + 4, d + 6].map((x) => scaleDegree(m![1], ((x - 1) % 7) + 1))))
+    pickOption(sevenths.join(' – '), (b) => b.includes(' – '), correctly)
+  } else if (text === 'Which chord is this?') {
+    // Whichever choice spells exactly the notes the diagram plays.
+    const played = new Set(diagramFrets().flatMap((f, string) => (f < 0 ? [] : [pitchClass(midiAt({ string, fret: f }))])))
+    const fits = (symbol: string) => {
+      const pcs = spellSymbol(symbol).split(' ').map(labelPc)
+      return pcs.length === played.size && pcs.every((pc) => played.has(pc))
+    }
+    const right = screen.getAllByRole('button').find((b) => /^[A-G][♯♭]?m?$/.test(b.textContent!) && fits(b.textContent!))!.textContent!
+    pickOption(right, (b) => /^[A-G][♯♭]?m?$/.test(b), correctly)
+  } else if ((m = text.match(/^In this (\S+) chord, which note is the ringed dot\?$/))) {
+    const string = Number(document.querySelector<SVGElement>('svg[aria-label="Chord diagram"]')!.dataset.mark)
+    const pc = pitchClass(midiAt({ string, fret: diagramFrets()[string] }))
+    const role = spellSymbol(m[1]).split(' ').map(labelPc).indexOf(pc)
+    pickOption(['Root', '3rd', '5th'][role], (b) => /^(Root|3rd|5th)$/.test(b), correctly)
+  } else if (text === 'Which CAGED shape is this?') {
+    const frets = diagramFrets()
+    const shape = Object.keys(OPEN_SHAPES).find((s) => {
+      const open = OPEN_SHAPES[s]
+      const shifts = new Set(frets.map((f, i) => (f < 0 || open[i] < 0 ? (f === open[i] ? 'muted' : 'no') : f - open[i])))
+      return !shifts.has('no') && [...shifts].filter((x) => x !== 'muted').length === 1
+    })!
+    pickOption(`${shape} shape`, (b) => / shape$/.test(b), correctly)
+  } else if ((m = text.match(/^Going up the neck, which shape comes after the (\w) shape\?$/))) {
+    const order = ['C', 'A', 'G', 'E', 'D']
+    pickOption(`${order[(order.indexOf(m[1]) + 1) % 5]} shape`, (b) => / shape$/.test(b), correctly)
+  } else if (text === 'What kind of 7th chord do you hear?') {
+    const [root, ...rest] = heard.notes
+    const kind = { '4,7,11': 'Major 7th', '4,7,10': 'Dominant 7th', '3,7,10': 'Minor 7th', '3,6,10': 'Half-diminished' }[rest.map((n) => n - root).join(',')]!
+    pickOption(kind, (b) => /7th$|^Half-diminished$/.test(b), correctly)
+  } else if ((m = text.match(/^What’s the chord on the (\d)\w+ note of (\S+) minor\?$/))) {
+    const notes = minorTriad(m[2], Number(m[1]))
+    pickOption(`${notes[0]} ${kindOf(notes)}`, (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In any minor key, what kind of chord is on the (\d)\w+ note\?$/))) {
+    pickOption(capitalize(kindOf(minorTriad('A', Number(m[1])))), (b) => KIND_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) minor, which numeral is (\S+) (\w+)\?$/))) {
+    pickOption(numeralFor(letterGap(m[1], m[2]) + 1, m[3]), (b) => NUMERAL_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) minor, with the raised 7th, what’s the (V7?) chord\?$/))) {
+    const root = scaleDegree(m[1], 5, true)
+    const notes = [root, noteAbove(root, 2, 4), noteAbove(root, 4, 7), ...(m[2] === 'V7' ? [noteAbove(root, 6, 10)] : [])]
+    pickOption(chordSymbolOf(notes), (b) => /^[A-G]/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) minor, what’s the vii°7 chord\?$/))) {
+    const root = noteAbove(m[1], 6, 11)
+    pickOption(chordSymbolOf([root, noteAbove(root, 2, 3), noteAbove(root, 4, 6), noteAbove(root, 6, 9)]), (b) => /^[A-G]/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) minor, what’s the (\S+) chord\?$/))) {
+    const notes = minorTriad(m[1], degreeOfNumeral(m[2]))
+    pickOption(`${notes[0]} ${kindOf(notes)}`, (b) => TRIAD_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^What’s the 7th note of (\S+) harmonic minor\?$/))) {
+    pickOption(noteAbove(m[1], 6, 11), (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) minor, what are the chords of (\S+)\?$/))) {
+    const chords = m[2].split('–').map((step) => minorStepSymbol(m![1], step))
+    pickOption(chords.join(' – '), (b) => b.includes(' – '), correctly)
+  } else if ((m = text.match(/^In (\S+) minor, which progression is (.+)\?$/))) {
+    const steps = m[2].split(' – ').map((symbol) => {
+      const [root, suffix] = splitSymbol(symbol)
+      return suffix === '7' ? 'V7' : numeralFor(letterGap(m![1], root) + 1, CHORD_WORDS[suffix])
+    })
+    pickOption(steps.join('–'), (b) => /^[iIvV°7–]+$/.test(b), correctly)
+  } else if ((m = text.match(/^With (.+), a song starts and ends on (\S+)\. Which key is it in\?$/))) {
+    const [root, suffix] = splitSymbol(m[2])
+    pickOption(`${root} ${suffix === 'm' ? 'minor' : 'major'}`, (b) => KEY_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^Which key is (.+) in\?$/))) {
+    const [root, suffix] = splitSymbol(m[1].split(' – ')[0])
+    pickOption(`${root} ${suffix === 'm' ? 'minor' : 'major'}`, (b) => KEY_BUTTON.test(b), correctly)
+  } else if (text === 'Major key or minor key?') {
+    const n = heard.notes.length
+    pickOption(heard.notes[n - 2] - heard.notes[n - 3] === 3 ? 'Minor' : 'Major', (b) => b === 'Major' || b === 'Minor', correctly)
+  } else if (text === 'Minor v or major V?') {
+    pickOption(heard.notes[4] - heard.notes[3] === 3 ? 'Minor v' : 'Major V', (b) => /^(Minor v|Major V)$/.test(b), correctly)
+  } else if ((m = text.match(/^Which note of (\S+) (minor|major) does \1 \2 pentatonic leave out\?$/))) {
+    const minor = m[2] === 'minor'
+    const dropped = (minor ? [2, 6] : [4, 7]).map((d) => scaleDegree(m![1], d, minor))
+    const shown = screen.getAllByRole('button').map((b) => b.textContent!)
+    pickOption(dropped.find((n) => shown.includes(n))!, (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^Which notes make (\S+) (minor|major) pentatonic\?$/))) {
+    const minor = m[2] === 'minor'
+    pickOption(PENT_DEGREES[m[2]].map((d) => scaleDegree(m![1], d, minor)).join(' '), (b) => /^([A-G][♯♭]? ?){5}$/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) minor pentatonic, which degree is the marked note\?$/))) {
+    const score = screen.getByTestId('score')
+    const marked = resolveNotes(JSON.parse(score.dataset.measures!) as ScoreMeasure[])[Number(score.dataset.marker)]
+    pickOption(String(letterGap(m[1], marked.letter) + 1), (b) => /^[3457]$/.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) major pentatonic has the same notes as which minor pentatonic\?$/))) {
+    pickOption(`${scaleDegree(m[1], 6)} minor pentatonic`, (b) => / pentatonic$/.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) minor pentatonic has the same notes as which major pentatonic\?$/))) {
+    pickOption(`${scaleDegree(m[1], 3, true)} major pentatonic`, (b) => / pentatonic$/.test(b), correctly)
+  } else if ((m = text.match(/^What’s the blue note in the (\S+) blues scale\?$/))) {
+    pickOption(noteAbove(m[1], 4, 6), (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^Which notes make the (\S+) blues scale\?$/))) {
+    const t = m[1]
+    const notes = [scaleDegree(t, 1, true), scaleDegree(t, 3, true), scaleDegree(t, 4, true), noteAbove(t, 4, 6), scaleDegree(t, 5, true), scaleDegree(t, 7, true)]
+    pickOption(notes.join(' '), (b) => /^([A-G][♯♭]? ?){6}$/.test(b), correctly)
+  } else if ((m = text.match(/^In the (\S+) minor pentatonic box, which degree is the marked note\?$/))) {
+    const semis = (((midiAt(markerPos('target')) - midiAt(markerPos('root'))) % 12) + 12) % 12
+    pickOption(String({ 3: 3, 5: 4, 7: 5, 10: 7 }[semis]), (b) => /^[3457]$/.test(b), correctly)
+  } else if ((m = text.match(/^Tap a root in (?:this (\S+) minor pentatonic box|Pattern \d of (\S+) minor pentatonic)$/))) {
+    const root = labelPc(m[1] ?? m[2])
+    const dots = boardMarkers().map((mk) => mk.pos)
+    const spot = hitSpots().find((s) => dots.some((d) => d.string === s.pos.string && d.fret === s.pos.fret) && (pitchClass(midiAt(s.pos)) === root) === correctly)
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if (text === 'Which minor pentatonic is this box?') {
+    const low = boardMarkers().find((mk) => mk.pos.string === 0 && document.querySelector(`g[data-pos="0:${mk.pos.fret}"]`)?.getAttribute('data-tone') === 'root')!
+    const right = screen.getAllByRole('button').find((b) => / minor pentatonic$/.test(b.textContent!) && labelPc(b.textContent!) === pitchClass(midiAt(low.pos)))!
+    pickOption(right.textContent!, (b) => / minor pentatonic$/.test(b), correctly)
+  } else if ((m = text.match(/^Tap the missing note of Pattern \d of (\S+) minor pentatonic, on the (.+) string$/))) {
+    const string = ['low E', 'A', 'D', 'G', 'B', 'high E'].indexOf(m[2])
+    const scale = PENT_DEGREES.minor.map((d) => labelPc(scaleDegree(m![1], d, true)))
+    const step = (midi: number, dir: 1 | -1) => {
+      let next = midi + dir
+      while (!scale.includes(pitchClass(next))) next += dir
+      return next
+    }
+    const on = (s: number) => boardMarkers().filter((mk) => mk.pos.string === s).map((mk) => midiAt(mk.pos))
+    const shown = boardMarkers().find((mk) => mk.pos.string === string)!.pos
+    const note = midiAt(shown)
+    // A pattern is a run of scale notes, two to a string: the gap is the scale note above the one
+    // shown if the note after that starts the next string up, otherwise the one below.
+    const above = on(string + 1)
+    const below = on(string - 1)
+    const missing = above.length
+      ? step(step(note, 1), 1) === Math.min(...above) ? step(note, 1) : step(note, -1)
+      : step(step(note, -1), -1) === Math.max(...below) ? step(note, -1) : step(note, 1)
+    const spot = hitSpots().find((s) => s.pos.string === string && (correctly ? midiAt(s.pos) === missing : s.pos.fret === shown.fret))
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if ((m = text.match(/^In Pattern \d of (\S+) minor pentatonic, the lit notes make (\S+) major\. Which CAGED shape\?$/))) {
+    const lit = [...document.querySelectorAll<SVGGElement>('svg[aria-label="Guitar fretboard"] g[data-tone="correct"]')].map((g) => parsePosKey(g.dataset.pos!)!)
+    const frets = [0, 1, 2, 3, 4, 5].map((string) => lit.find((p) => p.string === string)?.fret ?? -1)
+    const shape = Object.keys(OPEN_SHAPES).find((name) => {
+      const open = OPEN_SHAPES[name]
+      const shifts = new Set(frets.map((f, i) => (f < 0 || open[i] < 0 ? (f < 0 && open[i] < 0 ? 'muted' : 'no') : f - open[i])))
+      return !shifts.has('no') && [...shifts].filter((x) => x !== 'muted').length === 1
+    })!
+    pickOption(`${shape} shape`, (b) => / shape$/.test(b), correctly)
+  } else if (text === 'Major or minor pentatonic?') {
+    pickOption(heard.notes[1] - heard.notes[0] === 2 ? 'Major pentatonic' : 'Minor pentatonic', (b) => / pentatonic$/.test(b), correctly)
+  } else if (text === 'Minor pentatonic or blues scale?') {
+    pickOption(heard.notes.length === 7 ? 'Blues scale' : 'Minor pentatonic', (b) => /^(Minor pentatonic|Blues scale)$/.test(b), correctly)
+  } else if ((m = text.match(/^In a 12-bar blues, which chord is in bar (\d+)\?$/))) {
+    pickOption(TWELVE_BARS[Number(m[1]) - 1], (b) => /^(I|IV|V)$/.test(b), correctly)
+  } else if ((m = text.match(/^In a 12-bar blues in (\S+), what chord is in bar (\d+)\?$/))) {
+    pickOption(`${bluesRoot(m[1], TWELVE_BARS[Number(m[2]) - 1])}7`, (b) => /^[A-G][♯♭]?7$/.test(b), correctly)
+  } else if ((m = text.match(/^In a 12-bar blues in (\S+), what are the I7, IV7 and V7 chords\?$/))) {
+    pickOption(['I', 'IV', 'V'].map((n) => `${bluesRoot(m![1], n)}7`).join(' '), (b) => /^([A-G][♯♭]?7 ?){3}$/.test(b), correctly)
+  } else if ((m = text.match(/^This 12-bar blues in (\S+) (has a quick change\. What chord is in bar 2|ends with a turnaround\. What chord is in bar 12)\?$/))) {
+    pickOption(`${bluesRoot(m[1], m[2].startsWith('has') ? 'IV' : 'V')}7`, (b) => /^[A-G][♯♭]?7$/.test(b), correctly)
+  } else if ((m = text.match(/^In a minor blues in (\S+) minor, what chord is in bar (\d+)\?$/))) {
+    pickOption(`${bluesRoot(m[1], TWELVE_BARS[Number(m[2]) - 1], true)}m7`, (b) => /^[A-G][♯♭]?m?7$/.test(b), correctly)
+  } else if (text === 'Quick change, or does it stay on I?') {
+    pickOption(heard.notes[4] !== heard.notes[0] ? 'Quick change' : 'Stays on I', (b) => /^(Quick change|Stays on I)$/.test(b), correctly)
   } else {
     return false
   }
@@ -595,7 +835,7 @@ describe('the app', () => {
     expect(deck().getByText('Now playing')).toBeTruthy()
     expect(screen.getAllByText('Now playing')).toHaveLength(2)
     // Browsing another tape loads it into the deck without moving "now playing".
-    fireEvent.click(screen.getByRole('button', { name: /^Tape 3: The 2nd string/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Tape 3: B String · Staff/ }))
     expect(lcd()).toContain('SEALED')
     expect(deck().getByText('Loaded')).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Tape 1: Reading basics\. Now playing/ })).toBeTruthy()
@@ -957,6 +1197,35 @@ describe('the app', () => {
     expect(useProgress.getState().jam.setup.strings).toEqual([0, 1, 2, 3, 4])
   })
 
+  it('only answers taps on the notes the Fretboard tab is showing', () => {
+    render(<App />)
+    go('/explore')
+    const tapFret = (pos: string) => fireEvent.click(document.querySelector(`rect.fret-hit[data-pos="${pos}"]`)!)
+    const panel = () => screen.getByText(/Tap any note|string, /).closest('.panel')!.textContent!
+    // Natural notes: the F♯ at the 2nd fret of the low E string is hidden, so tapping there does nothing.
+    tapFret('0:2')
+    expect(panel()).toContain('Tap any note')
+    tapFret('0:1')
+    expect(panel()).toContain('low E string, 1st fret')
+    // Sharps: now it shows, and answers.
+    fireEvent.click(screen.getByRole('button', { name: 'Sharps' }))
+    tapFret('0:2')
+    expect(panel()).toContain('low E string, 2nd fret')
+    const label = (pos: string) => document.querySelector(`g[data-pos="${pos}"] text`)!.textContent
+    expect(label('0:2')).toBe('F♯')
+    // Flats: the same fret, under its other name, and the Solo row follows.
+    fireEvent.click(screen.getByRole('button', { name: 'Flats' }))
+    expect(label('0:2')).toBe('G♭')
+    expect(screen.getByRole('button', { name: 'G♭' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'F♯' })).toBeNull()
+    // Soloing one note: only that note answers.
+    fireEvent.click(screen.getByRole('button', { name: 'C' }))
+    tapFret('0:5')
+    expect(panel()).toContain('low E string, 2nd fret')
+    tapFret('0:8')
+    expect(panel()).toContain('low E string, 8th fret')
+  })
+
   it('adds the Scale and Interval views to the Fretboard tab once you reach those tapes', () => {
     render(<App />)
     go('/explore')
@@ -970,6 +1239,32 @@ describe('the app', () => {
     fireEvent.click(screen.getByRole('button', { name: /Interval/ }))
     fireEvent.click(document.querySelector('rect.fret-hit[data-pos="1:3"]')!)
     expect(screen.getByText(/C up a perfect 5th is G/)).toBeTruthy()
+  })
+
+  it('adds the pentatonic scales and their patterns to the Scale view as they’re taught', () => {
+    render(<App />)
+    const done = { stars: 3, completions: 1 }
+    act(() => useProgress.setState({ lessons: { 't2-2': done, 'bp1-1': done, 'bp4-3': done } }))
+    go('/explore')
+    fireEvent.click(screen.getByRole('button', { name: 'Scale' }))
+    expect(screen.queryByRole('button', { name: 'Blues scale' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Minor pentatonic' }))
+    const dots = () => [...document.querySelectorAll<SVGGElement>('svg[aria-label="Guitar fretboard"] g[data-tone]')]
+    // C's key button now names its relative minor, A, and every A minor pentatonic note is lit.
+    expect(screen.getByRole('button', { name: 'A' }).getAttribute('aria-pressed')).toBe('true')
+    expect(new Set(dots().map((g) => g.querySelector('text')!.textContent))).toEqual(new Set(['A', 'C', 'D', 'E', 'G']))
+    // Pattern 1, the box: twelve notes from the 5th fret to the 8th. Only the patterns taught so far are offered.
+    expect(screen.queryByRole('button', { name: '3' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '1' }))
+    const frets = dots().map((g) => parsePosKey(g.dataset.pos!)!.fret)
+    expect(frets).toHaveLength(12)
+    expect(frets.every((f) => f >= 5 && f <= 8)).toBe(true)
+    // Only the box's notes answer a tap: the G at the 3rd fret is in the scale but not the box.
+    const panel = () => screen.getByText(/Pattern 1 of the|of the A minor pentatonic/).closest('.panel')!.textContent!
+    fireEvent.click(document.querySelector('rect.fret-hit[data-pos="0:3"]')!)
+    expect(panel()).toContain('Pattern 1 of the A minor pentatonic')
+    fireEvent.click(document.querySelector('rect.fret-hit[data-pos="0:5"]')!)
+    expect(panel()).toContain('The root of the A minor pentatonic')
   })
 
   it('renders every tab and screen', () => {

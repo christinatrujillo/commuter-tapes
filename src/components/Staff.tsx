@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Accidental, Annotation, AnnotationVerticalJustify, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode } from 'vexflow/bravura'
-import { musicFontReady } from './musicFont'
+import { loadVexFlow } from './musicFont'
 
 interface Props {
   /** VexFlow keys at written pitch, e.g. ['c/4'] or ['f#/4', 'bb/4']. */
@@ -17,7 +16,7 @@ export function Staff({ keys, labels, color }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    void musicFontReady.then(() => {
+    void loadVexFlow().then(({ Accidental, Annotation, AnnotationVerticalJustify, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode }) => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''

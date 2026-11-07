@@ -15,7 +15,10 @@ export const THEORY_JAMS = [
   { id: 'intervals', label: 'Intervals', tapes: ['u14', 't6', 't7', 't8'] },
   { id: 'triads', label: 'Triads', tapes: ['tr1', 'tr2', 'tr3', 'tr4', 'tr5', 'tr6'] },
   { id: 'chords', label: 'Chords in a key', tapes: ['hk1', 'hk2', 'hk3', 'hk4'] },
-  { id: 'ear', label: 'Ear · headphones', tapes: ['t9', 'tr7', 'hk5'] },
+  { id: 'building', label: 'Building chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb5', 'cb6'] },
+  { id: 'minor', label: 'Minor keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4'] },
+  { id: 'blues', label: 'Blues & pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5'] },
+  { id: 'ear', label: 'Ear · headphones', tapes: ['t9', 'tr7', 'hk5', 'cb7', 'mk5', 'bp6'] },
 ]
 
 /** The tracks you've recorded on these tapes. */
@@ -44,22 +47,35 @@ export function namedIntervals(lessons: Record<string, LessonRecord>): string[] 
 // Interval shapes by size, for the tapes that teach them by half steps.
 const SHAPE_NAMES: Record<number, string> = { 3: 'm3', 4: 'M3', 5: 'P4', 7: 'P5', 12: 'P8' }
 
+/** The scales the Fretboard tab's Scale view can show. */
+export type ScaleView = 'major' | 'majorPent' | 'minorPent' | 'blues'
+const SCALE_TAPES: [ScaleView, string][] = [
+  ['major', 't2'],
+  ['majorPent', 'bp2'],
+  ['minorPent', 'bp1'],
+  ['blues', 'bp3'],
+]
+
 /**
  * What the Fretboard tab's Scale and Interval views can show: only what you've learned. The
  * Scale view opens with the Major scale tape (C major, plus the keys of the tracks you've
- * recorded); the Interval view with the Intervals tape (its shapes, the octave, and any names
- * from Naming intervals).
+ * recorded), and adds each pentatonic and the blues scale with its tape, and the pentatonic
+ * patterns as they're taught (the box first); the Interval view opens with the Intervals tape
+ * (its shapes, the octave, and any names from Naming intervals).
  */
-export function fretboardViews(lessons: Record<string, LessonRecord>): { keys: KeyId[]; intervals: string[] } {
+export function fretboardViews(lessons: Record<string, LessonRecord>): { keys: KeyId[]; intervals: string[]; scales: ScaleView[]; patterns: number[] } {
+  const scales = SCALE_TAPES.filter(([, tape]) => recordedOn([tape], lessons).length).map(([scale]) => scale)
   const scaleTracks = recordedOn(['t2'], lessons)
-  const keys = scaleTracks.length ? KEY_ORDER.filter((k) => k === 'C' || scaleTracks.some((l) => l.keys?.includes(k))) : []
+  const keys = scales.length ? KEY_ORDER.filter((k) => k === 'C' || scaleTracks.some((l) => l.keys?.includes(k))) : []
+  const patternTracks = recordedOn(['bp4'], lessons)
+  const patterns = patternTracks.length ? [...new Set([1, ...patternTracks.flatMap((l) => l.patterns ?? [])])].sort() : []
   const shapeTracks = recordedOn(['u14'], lessons)
-  if (!shapeTracks.length) return { keys, intervals: [] }
+  if (!shapeTracks.length) return { keys, intervals: [], scales, patterns }
   const names = new Set<string>([
     ...shapeTracks.flatMap((l) => (l.intervals ?? []).map((n) => SHAPE_NAMES[n]).filter(Boolean)),
     ...(recordedOn(['u13'], lessons).length ? ['P8'] : []),
     ...recordedOn(['t6'], lessons).flatMap((l) => l.ivNames ?? []),
   ])
   const intervals = [...names].sort((a, b) => intervalSize(parseInterval(a))! - intervalSize(parseInterval(b))!)
-  return { keys, intervals }
+  return { keys, intervals, scales, patterns }
 }

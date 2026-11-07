@@ -85,6 +85,7 @@ export default defineConfig({
   // Relative paths so the build works at any URL (e.g. username.github.io/commuter-tapes/).
   base: './',
   plugins: [react(), tailwindcss(), serviceWorker()],
-  // VexFlow embeds its music font, so the main bundle is ~1.2 MB (cached once, then offline).
-  build: { chunkSizeWarningLimit: 1300 },
+  // The sheet-music library (VexFlow, with its music font) loads in its own ~720 kB file the first
+  // time a staff is drawn; the app's main file stays well under this. Both are cached for offline.
+  build: { chunkSizeWarningLimit: 750 },
 })
