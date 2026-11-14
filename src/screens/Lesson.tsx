@@ -9,10 +9,10 @@ import { drillFromQuery } from '../game/drill'
 import { answerSound, feedbackDetail, type Answer } from '../game/present'
 import { buildJam, recordedOn, THEORY_JAMS } from '../game/jams'
 import { buildSession, FLUENT_MS, needsListening, newQuestionId, type Question } from '../game/questions'
-import { buildReview, buildTroubleSpots, mixInReview } from '../game/review'
+import { buildReview, buildTroubleSpots, dueFacts, mixInReview } from '../game/review'
 import { today } from '../lib/date'
 import { findLesson, isListening } from '../music/curriculum'
-import { goBack } from '../lib/router'
+import { goBack, navigate } from '../lib/router'
 import { currentStreak, listeningOff, RATING_NAMES, ratingFor, useProgress, type Rating } from '../store/progress'
 
 /** Clip three times and the take is ruined. */
@@ -215,7 +215,8 @@ function LessonRunner({
     if ((index === 0 && !answer) || window.confirm('Stop recording? You’ll lose this take.')) goBack()
   }
 
-  if (summary) return <CompleteScreen summary={summary} title={title} />
+  // A Review session doesn't offer another one straight after.
+  if (summary) return <CompleteScreen summary={summary} title={title} offerReview={!questions.every((x) => x.review)} />
   if (failed) return <FailedScreen onRetry={onRetry} />
 
   return (
@@ -309,8 +310,10 @@ function EndReadout({ label, value }: { label: string; value: string }) {
   )
 }
 
-function CompleteScreen({ summary, title }: { summary: Summary; title: string }) {
+function CompleteScreen({ summary, title, offerReview }: { summary: Summary; title: string; offerReview: boolean }) {
   const streak = useProgress((s) => currentStreak(s.streak))
+  // Takes only carry a few reviews each, so when a full session's worth is due, offer it here.
+  const due = useProgress((s) => dueFacts(s.stats, today(), listeningOff(s) === null).length)
   // The strum plays here, after the last question has stopped its own sounds.
   useEffect(() => playStrum(), [])
   const date = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -348,9 +351,15 @@ function CompleteScreen({ summary, title }: { summary: Summary; title: string })
           </p>
         )}
       </div>
-      <Button className="mx-auto max-w-sm" onClick={() => goBack()}>
-        Done ▸▸
-      </Button>
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
+        {offerReview && due >= REVIEW_SESSION && (
+          // Replaces this screen in the history, so Back from the review doesn't restart the take.
+          <Button variant="dark" onClick={() => navigate('/review', { replace: true })}>
+            ↺ Review {REVIEW_SESSION} due · no clips
+          </Button>
+        )}
+        <Button onClick={() => goBack()}>Done ▸▸</Button>
+      </div>
     </div>
   )
 }

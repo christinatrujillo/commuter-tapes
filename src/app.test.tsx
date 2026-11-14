@@ -1209,6 +1209,25 @@ describe('the app', () => {
     expect(Object.keys(useProgress.getState().lessons)).toEqual(['t2-2'])
   })
 
+  it('offers a Review session after a take once a dozen are due', () => {
+    render(<App />)
+    const overdue = { seen: 1, correct: 1, recent: 0.8, ms: 1000, interval: 1, due: '2000-01-01' }
+    act(() =>
+      useProgress.setState({
+        lessons: { 't2-2': { stars: 3, completions: 1 } },
+        stats: Object.fromEntries(Array.from({ length: 13 }, (_, fret) => [`0:${fret}`, overdue])),
+      }),
+    )
+    go('/jam?t=scales')
+    playLesson()
+    fireEvent.click(screen.getByRole('button', { name: /Review 12 due/ }))
+    expect(window.location.hash).toBe('#/review')
+    // The Review session's own end screen doesn't offer another.
+    playLesson()
+    expect(screen.getByText('Take recorded')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Review 12 due/ })).toBeNull()
+  })
+
   it('unlocks the Keys sprint once you can name keys', () => {
     const tick = (ms: number) => advanceTo(Date.now() + ms)
     useProgress.setState({ lessons: { 'r9-3': { stars: 3, completions: 1 } } })

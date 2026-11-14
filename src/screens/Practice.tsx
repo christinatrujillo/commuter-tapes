@@ -65,7 +65,7 @@ export function PracticeScreen() {
         <section className="panel px-5 pt-5 pb-5">
           <h2 className="label-text text-lg text-cream">Review</h2>
           <p className="mt-1 text-sm text-muted">
-            Notes and ideas from earlier tapes that are due for a refresh. They already mix into every take, so this is extra, for when you have a spare minute.
+            Notes and ideas from earlier tapes that are due for a refresh. A few mix into every take, but not enough to keep up, so run this about once a day.
           </p>
           <p className="mt-3 text-sm text-muted">
             {due ? (
