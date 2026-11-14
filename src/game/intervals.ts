@@ -13,6 +13,7 @@ import {
   positionsForMidi,
   positionsForPc,
   spelledMidi,
+  spellMidi,
   WRITTEN_OCTAVE_SHIFT,
   type Region,
 } from '../music/notes'
@@ -142,7 +143,7 @@ export function makeIvName(id: number, names: string[], rng: Rng, only?: string)
     kind: 'ivName',
     ask: { text: `What’s the interval from ${what}?`, hl: what },
     ...choicesFor(iv, names, rng),
-    why: `${capitalize(what)}: ${lettersBetween(pair.root, iv.number)} is ${iv.number} letters, so it’s ${numberWord(iv.number)}. ${size} half steps is ${sizeReason(iv)}, so it’s ${named(iv)}.`,
+    why: `${capitalize(what)}: ${lettersBetween(pair.root, iv.number)} is ${iv.number} letters, so it’s ${numberWord(iv.number)}. ${halfSteps(size)} is ${sizeReason(iv)}, so it’s ${named(iv)}.`,
     score: { measures: pairScore(pair.root, pair.top), labels: [toneName(pair.root), toneName(pair.top)] },
     sound: [low, low + size],
     facts: [`ivn:${intervalShort(iv)}`],
@@ -306,7 +307,20 @@ export function makeIvBelow(id: number, names: string[], rng: Rng, only?: string
 const EAR_NAMES = ['m2', 'M2', 'm3', 'M3', 'P4', 'A4', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8']
 /** What an interval is called when you hear it; the tritone is one sound with two spellings. */
 export const earLabel = (short: string) => (short === 'A4' ? 'Tritone' : intervalLabel(parseInterval(short)))
-const heard = (midi: number) => pcName(pitchClass(midi), 'sharp')
+const halfSteps = (n: number) => `${n} half step${n === 1 ? '' : 's'}`
+
+/** The two notes of a heard interval, low then high, the upper one spelled by its letter (F up to B♭, not A♯). */
+export function heardPair(low: number, short: string): [string, string] {
+  // The tritone is heard as one sound, so take whichever spelling reads plainest.
+  const pairs = (short === 'A4' ? ['A4', 'd5'] : [short]).flatMap((s) =>
+    (['sharp', 'flat'] as const).flatMap((spelling) => {
+      const root = spellMidi(low, spelling)
+      const top = intervalAbove(root, parseInterval(s))
+      return top ? [[toneName(root), toneName(top)] as [string, string]] : []
+    }),
+  )
+  return pairs.find((p) => !RARE_SPELLINGS.has(p[1])) ?? pairs[0] ?? [pcName(pitchClass(low), 'sharp'), pcName(pitchClass(low + sizeOf(short)), 'sharp')]
+}
 
 /** Hear two notes (rising, falling or together): which interval? */
 export function makeIvHear(id: number, names: string[], modes: ('up' | 'down' | 'together')[], rng: Rng, only?: string): Question {
@@ -318,6 +332,8 @@ export function makeIvHear(id: number, names: string[], modes: ('up' | 'down' | 
   const low = between(45, 69 - size, rng)
   const notes = mode === 'down' ? [low + size, low] : [low, low + size]
   const options = [...set].sort(bySize).map(earLabel)
+  const [lowName, topName] = heardPair(low, short)
+  const said = mode === 'down' ? [topName, lowName] : [lowName, topName]
   const how = mode === 'together' ? 'played together' : mode === 'down' ? 'falling' : 'rising'
   return {
     id,
@@ -325,7 +341,7 @@ export function makeIvHear(id: number, names: string[], modes: ('up' | 'down' | 
     ask: { text: 'What interval do you hear?' },
     options,
     answer: options.indexOf(earLabel(short)),
-    why: `${earLabel(short)}, ${how}: ${heard(notes[0])} ${mode === 'together' ? 'and' : 'to'} ${heard(notes[1])}, ${size} half steps apart.`,
+    why: `${earLabel(short)}, ${how}: ${said[0]} ${mode === 'together' ? 'and' : 'to'} ${said[1]}, ${halfSteps(size)} apart.`,
     listen: { notes, together: mode === 'together' },
     sound: notes,
     facts: [`ear:${short}`],
@@ -350,8 +366,8 @@ export function makeIvHearFind(id: number, names: string[], rng: Rng, only?: str
       markers: [{ pos: from, tone: 'root', label: noteAt(from) }],
       from,
       targets,
-      label: heard(midiAt(from) + size),
-      why: `That was ${short === 'A4' ? 'a tritone' : named(parseInterval(short))}: ${noteAt(from)} up to ${heard(midiAt(from) + size)}.`,
+      label: heardPair(midiAt(from), short)[1],
+      why: `That was ${short === 'A4' ? 'a tritone' : named(parseInterval(short))}: ${noteAt(from)} up to ${heardPair(midiAt(from), short)[1]}.`,
       listen: { notes: [midiAt(from), midiAt(from) + size] },
       facts: [`ear:${short}`],
     }

@@ -261,7 +261,7 @@ function staffHook(w: number, l: LessonSpec): string {
       parts.push('Ledger lines are short extra lines that extend the staff up or down.')
     }
   }
-  if (w === 60) parts.push('This is middle C, the C in the middle of a piano keyboard.')
+  if (w === 60) parts.push('It’s written where middle C goes, but the guitar sounds an octave lower than written, so you hear the C below a piano’s middle C.')
   const spot = positionsForMidi(w - WRITTEN_OCTAVE_SHIFT, l.region).sort((a, b) => a.fret - b.fret)[0]
   if (spot) {
     parts.push(`Play it on the ${describePosition(spot)}.`)

@@ -4,7 +4,7 @@ import { ALL_LESSONS, findLesson, isListening } from '../music/curriculum'
 import { midiAt } from '../music/notes'
 import { intervalAbove, intervalName, intervalSize, invertInterval, parseInterval, toneName, type Interval } from '../music/theory'
 import { currentLessonId, isUnlocked, listeningOff, LISTENING_PAUSE_MS } from '../store/progress'
-import { makeIvBelow, makeIvHear, makeIvHearFind, makeIvInvert, makeIvName, makeIvReadName } from './intervals'
+import { heardPair, makeIvBelow, makeIvHear, makeIvHearFind, makeIvInvert, makeIvName, makeIvReadName } from './intervals'
 import { buildReview, dueFacts, tapeOf } from './review'
 
 const seeds = Array.from({ length: 40 }, (_, i) => seeded(i + 1))
@@ -166,5 +166,14 @@ describe('listening and the MONITORS switch', () => {
     expect(dueFacts(stats, '2026-02-01')).toHaveLength(2)
     expect(dueFacts(stats, '2026-02-01', false)).toEqual(['ivn:M3'])
     expect(['ivnum:5', 'ivn:M3', 'invnum:3', 'inv:M3', 'ear:P5', 'ear:M3'].map(tapeOf)).toEqual([29, 29, 31, 31, 32, 32])
+  })
+})
+
+describe('heardPair', () => {
+  it('spells the upper note by its letter', () => {
+    expect(heardPair(53, 'P4')).toEqual(['F', 'B♭']) // not A♯
+    expect(heardPair(56, 'M3')).toEqual(['A♭', 'C']) // G♯ would need B♯
+    expect(heardPair(59, 'A4')).toEqual(['B', 'F']) // the tritone avoids E♯
+    expect(heardPair(58, 'M3')).toEqual(['B♭', 'D'])
   })
 })

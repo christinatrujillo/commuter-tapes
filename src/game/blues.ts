@@ -1140,7 +1140,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:minor-blues': () => ({
     title: 'Minor blues',
     subtitle: 'i7, iv7 and v7',
-    hook: 'A minor blues keeps the same 12 bars but uses minor 7th chords (tape 46): i7, iv7 and v7. In A minor that’s Am7, Dm7 and Em7. Bar 9 is often E7 instead, using the raised 7th from tape 53.',
+    hook: 'A minor blues keeps the same 12 bars but uses minor 7th chords (tape 46): i7, iv7 and v7. In A minor that’s Am7, Dm7 and Em7. Bar 9 is often E7 instead, using the raised 7th from tape 53, and many minor blues play F7 then E7 in bars 9 and 10.',
     chart: { bars: TWELVE.map((d) => bluesChord('A', d, true).symbol), numerals: TWELVE.map((d) => `${MINOR_NUMERALS[d]}7`) },
     listen: hearBars([0, 3, 4, 0], true),
     sound: [],

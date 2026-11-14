@@ -399,7 +399,7 @@ const TAPES: Unit[] = [
     tips: [
       'Notes below the staff sit on ledger lines: short extra lines added under (or over) the staff.',
       'The 5th string is A. Open A sits on the second ledger line below the staff.',
-      'B (2nd fret) hangs just under the first ledger line. C (3rd fret) is on it: that’s middle C, the C in the middle of a piano keyboard.',
+      'B (2nd fret) hangs just under the first ledger line. C (3rd fret) is on it. It’s written where middle C goes, but the guitar sounds an octave lower than written, so you hear the C below a piano’s middle C.',
       'A tie joins two notes of the same pitch: play the first and hold through the second.',
       'A dotted quarter note is 1 + ½ = 1½ beats, usually followed by an eighth.',
     ],
@@ -1585,7 +1585,7 @@ const TAPES: Unit[] = [
     tips: [
       'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
       'The major pentatonic climbs a whole step first; the minor pentatonic leaps up a minor 3rd.',
-      'The blue note squeezes three half steps in a row between the 4th and the 5th.',
+      'The blue note sits between the 4th and the 5th, so three notes in a row climb a half step at a time.',
     ],
     lessons: [
       { id: 'bp6-1', title: 'Major or minor pentatonic', exercises: ['pentHear'], region: FULL_NECK, topics: ['blues:ear-why', 'blues:ear-pent'] },
