@@ -24,6 +24,7 @@ import { keyLabel, type KeyId } from '../music/score'
 import { intervalName, intervalSize, majorScale, parseInterval, relativeMinor, toneId, toneName, tonePc, type Tone } from '../music/theory'
 import { bluesScale, majorPentatonic, minorPentatonic, patternSpots, SCALE_DEGREES } from '../game/blues'
 import { fretboardViews, type ScaleView } from '../game/jams'
+import { MODE_NAMES, MODES, modeDegrees, modeScale, type ModeId } from '../game/modes'
 import { useProgress } from '../store/progress'
 
 const PCS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -32,12 +33,19 @@ type Mode = 'notes' | 'scale' | 'interval'
 /** Which notes the Notes view shows, and what it calls the ones between the natural notes. */
 type Names = 'naturals' | 'sharps' | 'flats'
 
-const SCALE_NAMES: Record<ScaleView, string> = { major: 'Major scale', majorPent: 'Major pentatonic', minorPent: 'Minor pentatonic', blues: 'Blues scale' }
+const SCALE_NAMES: Record<ScaleView, string> = { major: 'Major scale', majorPent: 'Major pentatonic', minorPent: 'Minor pentatonic', blues: 'Blues scale', modes: 'Modes' }
 
-/** A scale the Scale view can show in `key`: the minor ones start on its relative minor, so they share its notes. */
-function scaleIn(view: ScaleView, key: KeyId): { tones: Tone[]; degrees: string[]; name: string } {
+/**
+ * A scale the Scale view can show in `key`: the minor ones start on its relative minor, and a mode
+ * on its own note of the key, so they all share the key's notes.
+ */
+function scaleIn(view: ScaleView, key: KeyId, mode: ModeId): { tones: Tone[]; degrees: string[]; name: string } {
   const minor = relativeMinor(key)
   switch (view) {
+    case 'modes': {
+      const tones = modeScale(key, mode)
+      return { tones, degrees: modeDegrees(mode), name: `${toneName(tones[0])} ${MODE_NAMES[mode]}` }
+    }
     case 'majorPent':
       return { tones: majorPentatonic(key), degrees: SCALE_DEGREES.majorPent, name: `${keyLabel(key)} major pentatonic` }
     case 'minorPent':
@@ -66,6 +74,7 @@ export function ExploreScreen() {
   const [key, setKey] = useState<KeyId>(unlocked.keys[0] ?? 'C')
   const [degrees, setDegrees] = useState(false)
   const [scale, setScale] = useState<ScaleView>(unlocked.scales[0] ?? 'major')
+  const [modeView, setModeView] = useState<ModeId>('dorian')
   // 0 shows the whole neck; 1 to 5 show one pentatonic pattern.
   const [pattern, setPattern] = useState(0)
   const [interval, setIntervalName] = useState(unlocked.intervals[0] ?? 'P5')
@@ -76,7 +85,10 @@ export function ExploreScreen() {
     ...(unlocked.intervals.length ? [{ value: 'interval' as const, label: 'Interval' }] : []),
   ]
 
-  const shown = scaleIn(unlocked.scales.includes(scale) ? scale : 'major', key)
+  const view = unlocked.scales.includes(scale) ? scale : 'major'
+  const shown = scaleIn(view, key, modeView)
+  // Modes are named like keys ("D Dorian"), the other scales with "the" ("the A minor pentatonic").
+  const theName = view === 'modes' ? shown.name : `the ${shown.name}`
   const tones = shown.tones
   const scalePcs = tones.map(tonePc)
   const onePattern = scale === 'minorPent' && unlocked.patterns.includes(pattern)
@@ -143,11 +155,11 @@ export function ExploreScreen() {
           <div className="mt-1 text-cream">{describePosition(selected)}</div>
           <div className="text-sm text-muted">
             {mode === 'scale' && degreeOf >= 0
-              ? shown.tones.length === 7
+              ? view === 'major'
                 ? `The ${degreeOf + 1}${['st', 'nd', 'rd'][degreeOf] ?? 'th'} note of ${keyLabel(key)} major`
                 : degreeOf === 0
-                  ? `The root of the ${shown.name}`
-                  : `Degree ${shown.degrees[degreeOf]} of the ${shown.name}`
+                  ? `The root of ${theName}`
+                  : `Degree ${shown.degrees[degreeOf]} of ${theName}`
               : `Written ${spelledName(written, true)}, ${staffPlace(written)}`}
           </div>
         </div>
@@ -157,7 +169,7 @@ export function ExploreScreen() {
         {mode === 'scale'
           ? onePattern
             ? `Pattern ${pattern} of the ${shown.name}, the root glowing.${patternNotes.length < 12 ? ' Part of it runs past the 12th fret, where this neck ends.' : ' Tap a note to hear it.'}`
-            : `Every note of the ${shown.name}, the root glowing. Tap one to hear it.`
+            : `Every note of ${theName}, the root glowing. Tap one to hear it.`
           : 'Tap any note to hear it and see where it’s written on the staff.'}
       </p>
     )
@@ -180,7 +192,7 @@ export function ExploreScreen() {
         <>
           {/* The notes between the naturals have two names; Sharps and Flats show the same frets under each. */}
           <LedButtons
-            columns={3}
+            columns="fit"
             options={[
               { value: 'naturals', label: 'Natural notes' },
               { value: 'sharps', label: 'Sharps' },
@@ -218,11 +230,27 @@ export function ExploreScreen() {
               }}
             />
           )}
+          {scale === 'modes' && (
+            <div>
+              <div className="label-text mb-2 text-[11px] text-muted">Mode</div>
+              <LedButtons
+                options={MODES.map((m) => ({ value: m, label: MODE_NAMES[m] }))}
+                selected={[modeView]}
+                onToggle={(m) => {
+                  setModeView(m)
+                  setSelected(null)
+                }}
+              />
+            </div>
+          )}
           <div>
-            {/* The minor scales are named by their home notes: the relative minors of the keys learned. */}
+            {/* The minor scales and the modes are named by their home notes in each key learned (the relative minor, or the mode's own note). */}
             <div className="label-text mb-2 text-[11px] text-muted">{unlocked.scales.length > 1 ? 'Key' : 'Major scale'}</div>
             <LedButtons
-              options={unlocked.keys.map((k) => ({ value: k, label: scale === 'minorPent' || scale === 'blues' ? toneName(relativeMinor(k)) : keyLabel(k) }))}
+              options={unlocked.keys.map((k) => ({
+                value: k,
+                label: scale === 'modes' ? toneName(modeScale(k, modeView)[0]) : scale === 'minorPent' || scale === 'blues' ? toneName(relativeMinor(k)) : keyLabel(k),
+              }))}
               selected={[key]}
               onToggle={setKey}
             />

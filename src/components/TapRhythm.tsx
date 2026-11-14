@@ -4,7 +4,7 @@ import type { TapResult } from '../game/present'
 import { METER_PULSE, METER_QUARTERS, onsets, playedIndexes, type Measure } from '../music/rhythm'
 import { useProgress } from '../store/progress'
 import { Notation } from './Notation'
-import { Button, LedButtons } from './ui'
+import { Button, LedButtons, TransportIcon } from './ui'
 
 type Phase = 'ready' | 'countin' | 'playing' | 'done'
 
@@ -188,8 +188,9 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
           )}
           <div className="flex gap-3">
             {allowListen && (
-              <Button variant="dark" className="!w-auto shrink-0" onClick={listen}>
-                ▶ Hear it
+              <Button variant="dark" className="flex !w-auto shrink-0 items-center justify-center gap-[0.45em]" onClick={listen}>
+                <TransportIcon kind="play" />
+                Hear it
               </Button>
             )}
             <Button onClick={begin}>Count me in</Button>

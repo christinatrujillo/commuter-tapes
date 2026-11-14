@@ -3,7 +3,7 @@ import { GlossaryText } from '../components/GlossaryText'
 import { HeadphonesIcon, MonitorsSwitch } from '../components/Monitors'
 import { Fretboard, type Marker } from '../components/Fretboard'
 import { Staff } from '../components/Staff'
-import { BackHeader, Button, LabelTape, LedBar } from '../components/ui'
+import { BackHeader, Button, LabelTape, LedBar, TransportIcon } from '../components/ui'
 import { navigate } from '../lib/router'
 import { isListening, tapeNumber, UNITS, type LessonSpec } from '../music/curriculum'
 import { mastery } from '../game/questions'
@@ -102,8 +102,15 @@ export function DeckScreen({ unitId }: { unitId: string }) {
       </main>
       <div className="border-t border-edge bg-tolex p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {next ? (
-          <Button disabled={!canRecord} onClick={() => navigate(startPath(next.id))}>
-            {canRecord ? '▶ Play' : 'Sealed: finish the tape before this one'}
+          <Button disabled={!canRecord} className="flex items-center justify-center gap-[0.45em]" onClick={() => navigate(startPath(next.id))} data-guide="play">
+            {canRecord ? (
+              <>
+                <TransportIcon kind="play" />
+                Play
+              </>
+            ) : (
+              'Sealed: finish the tape before this one'
+            )}
           </Button>
         ) : (
           <p className="label-text py-2 text-center text-sm text-amber">All tracks recorded</p>

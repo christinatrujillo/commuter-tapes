@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { stopSounds } from './audio/sound'
+import { Guide } from './components/Guide'
 import { useRoute } from './lib/router'
 import { DeckScreen } from './screens/Deck'
 import { ExploreScreen } from './screens/Explore'
@@ -16,6 +17,15 @@ export function App() {
   // Changing screens cuts off anything the last one was still playing.
   const where = `${parts.join('/')}?${query}`
   useEffect(() => stopSounds(), [where])
+  return (
+    <>
+      <Screen parts={parts} query={query} />
+      <Guide />
+    </>
+  )
+}
+
+function Screen({ parts, query }: { parts: string[]; query: URLSearchParams }) {
   switch (parts[0]) {
     case 'lesson':
       return <LessonScreen key={parts[1]} lessonId={parts[1] ?? ''} />

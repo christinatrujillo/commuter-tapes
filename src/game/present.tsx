@@ -216,7 +216,13 @@ function resolvedTarget(q: Extract<Question, { kind: 'accidentalRule' | 'keyNote
   return q.kind === 'accidentalRule' ? spelledMidi(resolveNotes(q.measures)[q.target]) : spelledMidi(resolveNotes([[q.note]], q.key)[0])
 }
 
+/** What a question shows on the neck, before and after it's answered. Once it is, the right answer's dot springs into place. */
 export function markersFor(q: Question, answer: Answer | null, found: Position[]): Marker[] {
+  const out = placedMarkers(q, answer, found)
+  return answer ? out.map((m) => (m.tone === 'correct' ? { ...m, spring: true } : m)) : out
+}
+
+function placedMarkers(q: Question, answer: Answer | null, found: Position[]): Marker[] {
   if (isPick(q)) return q.board ? (answer ? (q.board.after ?? q.board.markers) : q.board.markers) : []
   if (isTap(q)) {
     if (!answer) return q.markers

@@ -57,6 +57,22 @@ import {
   makeTwelveVariation,
 } from './blues'
 import {
+  makeModeColor,
+  makeModeDegree,
+  makeModeFormula,
+  makeModeHear,
+  makeModeHomeChord,
+  makeModeNeckName,
+  makeModeNeckRoot,
+  makeModeNumeral,
+  makeModeOnDegree,
+  makeModeParent,
+  makeModeRoot,
+  makeModeSpell,
+  makeModeVamp,
+  makeVampHear,
+} from './modes'
+import {
   makeBoxFind,
   makeCadenceHear,
   makeChordOnDegree,
@@ -201,6 +217,8 @@ export interface Listen {
   together?: boolean
   /** Played as chords of this many notes, one chord after another. */
   chord?: number
+  /** A chord played first, so the ear knows where home is before the notes start. */
+  home?: number[]
 }
 
 /** A theory question answered by tapping the fretboard. */
@@ -301,8 +319,21 @@ const PICK_KINDS = [
   'twelveSpell',
   'twelveVariation',
   'minorBlues',
+  'modeOnDegree',
+  'modeDegree',
+  'modeParent',
+  'modeRoot',
+  'modeColor',
+  'modeFormula',
+  'modeSpell',
+  'modeNumeral',
+  'modeHomeChord',
+  'modeVamp',
+  'modeNeckName',
+  'modeHear',
+  'vampHear',
 ] as const
-const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind', 'boxRoot', 'patternMissing', 'patternRoot'] as const
+const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind', 'boxRoot', 'patternMissing', 'patternRoot', 'modeNeckRoot'] as const
 export type PickKind = (typeof PICK_KINDS)[number]
 export type TapKind = (typeof TAP_KINDS)[number]
 
@@ -452,6 +483,20 @@ export const FLUENT_MS: Partial<Record<Question['kind'], number>> = {
   twelveSpell: 6000,
   twelveVariation: 5000,
   minorBlues: 5000,
+  modeOnDegree: 5000,
+  modeDegree: 4000,
+  modeParent: 6000,
+  modeRoot: 5000,
+  modeColor: 6000,
+  modeFormula: 4000,
+  modeSpell: 7000,
+  modeNumeral: 4000,
+  modeHomeChord: 5000,
+  modeVamp: 6000,
+  modeNeckRoot: 4000,
+  modeNeckName: 5000,
+  modeHear: 7000,
+  vampHear: 8000,
 }
 
 /** Whether a question needs you to listen. */
@@ -791,6 +836,34 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
         return makeTwelveVariation(id, spec.keys ?? [], rng)
       case 'minorBlues':
         return makeMinorBlues(id, minorKeys, rng)
+      case 'modeOnDegree':
+        return makeModeOnDegree(id, spec.keys ?? [], rng, spec.showScale)
+      case 'modeDegree':
+        return makeModeDegree(id, rng)
+      case 'modeParent':
+        return makeModeParent(id, spec.keys ?? [], rng)
+      case 'modeRoot':
+        return makeModeRoot(id, spec.keys ?? [], rng)
+      case 'modeColor':
+        return makeModeColor(id, spec.keys ?? [], minorKeys, spec.modes ?? [], rng)
+      case 'modeFormula':
+        return makeModeFormula(id, spec.modes ?? [], rng)
+      case 'modeSpell':
+        return makeModeSpell(id, spec.keys ?? [], minorKeys, spec.modes ?? [], rng)
+      case 'modeNumeral':
+        return makeModeNumeral(id, rng)
+      case 'modeHomeChord':
+        return makeModeHomeChord(id, spec.keys ?? [], rng)
+      case 'modeVamp':
+        return makeModeVamp(id, spec.keys ?? [], minorKeys, spec.modes ?? [], rng)
+      case 'modeNeckRoot':
+        return makeModeNeckRoot(id, spec.rootStrings ?? [], rng)
+      case 'modeNeckName':
+        return makeModeNeckName(id, spec.rootStrings ?? [], rng)
+      case 'modeHear':
+        return makeModeHear(id, spec.modes ?? [], rng)
+      case 'vampHear':
+        return makeVampHear(id, spec.modes ?? [], rng)
     }
   }
 

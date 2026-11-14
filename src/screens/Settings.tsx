@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { canVibrate, testVibration } from '../audio/metronome'
 import { BackHeader, Button, LedButtons, Toggle } from '../components/ui'
+import { navigate } from '../lib/router'
 import { exportData, useProgress } from '../store/progress'
 
 const GOALS = [
@@ -26,6 +27,7 @@ export function SettingsScreen() {
   const update = useProgress((s) => s.updateSettings)
   const importData = useProgress((s) => s.importData)
   const reset = useProgress((s) => s.reset)
+  const replayGuide = useProgress((s) => s.replayGuide)
   const fileInput = useRef<HTMLInputElement>(null)
   // Turning vibration on buzzes once, so you know straight away whether it works on this phone.
   const [buzzed, setBuzzed] = useState<boolean | null>(null)
@@ -119,6 +121,17 @@ export function SettingsScreen() {
               <span className="label-text block text-sm text-cream">Daily goal</span>
               <span className="mb-2.5 block text-sm text-muted">Right answers a day, shown on the VU meter</span>
               <LedButtons options={GOALS} selected={[settings.dailyGoal]} onToggle={(dailyGoal) => update({ dailyGoal })} />
+            </div>
+            <div className="py-3">
+              <Button
+                variant="cream"
+                onClick={() => {
+                  replayGuide()
+                  navigate('/')
+                }}
+              >
+                Show the guide again
+              </Button>
             </div>
           </Section>
 

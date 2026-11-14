@@ -10,6 +10,8 @@ export interface Marker {
   label?: string
   /** Fill color for 'heat' markers. */
   fill?: string
+  /** The right answer, just revealed: it springs into place instead of popping. */
+  spring?: boolean
 }
 
 interface Props {
@@ -229,7 +231,7 @@ export function Fretboard({
           return (
             <g
               key={`${m.pos.string}:${m.pos.fret}:${m.tone}`}
-              className="marker-pop"
+              className={m.spring ? 'marker-spring' : 'marker-pop'}
               pointerEvents="none"
               data-pos={`${m.pos.string}:${m.pos.fret}`}
               data-tone={m.tone}

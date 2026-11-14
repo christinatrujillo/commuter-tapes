@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mastery } from '../game/questions'
-import { exportData, readBackup, schedule, useProgress } from './progress'
+import { exportData, mergeSaved, readBackup, schedule, useProgress } from './progress'
 
 beforeEach(() => useProgress.getState().reset())
 
@@ -120,5 +120,19 @@ describe('restoring a backup', () => {
     const backup = readBackup(JSON.parse('{"stats": {}, "lessons": {"__proto__": {"stars": 3, "completions": 1}}, "bests": {"__proto__": 5}}'))!
     expect(Object.getPrototypeOf(backup.lessons)).toBe(Object.prototype)
     expect(({} as Record<string, unknown>).stars).toBeUndefined()
+  })
+})
+
+describe('the first-run guide', () => {
+  it('keeps the tour and tips from people who already have progress, saved or restored', () => {
+    const returning = mergeSaved({ lessons: { 'r1-1': { stars: 3, completions: 1 } } }, useProgress.getState())
+    expect(returning.guideDone).toBe(true)
+    expect(returning.tipsSeen).toEqual({ play: true, rehearsal: true, take: true })
+    const fresh = mergeSaved({ lessons: {} }, useProgress.getState())
+    expect(fresh.guideDone).toBe(false)
+    expect(fresh.tipsSeen).toEqual({})
+    expect(useProgress.getState().importData({ stats: {}, lessons: { 'r1-1': { stars: 3, completions: 1 } } })).toBe(true)
+    expect(useProgress.getState().guideDone).toBe(true)
+    expect(useProgress.getState().tipsSeen).toEqual({ play: true, rehearsal: true, take: true })
   })
 })

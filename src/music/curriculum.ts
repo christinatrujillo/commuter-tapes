@@ -113,6 +113,20 @@ export type ExerciseType =
   | 'twelveSpell' // "in a 12-bar blues in G, what are the I7, IV7 and V7 chords?"
   | 'twelveVariation' // a quick change or turnaround: what chord is in bar 2 or 12?
   | 'minorBlues' // "in a minor blues in A minor, what chord is in bar 9?"
+  | 'modeOnDegree' // "C major’s notes, played from D to D: which mode?"
+  | 'modeDegree' // "which degree of the major scale does Lydian start on?" or the other way round
+  | 'modeParent' // "A Dorian has the same notes as which major scale?"
+  | 'modeRoot' // "in F major, which note does Mixolydian start on?"
+  | 'modeColor' // "which note of G Mixolydian isn’t in G major?"
+  | 'modeFormula' // "which mode is major with a lowered 7th?" or "what’s Mixolydian’s color note?"
+  | 'modeSpell' // "which notes make A Mixolydian?"
+  | 'modeNumeral' // "in a major key, which mode starts on the root of the V chord?" or the other way round
+  | 'modeHomeChord' // "what’s the home chord of A Dorian?" or "which mode has G7 as its home chord?"
+  | 'modeVamp' // "Am – D, over and over: which mode?"
+  | 'modeNeckRoot' // a major scale pattern: tap a root of one of its modes
+  | 'modeNeckName' // a major scale pattern with a note lit as home: which mode?
+  | 'modeHear' // hear a scale: the mode, or the major or minor scale it changes?
+  | 'vampHear' // hear a two-chord vamp: which mode?
 
 export interface LessonSpec {
   id: string
@@ -157,6 +171,8 @@ export interface LessonSpec {
   minorKeys?: string[]
   /** Pentatonic patterns (1 to 5) a track's neck questions use. */
   patterns?: number[]
+  /** Modes a track's questions use, by name ("dorian"). */
+  modes?: string[]
   /** Early relative-key and triad questions show the scale on the staff to count along (later tracks take that help away). */
   showScale?: boolean
   count?: number
@@ -1567,7 +1583,7 @@ const TAPES: Unit[] = [
     description: 'Ear training: headphones on',
     color: COLORS[6],
     tips: [
-      'This tape needs sound, so put headphones on. No sound right now? ���Can’t listen now” pauses listening questions for 15 minutes.',
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
       'The major pentatonic climbs a whole step first; the minor pentatonic leaps up a minor 3rd.',
       'The blue note squeezes three half steps in a row between the 4th and the 5th.',
     ],
@@ -1576,6 +1592,139 @@ const TAPES: Unit[] = [
       { id: 'bp6-2', title: 'The blue note', exercises: ['bluesHear'], region: FULL_NECK, topics: ['blues:ear-blues'] },
       { id: 'bp6-3', title: 'Quick change', exercises: ['quickHear'], region: FULL_NECK, topics: ['blues:ear-quick'] },
       { id: 'bp6-4', title: 'Hearing review', exercises: ['pentHear', 'bluesHear', 'quickHear'], region: FULL_NECK, count: 10 },
+    ],
+  },
+  {
+    id: 'md1',
+    title: 'The Modes',
+    description: 'Seven scales from one',
+    color: COLORS[0],
+    tips: [
+      'A mode is a major scale played from one of its other notes: the same seven notes, with a new note as home.',
+      'From the 1st note to the 7th, the modes are Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian and Locrian.',
+      'Ionian is the major scale itself, and Aeolian is the natural minor scale.',
+      'A mode’s parent scale is the major scale it borrows from: D Dorian’s parent is C major.',
+    ],
+    tipStaff: { keys: ['d/4', 'e/4', 'f/4', 'g/4', 'a/4', 'b/4', 'c/5', 'd/5'], labels: ['D', 'E', 'F', 'G', 'A', 'B', 'C', 'D'] },
+    lessons: [
+      { id: 'md1-1', title: 'Seven homes', exercises: ['modeOnDegree'], region: FULL_NECK, keys: ['C'], showScale: true, topics: ['modes:why', 'modes:what', 'modes:seven'] },
+      { id: 'md1-2', title: 'Mode names in order', exercises: ['modeDegree', 'modeOnDegree'], region: FULL_NECK, keys: ['C', 'G'], topics: ['modes:order'] },
+      { id: 'md1-3', title: 'In any key', exercises: ['modeParent', 'modeRoot'], region: FULL_NECK, keys: ['C', 'G', 'F', 'D'], topics: ['modes:parent', 'modes:any-key'] },
+      {
+        id: 'md1-4',
+        title: 'Modes review',
+        exercises: ['modeOnDegree', 'modeDegree', 'modeParent', 'modeRoot'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'F', 'D', 'A', 'Bb'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'md2',
+    title: 'Mode Colors',
+    description: 'One note makes the difference',
+    color: COLORS[1],
+    tips: [
+      'Put a mode next to the major or minor scale on the same root and one note changes: its color note.',
+      'Lydian is major with a raised 4th; Mixolydian is major with a lowered 7th.',
+      'Dorian is minor with a raised 6th; Phrygian is minor with a lowered 2nd.',
+      'Locrian lowers two notes of minor, the 2nd and the 5th, which makes it the darkest mode.',
+    ],
+    lessons: [
+      { id: 'md2-1', title: 'Lydian & Mixolydian', exercises: ['modeColor', 'modeFormula'], region: FULL_NECK, keys: ['C', 'G', 'F', 'D'], modes: ['lydian', 'mixolydian'], topics: ['modes:colors-why', 'modes:lydian', 'modes:mixolydian'] },
+      { id: 'md2-2', title: 'Dorian & Phrygian', exercises: ['modeColor', 'modeFormula'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'B'], modes: ['dorian', 'phrygian'], topics: ['modes:dorian', 'modes:phrygian'] },
+      { id: 'md2-3', title: 'Locrian', exercises: ['modeFormula'], region: FULL_NECK, modes: ['lydian', 'mixolydian', 'dorian', 'phrygian', 'locrian'], topics: ['modes:locrian', 'modes:bright'] },
+      {
+        id: 'md2-4',
+        title: 'Spelling modes',
+        exercises: ['modeSpell'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'F', 'A'],
+        minorKeys: ['A', 'E', 'D', 'B', 'G'],
+        modes: ['lydian', 'mixolydian', 'dorian', 'phrygian', 'locrian'],
+        topics: ['modes:spell'],
+      },
+      {
+        id: 'md2-5',
+        title: 'Mode colors review',
+        exercises: ['modeColor', 'modeFormula', 'modeSpell'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'E', 'F', 'Bb'],
+        minorKeys: ['A', 'E', 'B', 'D', 'G', 'C', 'F'],
+        modes: ['lydian', 'mixolydian', 'dorian', 'phrygian', 'locrian'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'md3',
+    title: 'Modes & Chords',
+    description: 'A mode for every chord',
+    color: COLORS[2],
+    tips: [
+      'Each chord in a major key has a mode on its root: I Ionian, ii Dorian, iii Phrygian, IV Lydian, V Mixolydian, vi Aeolian, vii° Locrian.',
+      'A mode’s home chord is the 7th chord on its first note: a minor 7th for Dorian, a dominant 7th for Mixolydian.',
+      'A two-chord vamp sounds like a mode when its second chord holds the mode’s color note: Am to D sounds Dorian.',
+    ],
+    lessons: [
+      { id: 'md3-1', title: 'A mode for every chord', exercises: ['modeNumeral'], region: FULL_NECK, topics: ['modes:chords-why', 'modes:chords'] },
+      { id: 'md3-2', title: 'Home chords', exercises: ['modeHomeChord'], region: FULL_NECK, keys: ['C', 'G', 'F', 'D'], topics: ['modes:home-chord'] },
+      {
+        id: 'md3-3',
+        title: 'Modal vamps',
+        exercises: ['modeVamp'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'F'],
+        minorKeys: ['A', 'E', 'D', 'B'],
+        modes: ['dorian', 'mixolydian', 'lydian', 'phrygian'],
+        topics: ['modes:vamps'],
+      },
+      {
+        id: 'md3-4',
+        title: 'Modes & chords review',
+        exercises: ['modeNumeral', 'modeHomeChord', 'modeVamp'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'F', 'Bb'],
+        minorKeys: ['A', 'E', 'D', 'B', 'G'],
+        modes: ['dorian', 'mixolydian', 'lydian', 'phrygian'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'md4',
+    title: 'Modes on the Neck',
+    description: 'One shape, seven homes',
+    color: COLORS[3],
+    tips: [
+      'A mode uses its parent scale’s notes, so it uses the parent’s pattern on the neck too.',
+      'To play A Dorian, play the G major pattern and treat every A as home.',
+      'Count up from the parent’s root to find a mode’s home: the 2nd note for Dorian, the 5th for Mixolydian.',
+    ],
+    lessons: [
+      { id: 'md4-1', title: 'Same shape, new home', exercises: ['modeNeckRoot'], region: FULL_NECK, rootStrings: [0, 1], topics: ['modes:neck-why', 'modes:neck'] },
+      { id: 'md4-2', title: 'Which mode?', exercises: ['modeNeckName'], region: FULL_NECK, rootStrings: [0, 1], topics: ['modes:neck-name'] },
+      { id: 'md4-3', title: 'Modes on the neck review', exercises: ['modeNeckRoot', 'modeNeckName'], region: FULL_NECK, rootStrings: [0, 1], count: 12 },
+    ],
+  },
+  {
+    id: 'md5',
+    title: 'Modal Sounds',
+    description: 'Ear training: headphones on',
+    color: COLORS[6],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
+      'Dorian sounds like minor with a brighter 6th; Mixolydian sounds like major with a relaxed 7th.',
+      'Lydian’s raised 4th floats; Phrygian’s lowered 2nd darkens the very first step.',
+      'A vamp gives its mode away by ear too: is home major or minor, and where does the second chord go?',
+    ],
+    lessons: [
+      { id: 'md5-1', title: 'Dorian or minor', exercises: ['modeHear'], region: FULL_NECK, modes: ['dorian'], topics: ['modes:ear-why', 'modes:ear-dorian'] },
+      { id: 'md5-2', title: 'Mixolydian or major', exercises: ['modeHear'], region: FULL_NECK, modes: ['mixolydian'], topics: ['modes:ear-mixolydian'] },
+      { id: 'md5-3', title: 'Lydian & Phrygian', exercises: ['modeHear'], region: FULL_NECK, modes: ['lydian', 'phrygian'], topics: ['modes:ear-lydian', 'modes:ear-phrygian'] },
+      { id: 'md5-4', title: 'Hearing vamps', exercises: ['vampHear'], region: FULL_NECK, modes: ['dorian', 'mixolydian', 'lydian', 'phrygian'], topics: ['modes:ear-vamps'] },
+      { id: 'md5-5', title: 'Hearing review', exercises: ['modeHear', 'vampHear'], region: FULL_NECK, modes: ['dorian', 'mixolydian', 'lydian', 'phrygian'], count: 10 },
     ],
   },
 ]
@@ -1603,7 +1752,11 @@ export const VOLUMES: Volume[] = [
   { label: 'Vol. 7', title: 'Building Chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb5', 'cb6', 'cb7'].map(tape) },
   { label: 'Vol. 8', title: 'Minor Keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4', 'mk5'].map(tape) },
   { label: 'Vol. 9', title: 'Blues & Pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5', 'bp6'].map(tape) },
-  { label: 'Vol. 10', title: 'Modes', tapes: [soon('The modes'), soon('Modal sounds')] },
+  {
+    label: 'Vol. 10',
+    title: 'Modes',
+    tapes: ['md1', 'md2', 'md3', 'md4', 'md5'].map(tape),
+  },
   { label: 'Vol. 11', title: 'More Scales & Arpeggios', tapes: [soon('Melodic minor'), soon('Arpeggio shapes')] },
   { label: 'Vol. 12', title: 'Chord Swaps', tapes: [soon('Substitutions'), soon('Reharmonizing')] },
   { label: 'Bonus Vol.', title: 'Reading Extras', tapes: [soon('Road signs'), soon('6/8 & triplets'), soon('Reading TAB')] },
@@ -1628,6 +1781,8 @@ const LISTENING: ExerciseType[] = [
   'pentHear',
   'bluesHear',
   'quickHear',
+  'modeHear',
+  'vampHear',
 ]
 export const isListening = (l: LessonSpec) => l.exercises.some((e) => LISTENING.includes(e))
 

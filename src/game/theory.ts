@@ -49,6 +49,7 @@ import { HARMONY_INTRO, HARMONY_ORDER, harmonyCard, harmonyCheck, harmonyItemFor
 import { CHORD_INTRO, CHORD_ORDER, chordCard, chordCheck, chordItemFor, chordReview, isChordFact, isChordItem } from './chords'
 import { isMinorFact, isMinorItem, MINOR_INTRO, MINOR_ORDER, minorCard, minorCheck, minorItemFor, minorReview } from './minor'
 import { BLUES_INTRO, BLUES_ORDER, bluesCard, bluesCheck, bluesItemFor, bluesReview, isBluesFact, isBluesItem } from './blues'
+import { isModesFact, isModesItem, MODES_INTRO, MODES_ORDER, modesCard, modesCheck, modesItemFor, modesReview } from './modes'
 
 /**
  * Theory questions and teaching: whole and half steps, the major scale and its patterns on the
@@ -533,6 +534,7 @@ export const THEORY_ORDER = [
   ...CHORD_ORDER,
   ...MINOR_ORDER,
   ...BLUES_ORDER,
+  ...MODES_ORDER,
 ]
 
 /** Ideas that are explained on a card but not tested on their own (the why, the sound of major and minor, what an octave is). */
@@ -555,10 +557,11 @@ const INTRO = new Set([
   ...CHORD_INTRO,
   ...MINOR_INTRO,
   ...BLUES_INTRO,
+  ...MODES_INTRO,
 ])
 export const isIntroItem = (item: string) => INTRO.has(item) || /^(oct|basics|intro|ivshape):/.test(item)
 
-export const isTheoryItem = (item: string) => /^(basics|intro|step|scale|pattern|circle|rel|minor):/.test(item) || isIntervalItem(item) || isTriadItem(item) || isHarmonyItem(item) || isChordItem(item) || isMinorItem(item) || isBluesItem(item)
+export const isTheoryItem = (item: string) => /^(basics|intro|step|scale|pattern|circle|rel|minor):/.test(item) || isIntervalItem(item) || isTriadItem(item) || isHarmonyItem(item) || isChordItem(item) || isMinorItem(item) || isBluesItem(item) || isModesItem(item)
 
 const SHARP_KEYS = KEY_ORDER.filter((k) => KEYS[k].count > 0)
 const FLAT_KEYS = KEY_ORDER.filter((k) => KEYS[k].count < 0)
@@ -567,7 +570,7 @@ const READ_KEYS: KeyId[] = ['C', 'G', 'D', 'F']
 
 /** The idea a practiced fact belongs to, for the theory facts that don't share its name. */
 export function theoryItemFor(fact: string): string | null {
-  const own = intervalItemFor(fact) ?? triadItemFor(fact) ?? harmonyItemFor(fact) ?? chordItemFor(fact) ?? minorItemFor(fact) ?? bluesItemFor(fact)
+  const own = intervalItemFor(fact) ?? triadItemFor(fact) ?? harmonyItemFor(fact) ?? chordItemFor(fact) ?? minorItemFor(fact) ?? bluesItemFor(fact) ?? modesItemFor(fact)
   if (own) return own
   const [kind, value] = fact.split(':')
   if (kind === 'scale' && value !== 'formula') return 'scale:degrees'
@@ -586,6 +589,7 @@ export function theoryCheck(item: string, l: LessonSpec, turn: number, rng: Rng,
   if (isChordItem(item)) return chordCheck(item, l, turn, rng, id)
   if (isMinorItem(item)) return minorCheck(item, l, turn, rng, id)
   if (isBluesItem(item)) return bluesCheck(item, l, turn, rng, id)
+  if (isModesItem(item)) return modesCheck(item, l, turn, rng, id)
   const keys = l.keys ?? ['C']
   const even = turn % 2 === 0
   switch (item) {
@@ -644,6 +648,7 @@ export function theoryReview(fact: string, id: number, rng: Rng): Question | nul
   if (isChordFact(fact)) return chordReview(fact, id, rng)
   if (isMinorFact(fact)) return minorReview(fact, id, rng)
   if (isBluesFact(fact)) return bluesReview(fact, id, rng)
+  if (isModesFact(fact)) return modesReview(fact, id, rng)
   const [kind, value] = fact.split(':')
   switch (kind) {
     case 'step': {
@@ -741,7 +746,7 @@ const THEORY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'basics:beat': () => ({
     title: 'The beat',
     subtitle: 'The steady pulse',
-    hook: 'The beat is the steady pulse you’d tap your foot to, like a ticking clock. Musicians count along with it, 1 2 3 4, to keep time. Press ▶ Hear to hear four beats.',
+    hook: 'The beat is the steady pulse you’d tap your foot to, like a ticking clock. Musicians count along with it, 1 2 3 4, to keep time. Press ▶\uFE0E Hear to hear four beats.',
     notation: { measure: beats, labels: ['1', '2', '3', '4'] },
     rhythm: { measure: beats, bpm: 72 },
     sound: [],
@@ -992,7 +997,7 @@ const THEORY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'rel:moods': () => ({
     title: 'Major and minor',
     subtitle: 'Two moods',
-    hook: 'Most songs are in a major key or a minor key. Major tends to sound bright and settled; minor sounds darker or sadder. Press ▶ Hear: first the C major scale, then the A minor scale.',
+    hook: 'Most songs are in a major key or a minor key. Major tends to sound bright and settled; minor sounds darker or sadder. Press ▶\uFE0E Hear: first the C major scale, then the A minor scale.',
     ...scaleCard(majorScale('C'), 'names'),
     board: scaleNeck(majorScale('C'), 'C'),
     sound: [48, 50, 52, 53, 55, 57, 59, 60, 45, 47, 48, 50, 52, 53, 55, 57],
@@ -1048,5 +1053,6 @@ export function theoryCard(item: string, counter: string): Card {
   if (isChordItem(item)) return chordCard(item, counter)
   if (isMinorItem(item)) return minorCard(item, counter)
   if (isBluesItem(item)) return bluesCard(item, counter)
+  if (isModesItem(item)) return modesCard(item, counter)
   return { ...THEORY_CARDS[item](), counter }
 }

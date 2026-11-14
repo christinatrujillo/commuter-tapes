@@ -18,7 +18,8 @@ export const THEORY_JAMS = [
   { id: 'building', label: 'Building chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb5', 'cb6'] },
   { id: 'minor', label: 'Minor keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4'] },
   { id: 'blues', label: 'Blues & pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5'] },
-  { id: 'ear', label: 'Ear · headphones', tapes: ['t9', 'tr7', 'hk5', 'cb7', 'mk5', 'bp6'] },
+  { id: 'modes', label: 'Modes', tapes: ['md1', 'md2', 'md3', 'md4'] },
+  { id: 'ear', label: 'Ear · headphones', tapes: ['t9', 'tr7', 'hk5', 'cb7', 'mk5', 'bp6', 'md5'] },
 ]
 
 /** The tracks you've recorded on these tapes. */
@@ -48,19 +49,20 @@ export function namedIntervals(lessons: Record<string, LessonRecord>): string[] 
 const SHAPE_NAMES: Record<number, string> = { 3: 'm3', 4: 'M3', 5: 'P4', 7: 'P5', 12: 'P8' }
 
 /** The scales the Fretboard tab's Scale view can show. */
-export type ScaleView = 'major' | 'majorPent' | 'minorPent' | 'blues'
+export type ScaleView = 'major' | 'majorPent' | 'minorPent' | 'blues' | 'modes'
 const SCALE_TAPES: [ScaleView, string][] = [
   ['major', 't2'],
   ['majorPent', 'bp2'],
   ['minorPent', 'bp1'],
   ['blues', 'bp3'],
+  ['modes', 'md1'],
 ]
 
 /**
  * What the Fretboard tab's Scale and Interval views can show: only what you've learned. The
  * Scale view opens with the Major scale tape (C major, plus the keys of the tracks you've
- * recorded), and adds each pentatonic and the blues scale with its tape, and the pentatonic
- * patterns as they're taught (the box first); the Interval view opens with the Intervals tape
+ * recorded), and adds each pentatonic and the blues scale with its tape, the pentatonic patterns
+ * as they're taught (the box first), and the modes with the Modes tape; the Interval view opens with the Intervals tape
  * (its shapes, the octave, and any names from Naming intervals).
  */
 export function fretboardViews(lessons: Record<string, LessonRecord>): { keys: KeyId[]; intervals: string[]; scales: ScaleView[]; patterns: number[] } {

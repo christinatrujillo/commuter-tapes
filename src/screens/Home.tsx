@@ -1,7 +1,7 @@
 import { useRef, useState, type Ref } from 'react'
 import { Cassette, DeckWell } from '../components/Cassette'
 import { HeadphonesIcon } from '../components/Monitors'
-import { LabelTape, TabShell } from '../components/ui'
+import { LabelTape, TabShell, TransportIcon } from '../components/ui'
 import { navigate } from '../lib/router'
 import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber, VOLUMES, type Unit } from '../music/curriculum'
 import { currentLessonId, isUnlocked, useProgress } from '../store/progress'
@@ -147,8 +147,9 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
         <span className="truncate text-lg leading-tight">{middle}</span>
         <span className="text-[11px] opacity-75">{bottom}</span>
       </div>
-      <button onClick={() => navigate(`/tape/${unit.id}`)} className="hw-btn hw-amber mt-4 w-full py-3.5 text-xl">
-        ⏏ Load tape
+      <button onClick={() => navigate(`/tape/${unit.id}`)} data-guide="load-tape" className="hw-btn hw-amber mt-4 flex w-full items-center justify-center gap-[0.45em] py-3.5 text-xl">
+        <TransportIcon kind="eject" />
+        Load tape
       </button>
     </section>
   )

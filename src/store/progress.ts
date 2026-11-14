@@ -22,6 +22,11 @@ export function schedule(prev: FactStat | undefined, ok: boolean, quick: boolean
   return { interval: next, due: addDays(day, next) }
 }
 
+/** The one-time tips: the first tape page, the first rehearsal card and the first take. */
+const TIP_IDS = ['play', 'rehearsal', 'take'] as const
+export type TipId = (typeof TIP_IDS)[number]
+const ALL_TIPS_SEEN = Object.fromEntries(TIP_IDS.map((id) => [id, true])) as Record<TipId, true>
+
 export interface Settings {
   sound: boolean
   haptics: boolean
@@ -65,6 +70,10 @@ interface ProgressData {
   listeningPausedUntil: number | null
   /** The Jam room's last custom setup and sprint, kept between visits. */
   jam: { setup: DrillOptions; sprint: string | null }
+  /** The first-run tour has been finished or skipped, so it doesn't start by itself again. */
+  guideDone: boolean
+  /** One-time tips already shown. */
+  tipsSeen: Partial<Record<TipId, true>>
 }
 
 export type Rating = 1 | 2 | 3
@@ -86,6 +95,14 @@ interface ProgressState extends ProgressData {
   saveJam: (patch: Partial<ProgressData['jam']>) => void
   importData: (data: unknown) => boolean
   reset: () => void
+  /** The first-run tour's step on screen, or null when it isn't running. Not saved: a half-done tour starts over. */
+  guideStep: number | null
+  setGuideStep: (step: number | null) => void
+  /** Ends the tour (Got it or Skip) for good. */
+  finishGuide: () => void
+  seeTip: (id: TipId) => void
+  /** "Show the guide again": the tour from the start, and the tips once more. */
+  replayGuide: () => void
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -114,12 +131,15 @@ const initialData = (): ProgressData => ({
   settings: { ...DEFAULT_SETTINGS },
   listeningPausedUntil: null,
   jam: { setup: DEFAULT_DRILL, sprint: null },
+  guideDone: false,
+  tipsSeen: {},
 })
 
 export const useProgress = create<ProgressState>()(
   persist(
     (set, get) => ({
       ...initialData(),
+      guideStep: null,
 
       recordAnswer: (facts, ok, ms, targetMs) =>
         set((state) => {
@@ -186,17 +206,27 @@ export const useProgress = create<ProgressState>()(
       importData: (data) => {
         const backup = readBackup(data)
         if (!backup) return false
-        set({ ...backup, listeningPausedUntil: null })
+        // Someone restoring their progress knows the app: no tour, no tips.
+        const known = Object.keys(backup.lessons).length > 0 ? { guideDone: true, tipsSeen: { ...ALL_TIPS_SEEN } } : {}
+        set({ ...backup, listeningPausedUntil: null, ...known })
         return true
       },
 
-      reset: () => set(initialData()),
+      reset: () => set({ ...initialData(), guideStep: null }),
+
+      setGuideStep: (guideStep) => set({ guideStep }),
+
+      finishGuide: () => set({ guideStep: null, guideDone: true }),
+
+      seeTip: (id) => set((state) => ({ tipsSeen: { ...state.tipsSeen, [id]: true } })),
+
+      replayGuide: () => set({ guideStep: 0, tipsSeen: {} }),
     }),
     {
       // Kept from the app's original name so saved progress isn't lost.
       name: 'fretboard-trainer',
       version: 3,
-      partialize: ({ nailed, bests, rehearsed, lessons, stats, streak, daily, settings, listeningPausedUntil, jam }) => ({
+      partialize: ({ nailed, bests, rehearsed, lessons, stats, streak, daily, settings, listeningPausedUntil, jam, guideDone, tipsSeen }) => ({
         nailed,
         bests,
         rehearsed,
@@ -207,6 +237,8 @@ export const useProgress = create<ProgressState>()(
         settings,
         listeningPausedUntil,
         jam,
+        guideDone,
+        tipsSeen,
       }),
       // Version 1 counted XP (with lesson bonuses); keep it as the starting "notes nailed" count.
       migrate: (persisted, version) => {
@@ -220,13 +252,27 @@ export const useProgress = create<ProgressState>()(
         if (version < 3) out = { ...out, settings: { ...(out.settings as object), autoContinue: false } }
         return out
       },
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<ProgressData>
-        return { ...current, ...p, settings: { ...DEFAULT_SETTINGS, ...p.settings }, jam: { ...current.jam, ...p.jam, setup: { ...DEFAULT_DRILL, ...p.jam?.setup } } }
-      },
+      merge: mergeSaved,
     },
   ),
 )
+
+/**
+ * Saved progress laid over a fresh store, with defaults for anything the save is missing. Progress
+ * saved before the guide existed gets no tour and no tips if it has tracks recorded.
+ */
+export function mergeSaved(persisted: unknown, current: ProgressState): ProgressState {
+  const p = (persisted ?? {}) as Partial<ProgressData>
+  const known = Object.keys(p.lessons ?? {}).length > 0
+  return {
+    ...current,
+    ...p,
+    settings: { ...DEFAULT_SETTINGS, ...p.settings },
+    jam: { ...current.jam, ...p.jam, setup: { ...DEFAULT_DRILL, ...p.jam?.setup } },
+    guideDone: p.guideDone ?? known,
+    tipsSeen: p.tipsSeen ?? (known ? { ...ALL_TIPS_SEEN } : {}),
+  }
+}
 
 /** The streak as of today: it shows 0 once a full day has been missed. */
 export function currentStreak(streak: ProgressData['streak']): number {
@@ -301,7 +347,7 @@ function readSettings(v: unknown): Settings {
  * The progress in a backup file, or null if it isn't one. Only the fields a backup holds are read,
  * and anything of the wrong shape is dropped, so a damaged or tampered file can't break the app.
  */
-export function readBackup(data: unknown): Omit<ProgressData, 'listeningPausedUntil' | 'jam'> | null {
+export function readBackup(data: unknown): Omit<ProgressData, 'listeningPausedUntil' | 'jam' | 'guideDone' | 'tipsSeen'> | null {
   if (!isObject(data) || !isObject(data.stats) || !isObject(data.lessons)) return null
   const streak = isObject(data.streak) ? data.streak : {}
   const daily = isObject(data.daily) ? data.daily : {}

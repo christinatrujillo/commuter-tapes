@@ -12,6 +12,27 @@ export function Button({
   return <button {...props} className={`hw-btn hw-${variant} w-full px-4 py-3 text-lg ${className}`} />
 }
 
+/**
+ * Tape-deck transport symbols, drawn so they look the same on every phone (iPhones turn the typed
+ * play and eject symbols into color emoji). They grow with the text, the triangle as tall as its
+ * capitals.
+ */
+export function TransportIcon({ kind }: { kind: 'back' | 'play' | 'next' | 'eject' }) {
+  const shapes = {
+    back: ['M11 2 L3 8 L11 14 Z'],
+    play: ['M3 2 L12 8 L3 14 Z'],
+    next: ['M1 2 L8 8 L1 14 Z', 'M9 2 L16 8 L9 14 Z'],
+    eject: ['M7 2 L13 9.5 L1 9.5 Z', 'M1 11.75 H13 V14.25 H1 Z'],
+  }[kind]
+  return (
+    <svg viewBox={kind === 'next' ? '0 0 17 16' : '0 0 14 16'} className="h-[1.05em] w-auto shrink-0" fill="currentColor" aria-hidden>
+      {shapes.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  )
+}
+
 /** Lesson progress as tape winding from the left reel onto the right one. */
 export function Reels({ value, counter }: { value: number; counter: number }) {
   const p = Math.max(0, Math.min(1, value))
@@ -47,10 +68,11 @@ export function Reels({ value, counter }: { value: number; counter: number }) {
 /** Three CLIP lamps: each mistake lights one; three ruins the take. */
 export function ClipLeds({ clips, max }: { clips: number; max: number }) {
   return (
-    <div className="flex flex-col items-center gap-1" aria-label={`${max - clips} of ${max} chances left`}>
+    <div className="flex flex-col items-center gap-1" aria-label={`${max - clips} of ${max} chances left`} data-guide="clips">
       <div className="flex gap-1.5">
         {Array.from({ length: max }, (_, i) => (
-          <span key={i} className={`led ${i < clips ? 'led-red' : ''}`} />
+          // A lamp lights with one soft glow (keyed by whether it's lit, so lighting up plays it).
+          <span key={`${i}-${i < clips}`} className={`led ${i < clips ? 'led-red clip-on' : ''}`} />
         ))}
       </div>
       <span className="label-text text-[10px] text-muted">Clip</span>
@@ -68,11 +90,15 @@ export function LedButtons<T extends string | number>({
   options: { value: T; label: ReactNode }[]
   selected: T[]
   onToggle: (value: T) => void
-  /** Lay the keys out in this many equal columns instead of wrapping. */
-  columns?: number
+  /**
+   * Lay the keys out in this many equal columns instead of wrapping, or 'fit' for one row
+   * where each column is as wide as its label (plus an equal share of what's left over).
+   */
+  columns?: number | 'fit'
 }) {
+  const tracks = columns === 'fit' ? `repeat(${options.length}, auto)` : columns ? `repeat(${columns}, minmax(0, 1fr))` : undefined
   return (
-    <div className={columns ? 'grid gap-1.5' : 'flex flex-wrap gap-2'} style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}>
+    <div className={columns ? 'grid gap-1.5' : 'flex flex-wrap gap-2'} style={tracks ? { gridTemplateColumns: tracks } : undefined}>
       {options.map((o) => {
         const on = selected.includes(o.value)
         return (
@@ -82,7 +108,7 @@ export function LedButtons<T extends string | number>({
             aria-pressed={on}
             className={`hw-btn hw-dark flex items-center gap-2 py-1.5 text-sm ${columns ? 'justify-center px-1' : 'px-3'}`}
           >
-            <span className={`led !h-2 !w-2 ${on ? 'led-amber' : ''}`} />
+            <span className={`led !h-2 !w-2 shrink-0 ${on ? 'led-amber' : ''}`} />
             <span className={on ? 'text-cream' : 'text-muted'}>{o.label}</span>
           </button>
         )
@@ -303,6 +329,7 @@ function DeckKeys() {
             key={t.label}
             onClick={() => go(t.path)}
             aria-current={on ? 'page' : undefined}
+            data-guide={`tab-${t.path || 'tapes'}`}
             className={`flex flex-col items-center gap-1 rounded-b-md border border-black px-1 pt-1.5 pb-2 transition ${
               on
                 ? 'translate-y-[2px] bg-[linear-gradient(#cfc4ae,#b3a78f)] text-ink shadow-[0_1px_0_#000]'

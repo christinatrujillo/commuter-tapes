@@ -10,7 +10,7 @@ import { Notation } from '../components/Notation'
 import { Score } from '../components/Score'
 import { QuestionStage, useQuestionInput } from '../components/QuestionStage'
 import { Staff } from '../components/Staff'
-import { BackHeader, Button, LabelTape } from '../components/ui'
+import { BackHeader, Button, LabelTape, TransportIcon } from '../components/ui'
 import { needsListening, newQuestionId, type Question } from '../game/questions'
 import { buildRehearsal, type Card, type Rehearsal } from '../game/rehearsal'
 import { goBack, navigate } from '../lib/router'
@@ -99,7 +99,7 @@ function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; on
       }
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step)
     } else if (card.listen) {
-      playListen(card.listen.notes, card.listen.together, card.listen.chord)
+      playListen(card.listen.notes, card.listen.together, card.listen.chord, card.listen.home)
     } else if (sound.length) {
       playNotes(...sound)
     }
@@ -219,18 +219,6 @@ function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; on
   )
 }
 
-/** Tape-deck transport symbols, drawn so they sit dead center in their keys. */
-function TransportIcon({ kind }: { kind: 'back' | 'play' | 'next' }) {
-  const shapes = { back: ['M11 2 L3 8 L11 14 Z'], play: ['M3 2 L12 8 L3 14 Z'], next: ['M1 2 L8 8 L1 14 Z', 'M9 2 L16 8 L9 14 Z'] }[kind]
-  return (
-    <svg viewBox={kind === 'next' ? '0 0 17 16' : '0 0 14 16'} className="h-4 w-auto" fill="currentColor" aria-hidden>
-      {shapes.map((d) => (
-        <path key={d} d={d} />
-      ))}
-    </svg>
-  )
-}
-
 /** Quick recall right after the cards. No clips: a miss shows the answer and the question comes back. */
 function CheckView({ questions, onDone, onBack }: { questions: Question[]; onDone: () => void; onBack?: () => void }) {
   const autoContinue = useProgress((s) => s.settings.autoContinue)
@@ -280,7 +268,7 @@ function CheckView({ questions, onDone, onBack }: { questions: Question[]; onDon
 
   const feedback = answer && (
     <div
-      className={`slide-up bg-tolex px-5 pt-4 ${landscape ? 'rounded-lg border-2 pb-4' : 'border-t-2 pb-[max(1rem,env(safe-area-inset-bottom))]'} ${
+      className={`panel-rise bg-tolex px-5 pt-4 ${landscape ? 'rounded-lg border-2 pb-4' : 'border-t-2 pb-[max(1rem,env(safe-area-inset-bottom))]'} ${
         answer.ok ? 'border-led/60' : 'border-amber/60'
       }`}
       role="status"

@@ -317,6 +317,119 @@ body {
 }
 
 /* Respect the phone's "reduce motion" setting. */
+/* ---------- Answer feedback ---------- */
+
+/*
+ * One signal for each thing once you answer: the result panel says right or wrong, the right note's
+ * dot shows where it is, and a miss lights a CLIP lamp. They arrive in that order.
+ */
+.panel-rise { animation: panel-rise 360ms cubic-bezier(0.25, 0.8, 0.3, 1); }
+@keyframes panel-rise {
+  from { transform: translateY(100%); }
+  75% { transform: translateY(-3px); }
+  to { transform: translateY(0); }
+}
+/* Just after the panel starts, the right note's dot springs gently into place. */
+.marker-spring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: marker-spring 500ms ease-out 80ms backwards;
+}
+@keyframes marker-spring {
+  from { transform: scale(0.7); opacity: 0.5; }
+  55% { transform: scale(1.08); opacity: 1; }
+  to { transform: scale(1); }
+}
+/* As the panel lands, a newly lit CLIP lamp comes on with one soft glow. */
+.clip-on { animation: clip-on 300ms ease-out 300ms backwards; }
+@keyframes clip-on {
+  from { background: #3a2f29; box-shadow: none; }
+  60% { box-shadow: 0 0 12px var(--color-rec); }
+}
+
+/* ---------- First-run guide ---------- */
+
+/*
+ * Everything but the lit control dims. Between steps the spotlight and bubble glide on in key poses
+ * (see GLIDE in Guide.tsx); these rules cover the rest: fading in and out, the words, the ring.
+ */
+.guide-spot {
+  position: fixed;
+  z-index: 50;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(12, 9, 8, 0.74);
+  pointer-events: none;
+  animation: guide-dim-in 220ms ease-out;
+}
+@keyframes guide-dim-in {
+  from { opacity: 0; }
+}
+/* The amber ring pulses twice once the spotlight has landed, then holds steady. */
+.guide-ring {
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--color-amber);
+  border-radius: 14px;
+  animation: guide-pulse 0.8s ease-in-out 450ms 2;
+}
+@keyframes guide-pulse {
+  50% { border-color: rgb(255 181 71 / 0.3); }
+}
+.guide-bubble {
+  position: fixed;
+  z-index: 60;
+  padding: 14px 16px 12px;
+  border-radius: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+/* The bubble rises in when the tour or a tip opens, and fades out when it closes. */
+.guide-in { animation: guide-in 280ms ease-out 90ms both; }
+@keyframes guide-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.guide-out { animation: guide-out 180ms ease-in both; pointer-events: none; }
+@keyframes guide-out {
+  to { opacity: 0; }
+}
+/* Mid-glide, the old words make way and the new ones settle in. */
+.guide-words-out { animation: guide-out 140ms ease-in both; }
+.guide-words-in { animation: guide-words-in 220ms ease-out 110ms both; }
+@keyframes guide-words-in {
+  from { opacity: 0; transform: translateY(3px); }
+}
+/* The new step's dot lights up as the glide lands. */
+.guide-dot-on { animation: guide-dot-on 320ms ease-out 380ms both; }
+@keyframes guide-dot-on {
+  from { opacity: 0.35; transform: scale(0.8); }
+  60% { transform: scale(1.25); }
+}
+.guide-arrow {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--color-cream);
+  transform: rotate(45deg);
+  transition: left 360ms ease-in-out 40ms;
+}
+.guide-arrow.on-top { top: -7px; }
+.guide-arrow.on-bottom { bottom: -7px; }
+/* Small to look at, a full 44pt to tap, and above the words beside it so the tap reaches it. */
+.guide-skip {
+  position: absolute;
+  z-index: 1;
+  top: 2px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .breathe, .level-bar, .blink, .reel-spin, .fade-in { animation: none; }
+  .breathe, .level-bar, .blink, .reel-spin, .fade-in, .slide-up, .marker-pop, .marker-pulse, .stamp { animation: none; }
+  .panel-rise, .marker-spring, .clip-on { animation: none; }
+  .guide-spot, .guide-ring, .guide-in, .guide-out, .guide-words-in, .guide-words-out, .guide-dot-on { animation: none; }
+  .guide-arrow { transition: none; }
 }

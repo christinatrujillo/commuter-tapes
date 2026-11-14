@@ -888,7 +888,7 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'chord:key7-dominant': () => ({
     title: 'V7',
     subtitle: 'The strongest pull home',
-    hook: 'Only one chord in a major key is a dominant 7th: V7, G7 in C major. Its 3rd and 7th, B and F, are a tritone apart, and that tension wants to settle, so V7 pulls home to I harder than any other chord. Press ▶ Hear: G7, then C.',
+    hook: 'Only one chord in a major key is a dominant 7th: V7, G7 in C major. Its 3rd and 7th, B and F, are a tritone apart, and that tension wants to settle, so V7 pulls home to I harder than any other chord. Press ▶\uFE0E Hear: G7, then C.',
     score: { measures: chordMeasures(chord('G', '7'), chord('C', 'maj')), labels: ['V7', 'I'] },
     listen: chordsHeard(4, chord('G', '7'), [...chord('C', 'maj'), parseTone('C')]),
     sound: [],
@@ -904,7 +904,7 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'chord:sus': () => ({
     title: 'Sus chords',
     subtitle: 'The 3rd swapped out',
-    hook: 'A sus chord swaps the 3rd for a neighbor: the 4th in a sus4 (C F G), or the 2nd in a sus2 (C D G). With no 3rd, it’s neither major nor minor; it sounds open and unresolved, and often moves back to the plain chord. Press ▶ Hear: Csus4, then C.',
+    hook: 'A sus chord swaps the 3rd for a neighbor: the 4th in a sus4 (C F G), or the 2nd in a sus2 (C D G). With no 3rd, it’s neither major nor minor; it sounds open and unresolved, and often moves back to the plain chord. Press ▶\uFE0E Hear: Csus4, then C.',
     onGuitar: 'Adding or lifting one finger on an open D or A chord turns it into a sus chord: a classic guitar move.',
     score: { measures: chordMeasures(chord('C', 'sus4'), chord('C', 'maj'), chord('C', 'sus2')), labels: ['Csus4', 'C', 'Csus2'] },
     listen: chordsHeard(3, chord('C', 'sus4'), chord('C', 'maj'), chord('C', 'sus2')),
@@ -988,7 +988,7 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'chord:ear-why': () => ({
     title: 'Why hear 7th chords',
     subtitle: 'The color of jazz and blues',
-    hook: '7th chords give music its color: dreamy in jazz ballads, bluesy in the blues, mellow in soul. Telling them apart by ear helps you work out songs that go beyond plain major and minor. Press ▶ Hear: Cmaj7, then C7.',
+    hook: '7th chords give music its color: dreamy in jazz ballads, bluesy in the blues, mellow in soul. Telling them apart by ear helps you work out songs that go beyond plain major and minor. Press ▶\uFE0E Hear: Cmaj7, then C7.',
     score: { measures: chordMeasures(chord('C', 'maj7'), chord('C', '7')), labels: ['Cmaj7', 'C7'] },
     listen: chordsHeard(4, chord('C', 'maj7'), chord('C', '7')),
     sound: [],

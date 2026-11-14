@@ -102,12 +102,15 @@ export function playNotes(...midis: number[]) {
 
 /**
  * Notes for ear training, one after another with room to hear each, or together, or as chords of
- * `chord` notes one after another. They play even with answer sounds off.
+ * `chord` notes one after another. A `home` chord, if given, sounds first to set up the key. They
+ * play even with answer sounds off.
  */
-export function playListen(midis: number[], together = false, chord = 0) {
+export function playListen(midis: number[], together = false, chord = 0, home: number[] = []) {
   if (!audioContext()) return
   stopSounds()
-  midis.forEach((m, i) => pluck(m, chord ? Math.floor(i / chord) * 1.6 : together ? 0 : i * 0.75))
+  home.forEach((m) => pluck(m, 0))
+  const start = home.length ? 1.6 : 0
+  midis.forEach((m, i) => pluck(m, start + (chord ? Math.floor(i / chord) * 1.6 : together ? 0 : i * 0.75)))
 }
 
 /** A dead, muted thunk: the sound of a fumbled note. */

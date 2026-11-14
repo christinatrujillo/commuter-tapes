@@ -50,7 +50,7 @@ export function NoteButtons({
         key={pc}
         disabled={!!result}
         onClick={() => onPick(pc)}
-        className={`rounded-b-md border border-black font-label font-semibold transition active:translate-y-px ${
+        className={`rounded-b-md border border-black font-label font-semibold transition active:translate-y-[2px] ${
           black ? 'py-1.5 text-xs leading-tight' : 'pt-4 pb-2.5 text-xl'
         } ${look} ${state === 'faded' ? 'opacity-35' : ''}`}
         style={{ gridColumn }}

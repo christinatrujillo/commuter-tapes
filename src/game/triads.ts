@@ -804,7 +804,7 @@ const TRIAD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'triad:minor': () => ({
     title: 'Minor triads',
     subtitle: 'Lower the 3rd a half step',
-    hook: 'Take a major triad and lower its 3rd by a half step: it becomes a minor triad. C major is C E G; C minor is C E♭ G. The root and the 5th stay put; only the middle note moves, one fret down. Press ▶ Hear: C major, then C minor.',
+    hook: 'Take a major triad and lower its 3rd by a half step: it becomes a minor triad. C major is C E G; C minor is C E♭ G. The root and the 5th stay put; only the middle note moves, one fret down. Press ▶\uFE0E Hear: C major, then C minor.',
     onGuitar: 'That one fret is the difference between a bright chord and a dark one. Compare an open E chord with an open E minor chord: one finger lifts.',
     score: { measures: [[...triadScore(C_TRIAD, true), ...triadScore(triad('C', 'min'), true)]], labels: ['C major', 'C minor'] },
     board: { region: { strings: [1, 2, 3], minFret: 0, maxFret: 4 }, markers: [on(1, 3, 'root'), on(2, 2, 'note'), { ...on(2, 1), label: 'E♭' }, on(3, 0, 'note')] },
@@ -922,7 +922,7 @@ const TRIAD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'triad:ear-why': () => ({
     title: 'Why hear triads',
     subtitle: 'Major or minor, by ear',
-    hook: 'Telling a major chord from a minor one by ear is one of the most useful skills a musician has: it’s the first step to working out a song’s chords without looking them up. This tape plays triads one note at a time first, then all together. Press ▶ Hear: C major, then C minor.',
+    hook: 'Telling a major chord from a minor one by ear is one of the most useful skills a musician has: it’s the first step to working out a song’s chords without looking them up. This tape plays triads one note at a time first, then all together. Press ▶\uFE0E Hear: C major, then C minor.',
     onGuitar: 'Hear minor, and you know the 3rd is the lower choice: on the neck, one fret down.',
     board: OPEN_C,
     listen: { notes: pair(C_TRIAD, triad('C', 'min')) },

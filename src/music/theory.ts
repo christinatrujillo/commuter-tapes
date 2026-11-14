@@ -76,6 +76,9 @@ export function scaleScore(tones: Tone[]): ScoreMeasure[] {
   return [notes.slice(0, 4), notes.slice(4)]
 }
 
+/** Labels for a scale written with scaleScore: each note's name, then the root again on top. */
+export const scaleLabels = (tones: Tone[]) => [...tones, tones[0]].map(toneName)
+
 /** The usual name for a major key on each of the 12 notes (D♭ rather than C♯, F♯ rather than G♭). */
 export const KEY_ON_PC: KeyId[] = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
 

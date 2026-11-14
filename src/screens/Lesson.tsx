@@ -260,7 +260,7 @@ function FeedbackPanel({ q, answer, rounded, onContinue }: { q: Question; answer
   const reviewMiss = !ok && !!q.review
   return (
     <div
-      className={`slide-up bg-tolex px-5 pt-4 ${rounded ? 'rounded-lg border-2 pb-4' : 'border-t-2 pb-[max(1rem,env(safe-area-inset-bottom))]'} ${
+      className={`panel-rise bg-tolex px-5 pt-4 ${rounded ? 'rounded-lg border-2 pb-4' : 'border-t-2 pb-[max(1rem,env(safe-area-inset-bottom))]'} ${
         ok ? 'border-led/60' : reviewMiss ? 'border-amber/60' : 'border-rec/70'
       }`}
       role="status"

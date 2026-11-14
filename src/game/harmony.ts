@@ -648,7 +648,7 @@ const HARMONY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'harm:function': () => ({
     title: 'Home, away and back',
     subtitle: 'What each one does',
-    hook: 'Each of the three has a job. I is home, also called the tonic: songs usually end there. IV moves away from home; it’s called the subdominant. V builds tension that pulls back home; it’s called the dominant. Press ▶ Hear: I, IV, V, then home to I.',
+    hook: 'Each of the three has a job. I is home, also called the tonic: songs usually end there. IV moves away from home; it’s called the subdominant. V builds tension that pulls back home; it’s called the dominant. Press ▶\uFE0E Hear: I, IV, V, then home to I.',
     score: { measures: [chordsScore('G', [0, 3, 4, 0])], keySig: 'G', labels: ['I', 'IV', 'V', 'I'] },
     listen: heard('G', [0, 3, 4, 0]),
     sound: [],
@@ -689,7 +689,7 @@ const HARMONY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'harm:ear-why': () => ({
     title: 'Why hear progressions',
     subtitle: 'Following the chords',
-    hook: 'Most songs repeat a few chords. Hearing where a progression goes, toward home or away from it, is how players follow along and learn songs by ear. Press ▶ Hear: I–IV–V–I.',
+    hook: 'Most songs repeat a few chords. Hearing where a progression goes, toward home or away from it, is how players follow along and learn songs by ear. Press ▶\uFE0E Hear: I–IV–V–I.',
     score: { measures: [chordsScore('C', [0, 3, 4, 0])], labels: ['I', 'IV', 'V', 'I'] },
     listen: heard('C', [0, 3, 4, 0]),
     sound: [],

@@ -14,6 +14,7 @@ import { CantListenButton, HeadphonesIcon } from './Monitors'
 import { Notation } from './Notation'
 import { Staff } from './Staff'
 import { TapRhythm } from './TapRhythm'
+import { TransportIcon } from './ui'
 
 type Submit = (ok: boolean, detail?: Omit<Answer, 'ok' | 'ms'>) => void
 
@@ -104,13 +105,14 @@ export function QuestionStage({ q, answer, found, label, feedback, onTap, onPick
   // anything this one was still playing: its notes, an answer's sound, a count-in.
   const listen = isPick(q) || isTap(q) ? q.listen : undefined
   useEffect(() => {
-    if (listen) playListen(listen.notes, listen.together, listen.chord)
+    if (listen) playListen(listen.notes, listen.together, listen.chord, listen.home)
     return () => stopSounds()
   }, [q.id])
   const listenKeys = listen && (
     <div className="flex flex-wrap items-center justify-center gap-2">
-      <button onClick={() => playListen(listen.notes, listen.together, listen.chord)} className="hw-btn hw-amber px-4 py-2 text-sm">
-        ▶ Hear again
+      <button onClick={() => playListen(listen.notes, listen.together, listen.chord, listen.home)} className="hw-btn hw-amber flex items-center gap-[0.45em] px-4 py-2 text-sm">
+        <TransportIcon kind="play" />
+        Hear again
       </button>
       {onCantListen && !answer && <CantListenButton onPress={onCantListen} />}
     </div>

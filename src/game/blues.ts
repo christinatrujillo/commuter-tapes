@@ -2,12 +2,12 @@ import type { Card } from './rehearsal'
 import type { LessonSpec } from '../music/curriculum'
 import type { Marker } from '../components/Fretboard'
 import { ALL_STRINGS, describePosition, midiAt, ordinal, pitchClass, positionsForPc, samePos, stringName, TUNING, type Position, type Region } from '../music/notes'
-import type { KeyId, ScoreMeasure } from '../music/score'
-import { chordSymbol, chordTones, degreeName, majorKeyOfMinor, majorScale, minorKeyName as keyName, minorScaleOn, parseTone, scaleScore, scaleSound, spelled, spellOn, toneId, toneName, tonePc, type ChordKind, type Tone } from '../music/theory'
+import { keyLabel, type KeyId, type ScoreMeasure } from '../music/score'
+import { chordSymbol, chordTones, degreeName, majorKeyOfMinor, majorScale, minorKeyName as keyName, minorScaleOn, parseTone, scaleLabels, scaleScore, scaleSound, spelled, spellOn, toneId, toneName, tonePc, type ChordKind, type Tone } from '../music/theory'
 import { CAGED_ORDER, movedShape, SHAPE_NAMES, shiftFor, type CagedShape } from '../music/chordShapes'
 import { between, pick, shuffle, type Rng } from '../lib/random'
 import { isOneOf } from '../lib/guards'
-import { PAPER_HIGHLIGHT, PAPER_RUST } from '../lib/color'
+import { marked, PAPER_HIGHLIGHT, PAPER_RUST } from '../lib/color'
 import type { Question } from './questions'
 import { chordMeasures, triadSound } from './triads'
 
@@ -29,9 +29,8 @@ const knownMajor = (keys: KeyId[]) => {
   return own.length ? own : MAJOR_KEYS.slice(0, 2)
 }
 
-const noteName = (t: string) => toneName(parseTone(t))
-const minorPentName = (tonic: string) => `${noteName(tonic)} minor pentatonic`
-const majorPentName = (key: string) => `${noteName(key)} major pentatonic`
+const minorPentName = (tonic: string) => `${keyLabel(tonic)} minor pentatonic`
+const majorPentName = (key: string) => `${keyLabel(key)} major pentatonic`
 
 /** The natural minor scale without its 2nd and 6th notes. */
 export function minorPentatonic(tonic: string): Tone[] {
@@ -56,7 +55,6 @@ export function bluesScale(tonic: string): Tone[] {
 /** The minor pentatonic on a major key's 6th note, which shares its notes. */
 const relativeTonic = (key: KeyId) => toneId(majorScale(key)[5])
 
-const labelsOf = (tones: Tone[]) => [...tones, tones[0]].map(toneName)
 /** The scale in a single measure, for showing two side by side; a natural cancels an earlier flat on the same line. */
 function oneMeasure(tones: Tone[]): ScoreMeasure {
   const earlier = new Map<string, number>()
@@ -90,8 +88,8 @@ export function makePentMissing(id: number, tonics: string[], rng: Rng, help = f
     answer: options.indexOf(toneName(scale[d])),
     why: `${minorPentName(tonic)} is ${keyName(tonic)} without its 2nd and 6th notes: ${spelled(scale)} becomes ${spelled(pent)}. So ${toneName(scale[d])}, the ${degreeName(d + 1)}, is left out.`,
     score: help
-      ? { measures: scaleScore(scale), labels: labelsOf(scale), afterMeasures: scaleScore(pent), after: labelsOf(pent) }
-      : { measures: [[]], keySig: majorKeyOfMinor(tonic), afterMeasures: scaleScore(pent), after: labelsOf(pent) },
+      ? { measures: scaleScore(scale), labels: scaleLabels(scale), afterMeasures: scaleScore(pent), after: scaleLabels(pent) }
+      : { measures: [[]], keySig: majorKeyOfMinor(tonic), afterMeasures: scaleScore(pent), after: scaleLabels(pent) },
     sound: scaleSound(pent),
     facts: [`pmin:${tonic}`],
   }
@@ -113,7 +111,7 @@ export function makePentSpell(id: number, tonics: string[], rng: Rng, only?: str
     options,
     answer: options.indexOf(right),
     why: `Spell ${keyName(tonic)}: ${spelled(s)}. Leave out the 2nd (${toneName(s[1])}) and the 6th (${toneName(s[5])}): ${right}.`,
-    score: { measures: [[]], keySig: majorKeyOfMinor(tonic), afterMeasures: scaleScore(pent), after: labelsOf(pent) },
+    score: { measures: [[]], keySig: majorKeyOfMinor(tonic), afterMeasures: scaleScore(pent), after: scaleLabels(pent) },
     sound: scaleSound(pent),
     facts: [`pmin:${tonic}`],
   }
@@ -139,7 +137,7 @@ export function makePentDegree(id: number, tonics: string[], rng: Rng, only?: nu
     options: ['3', '4', '5', '7'],
     answer: i - 1,
     why: `Count up ${keyName(tonic)} from its root: ${scale.slice(0, d).map(toneName).join(' ')}. ${toneName(pent[i])} is the ${degreeName(d)}. The minor pentatonic keeps the 1st, 3rd, 4th, 5th and 7th.`,
-    score: { measures: scaleScore(pent), labels: labelsOf(pent), marker: i, after: DEGREE_LABELS },
+    score: { measures: scaleScore(pent), labels: scaleLabels(pent), marker: i, after: DEGREE_LABELS },
     sound: [scaleSound(pent)[0], scaleSound(pent)[i]],
     facts: [`pdeg:${d}`],
   }
@@ -160,13 +158,13 @@ export function makeMajorPentMissing(id: number, keys: KeyId[], rng: Rng, help =
   return {
     id,
     kind: 'majorPentMissing',
-    ask: { text: `Which note of ${noteName(key)} major does ${majorPentName(key)} leave out?`, hl: majorPentName(key) },
+    ask: { text: `Which note of ${keyLabel(key)} major does ${majorPentName(key)} leave out?`, hl: majorPentName(key) },
     options,
     answer: options.indexOf(toneName(scale[d])),
-    why: `${majorPentName(key)} is ${noteName(key)} major without its 4th and 7th notes: ${spelled(scale)} becomes ${spelled(pent)}. So ${toneName(scale[d])}, the ${degreeName(d + 1)}, is left out.`,
+    why: `${majorPentName(key)} is ${keyLabel(key)} major without its 4th and 7th notes: ${spelled(scale)} becomes ${spelled(pent)}. So ${toneName(scale[d])}, the ${degreeName(d + 1)}, is left out.`,
     score: help
-      ? { measures: scaleScore(scale), labels: labelsOf(scale), afterMeasures: scaleScore(pent), after: labelsOf(pent) }
-      : { measures: [[]], keySig: key, afterMeasures: scaleScore(pent), after: labelsOf(pent) },
+      ? { measures: scaleScore(scale), labels: scaleLabels(scale), afterMeasures: scaleScore(pent), after: scaleLabels(pent) }
+      : { measures: [[]], keySig: key, afterMeasures: scaleScore(pent), after: scaleLabels(pent) },
     sound: scaleSound(pent),
     facts: [`pmaj:${key}`],
   }
@@ -187,8 +185,8 @@ export function makeMajorPentSpell(id: number, keys: KeyId[], rng: Rng, only?: K
     ask: { text: `Which notes make ${majorPentName(key)}?`, hl: majorPentName(key) },
     options,
     answer: options.indexOf(right),
-    why: `Spell ${noteName(key)} major: ${spelled(s)}. Leave out the 4th (${toneName(s[3])}) and the 7th (${toneName(s[6])}): ${right}.`,
-    score: { measures: [[]], keySig: key, afterMeasures: scaleScore(pent), after: labelsOf(pent) },
+    why: `Spell ${keyLabel(key)} major: ${spelled(s)}. Leave out the 4th (${toneName(s[3])}) and the 7th (${toneName(s[6])}): ${right}.`,
+    score: { measures: [[]], keySig: key, afterMeasures: scaleScore(pent), after: scaleLabels(pent) },
     sound: scaleSound(pent),
     facts: [`pmaj:${key}`],
   }
@@ -216,7 +214,7 @@ export function makePentRelative(id: number, keys: KeyId[], rng: Rng, only?: Key
     why: fromMajor
       ? `${majorPentName(key)} is ${spelled(from)}. Start from its 6th note, ${toneName(major[5])}, and you get ${spelled(to)}: ${right}.`
       : `${minorPentName(rel)} is ${spelled(from)}. Its relative major starts on its 3rd note, ${toneName(minor[2])}: ${spelled(to)}, ${right}.`,
-    score: { measures: scaleScore(from), labels: labelsOf(from), afterMeasures: scaleScore(to), after: labelsOf(to) },
+    score: { measures: scaleScore(from), labels: scaleLabels(from), afterMeasures: scaleScore(to), after: scaleLabels(to) },
     sound: scaleSound(to),
     facts: [`prel:${key}`],
   }
@@ -238,11 +236,11 @@ export function makeBlueNote(id: number, tonics: string[], rng: Rng, only?: stri
   return {
     id,
     kind: 'blueNote',
-    ask: { text: `What’s the blue note in the ${noteName(tonic)} blues scale?`, hl: 'blue note' },
+    ask: { text: `What’s the blue note in the ${keyLabel(tonic)} blues scale?`, hl: 'blue note' },
     options,
     answer: options.indexOf(toneName(blue)),
     why: `The blue note is the 5th, lowered a half step. ${keyName(tonic)}’s 5th is ${toneName(s[4])}, so it’s ${toneName(blue)}: ${spelled(blues)}.`,
-    score: { measures: scaleScore(pent), labels: labelsOf(pent), afterMeasures: scaleScore(blues), after: labelsOf(blues) },
+    score: { measures: scaleScore(pent), labels: scaleLabels(pent), afterMeasures: scaleScore(blues), after: scaleLabels(blues) },
     sound: scaleSound(blues),
     facts: [`pblues:${tonic}`],
   }
@@ -262,11 +260,11 @@ export function makeBluesSpell(id: number, tonics: string[], rng: Rng, only?: st
   return {
     id,
     kind: 'bluesSpell',
-    ask: { text: `Which notes make the ${noteName(tonic)} blues scale?`, hl: `${noteName(tonic)} blues scale` },
+    ask: { text: `Which notes make the ${keyLabel(tonic)} blues scale?`, hl: `${keyLabel(tonic)} blues scale` },
     options,
     answer: options.indexOf(right),
     why: `Start with ${minorPentName(tonic)}: ${spelled(p)}. Add the blue note, the 5th lowered to ${toneName(blues[3])}, between the 4th and 5th: ${right}.`,
-    score: { measures: [[]], keySig: majorKeyOfMinor(tonic), afterMeasures: scaleScore(blues), after: labelsOf(blues) },
+    score: { measures: [[]], keySig: majorKeyOfMinor(tonic), afterMeasures: scaleScore(blues), after: scaleLabels(blues) },
     sound: scaleSound(blues),
     facts: [`pblues:${tonic}`],
   }
@@ -359,7 +357,7 @@ export function makeBoxDegree(id: number, rng: Rng, only?: number): Question {
     why: `Count up ${keyName(tonic)} from the root: ${scale.slice(0, d).map(toneName).join(' ')}. The marked note is ${toneName(scale[d - 1])}, the ${degreeName(d)}: ${describePosition(target)}.`,
     board: {
       region,
-      markers: [...others.map((p): Marker => ({ pos: p, tone: 'note' })), ...roots.map((p): Marker => ({ pos: p, tone: 'root', label: noteName(tonic) })), { pos: target, tone: 'target', label: '?' }],
+      markers: [...others.map((p): Marker => ({ pos: p, tone: 'note' })), ...roots.map((p): Marker => ({ pos: p, tone: 'root', label: keyLabel(tonic) })), { pos: target, tone: 'target', label: '?' }],
       after: [
         ...others.map((p): Marker => ({ pos: p, tone: 'note', label: String(degreeAt(tonic, p)) })),
         ...roots.map((p): Marker => ({ pos: p, tone: 'root', label: '1' })),
@@ -384,8 +382,8 @@ export function makeBoxRoot(id: number, rng: Rng): Question {
     markers: notes.map((p): Marker => ({ pos: p, tone: 'note' })),
     from: roots[0],
     targets: roots,
-    label: noteName(tonic),
-    why: `The box’s roots are at its bottom corner on the low E and high E strings (${ordinal(f)} fret), and on the D string two frets up (${ordinal(f + 2)} fret). Here they’re all ${noteName(tonic)}.`,
+    label: keyLabel(tonic),
+    why: `The box’s roots are at its bottom corner on the low E and high E strings (${ordinal(f)} fret), and on the D string two frets up (${ordinal(f + 2)} fret). Here they’re all ${keyLabel(tonic)}.`,
     sound: ascending(notes),
     facts: ['pbox:root'],
   }
@@ -403,7 +401,7 @@ export function makeBoxKey(id: number, rng: Rng, only?: string): Question {
     ask: { text: 'Which minor pentatonic is this box?' },
     options,
     answer: options.indexOf(minorPentName(tonic)),
-    why: `The box’s root on the low E string is at the ${ordinal(low.fret)} fret, which is ${noteName(tonic)}. So it’s ${minorPentName(tonic)}.`,
+    why: `The box’s root on the low E string is at the ${ordinal(low.fret)} fret, which is ${keyLabel(tonic)}. So it’s ${minorPentName(tonic)}.`,
     board: {
       region,
       markers: notes.map((p): Marker => ({ pos: p, tone: degreeAt(tonic, p) === 1 ? 'root' : 'note' })),
@@ -447,8 +445,8 @@ export function makePatternRoot(id: number, patterns: number[], rng: Rng, only?:
     markers: notes.map((p): Marker => ({ pos: p, tone: 'note' })),
     from: roots[0],
     targets: roots,
-    label: noteName(tonic),
-    why: `${noteName(tonic)} is the root. In Pattern ${n} it’s here: ${roots.map(describePosition).join('; ')}.`,
+    label: keyLabel(tonic),
+    why: `${keyLabel(tonic)} is the root. In Pattern ${n} it’s here: ${roots.map(describePosition).join('; ')}.`,
     sound: ascending(notes),
     facts: [`ppat:${n}`],
   }
@@ -565,10 +563,10 @@ export function makeTwelveChord(id: number, keys: KeyId[], rng: Rng, only?: KeyI
   return {
     id,
     kind: 'twelveChord',
-    ask: { text: `In a 12-bar blues in ${noteName(key)}, what chord is in bar ${bar + 1}?`, hl: `bar ${bar + 1}` },
+    ask: { text: `In a 12-bar blues in ${keyLabel(key)}, what chord is in bar ${bar + 1}?`, hl: `bar ${bar + 1}` },
     options,
     answer: options.indexOf(symbol(d)),
-    why: `In ${noteName(key)}, I7 is ${symbol(0)}, IV7 is ${symbol(3)} and V7 is ${symbol(4)}. Bar ${bar + 1} is ${NUMERALS[d]}, so it’s ${symbol(d)}.`,
+    why: `In ${keyLabel(key)}, I7 is ${symbol(0)}, IV7 is ${symbol(3)} and V7 is ${symbol(4)}. Bar ${bar + 1} is ${NUMERALS[d]}, so it’s ${symbol(d)}.`,
     // The other bars as numerals, so the key's chords are worked out rather than read off the chart.
     chart: { ...chartOf(TWELVE, (x) => `${NUMERALS[x]}7`, bar), after: { bars: TWELVE.map(symbol), numerals: TWELVE.map((x) => `${NUMERALS[x]}7`) } },
     sound: triadSound(bluesChord(key, d).tones),
@@ -587,10 +585,10 @@ export function makeTwelveSpell(id: number, keys: KeyId[], rng: Rng, only?: KeyI
   return {
     id,
     kind: 'twelveSpell',
-    ask: { text: `In a 12-bar blues in ${noteName(key)}, what are the I7, IV7 and V7 chords?`, hl: 'I7, IV7 and V7' },
+    ask: { text: `In a 12-bar blues in ${keyLabel(key)}, what are the I7, IV7 and V7 chords?`, hl: 'I7, IV7 and V7' },
     options,
     answer: options.indexOf(right),
-    why: `Count up ${noteName(key)} major: ${spelled(scale)}. I is ${toneName(scale[0])}, IV is ${toneName(scale[3])} and V is ${toneName(scale[4])}, and in a blues each is a dominant 7th: ${right}.`,
+    why: `Count up ${keyLabel(key)} major: ${spelled(scale)}. I is ${toneName(scale[0])}, IV is ${toneName(scale[3])} and V is ${toneName(scale[4])}, and in a blues each is a dominant 7th: ${right}.`,
     chart: { bars: TWELVE.map((d) => `${NUMERALS[d]}7`), after: { bars: TWELVE.map((d) => bluesChord(key, d).symbol), numerals: TWELVE.map((d) => `${NUMERALS[d]}7`) } },
     sound: [0, 3, 4].flatMap((d) => triadSound(bluesChord(key, d).tones)),
     facts: [`b12key:${key}`],
@@ -609,15 +607,15 @@ export function makeTwelveVariation(id: number, keys: KeyId[], rng: Rng, only?: 
     id,
     kind: 'twelveVariation',
     ask: {
-      text: variation === 'quick' ? `This 12-bar blues in ${noteName(key)} has a quick change. What chord is in bar 2?` : `This 12-bar blues in ${noteName(key)} ends with a turnaround. What chord is in bar 12?`,
+      text: variation === 'quick' ? `This 12-bar blues in ${keyLabel(key)} has a quick change. What chord is in bar 2?` : `This 12-bar blues in ${keyLabel(key)} ends with a turnaround. What chord is in bar 12?`,
       hl: variation === 'quick' ? 'quick change' : 'turnaround',
     },
     options,
     answer: options.indexOf(symbol(bars[bar])),
     why:
       variation === 'quick'
-        ? `A quick change jumps to IV in bar 2, then comes straight back to I in bar 3. In ${noteName(key)}, IV7 is ${symbol(3)}.`
-        : `A turnaround puts V in the last bar, and its pull back to I leads round to the top of the chart. In ${noteName(key)}, V7 is ${symbol(4)}.`,
+        ? `A quick change jumps to IV in bar 2, then comes straight back to I in bar 3. In ${keyLabel(key)}, IV7 is ${symbol(3)}.`
+        : `A turnaround puts V in the last bar, and its pull back to I leads round to the top of the chart. In ${keyLabel(key)}, V7 is ${symbol(4)}.`,
     chart: { ...chartOf(bars, (x) => `${NUMERALS[x]}7`, bar), after: { bars: bars.map(symbol), numerals: bars.map((x) => `${NUMERALS[x]}7`) } },
     sound: triadSound(bluesChord(key, bars[bar]).tones),
     facts: [`b12var:${variation}`],
@@ -635,7 +633,7 @@ export function makeMinorBlues(id: number, tonics: string[], rng: Rng, only?: st
   return {
     id,
     kind: 'minorBlues',
-    ask: { text: `In a minor blues in ${noteName(tonic)} minor, what chord is in bar ${bar + 1}?`, hl: `bar ${bar + 1}` },
+    ask: { text: `In a minor blues in ${keyLabel(tonic)} minor, what chord is in bar ${bar + 1}?`, hl: `bar ${bar + 1}` },
     options,
     answer: options.indexOf(symbol(d)),
     why: `A minor blues keeps the 12 bars but uses minor 7th chords. In ${keyName(tonic)}, i7 is ${symbol(0)}, iv7 is ${symbol(3)} and v7 is ${symbol(4)}. Bar ${bar + 1} is ${MINOR_NUMERALS[d]}7, so it’s ${symbol(d)}.`,
@@ -705,7 +703,7 @@ export function makeQuickHear(id: number, rng: Rng, only?: boolean): Question {
   const root = 45 + pitchClass(tonePc(parseTone(key)) - 9)
   const four = root + 5 > 57 ? root - 7 : root + 5
   const roots = quick ? [root, four, root, root] : [root, root, root, root]
-  const I = `${noteName(key)}7`
+  const I = `${keyLabel(key)}7`
   const IV = `${toneName(majorScale(key)[3])}7`
   return {
     id,
@@ -921,7 +919,7 @@ export function describeBluesFact(fact: string): string | null {
     case 'prel':
       return isOneOf(value, MAJOR_KEYS) ? `${majorPentName(value)} and its relative minor` : null
     case 'pblues':
-      return isOneOf(value, MINOR_TONICS) ? `The ${noteName(value)} blues scale` : null
+      return isOneOf(value, MINOR_TONICS) ? `The ${keyLabel(value)} blues scale` : null
     case 'pbox':
       return value === 'degree' ? 'Degrees in the pentatonic box' : value === 'root' ? 'Roots in the pentatonic box' : value === 'key' ? 'Naming the box’s key' : null
     case 'ppat':
@@ -930,7 +928,7 @@ export function describeBluesFact(fact: string): string | null {
     case 'b12':
       return barFact(value) !== null ? `Bar ${value} of the 12-bar blues` : null
     case 'b12key':
-      return isOneOf(value, BLUES_KEYS) ? `The 12-bar blues in ${noteName(value)}` : null
+      return isOneOf(value, BLUES_KEYS) ? `The 12-bar blues in ${keyLabel(value)}` : null
     case 'b12var':
       return value === 'quick' ? 'The quick change' : value === 'turn' ? 'The turnaround' : null
     case 'bminor':
@@ -949,8 +947,6 @@ export function describeBluesFact(fact: string): string | null {
 const A_PENT = minorPentatonic('A')
 const A_MINOR = minorScaleOn('A')
 const A_BLUES = bluesScale('A')
-/** Colors for a scale on the staff, with these notes (by index) marked. */
-const marked = (count: number, color: string, ...indexes: number[]) => Array.from({ length: count + 1 }, (_, i) => (indexes.includes(i) ? color : undefined))
 
 /** A pattern on the neck, labeled with note names or degrees, roots lit. */
 function patternBoard(tonic: string, n: number, labels: 'names' | 'degrees'): Card['board'] {
@@ -987,14 +983,14 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'Why pentatonics',
     subtitle: 'The scale behind the solos',
     hook: 'Most rock, blues and pop guitar solos are built from one five-note scale, the minor pentatonic. With so few notes, and none that rub against each other, almost anything you play from it fits the song. It’s the first scale most guitarists learn to solo with.',
-    score: { measures: scaleScore(A_PENT), labels: labelsOf(A_PENT) },
+    score: { measures: scaleScore(A_PENT), labels: scaleLabels(A_PENT) },
     sound: scaleSound(A_PENT),
   }),
   'blues:pent-what': () => ({
     title: 'The minor pentatonic',
     subtitle: 'The minor scale, minus two notes',
     hook: '“Penta” means five. Take the natural minor scale (tape 27) and leave out its 2nd and 6th notes. A minor is A B C D E F G; without B and F (in red) it’s A C D E G, the A minor pentatonic. B and F were each a half step from a neighbor, so the scale that’s left has no half steps at all.',
-    score: { measures: scaleScore(A_MINOR), labels: labelsOf(A_MINOR), colors: marked(7, PAPER_RUST, 1, 5) },
+    score: { measures: scaleScore(A_MINOR), labels: scaleLabels(A_MINOR), colors: marked(7, PAPER_RUST, 1, 5) },
     sound: scaleSound(A_PENT),
   }),
   'blues:pent-keys': () => {
@@ -1003,7 +999,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
       title: 'In any key',
       subtitle: 'Leave out the 2nd and 6th',
       hook: 'The recipe works in every key: spell the natural minor scale, then leave out its 2nd and 6th notes. E minor is E F♯ G A B C D. Without F♯ and C, E minor pentatonic is E G A B D.',
-      score: { measures: scaleScore(e), labels: labelsOf(e), colors: marked(7, PAPER_RUST, 1, 5) },
+      score: { measures: scaleScore(e), labels: scaleLabels(e), colors: marked(7, PAPER_RUST, 1, 5) },
       sound: scaleSound(minorPentatonic('E')),
     }
   },
@@ -1020,7 +1016,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
       title: 'The major pentatonic',
       subtitle: 'The major scale, minus the 4th and 7th',
       hook: 'The major scale has a pentatonic too: leave out its 4th and 7th notes. C major is C D E F G A B; without F and B (in red) it’s C D E G A. It has no half steps either, but it sounds bright and open. You’ll hear it all over country, pop and rock.',
-      score: { measures: scaleScore(c), labels: labelsOf(c), colors: marked(7, PAPER_RUST, 3, 6) },
+      score: { measures: scaleScore(c), labels: scaleLabels(c), colors: marked(7, PAPER_RUST, 3, 6) },
       sound: scaleSound(majorPentatonic('C')),
     }
   },
@@ -1030,7 +1026,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
       title: 'Same notes, new home',
       subtitle: 'C major pentatonic is A minor pentatonic',
       hook: 'C major pentatonic is C D E G A. Start it from A instead and you have A C D E G, the A minor pentatonic. Like relative keys (tape 27), every major pentatonic shares its notes with the minor pentatonic on its 6th note. Which one you hear depends on which note feels like home.',
-      score: { measures: [oneMeasure(c), oneMeasure(A_PENT)], labels: [...labelsOf(c), ...labelsOf(A_PENT)] },
+      score: { measures: [oneMeasure(c), oneMeasure(A_PENT)], labels: [...scaleLabels(c), ...scaleLabels(A_PENT)] },
       sound: [...scaleSound(c), ...scaleSound(A_PENT)],
     }
   },
@@ -1038,7 +1034,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'The blues scale',
     subtitle: 'The minor pentatonic, plus one',
     hook: 'Add one note to the minor pentatonic and you get the blues scale, the sound of blues guitar. In A it’s A C D E♭ E G: six notes. The extra note, E♭ here, is called the blue note.',
-    score: { measures: scaleScore(A_BLUES), labels: labelsOf(A_BLUES), colors: marked(6, PAPER_HIGHLIGHT, 3) },
+    score: { measures: scaleScore(A_BLUES), labels: scaleLabels(A_BLUES), colors: marked(6, PAPER_HIGHLIGHT, 3) },
     sound: scaleSound(A_BLUES),
   }),
   'blues:blue-note': () => ({
@@ -1054,7 +1050,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
       title: 'Spelling the blues scale',
       subtitle: 'Flat the 5th',
       hook: 'To spell it, write the minor pentatonic and add the 5th with a flat. In E, the 5th is B, so the blue note is B♭: E G A B♭ B D. In B, the 5th is F♯, and a flat brings it down to F: B D E F F♯ A.',
-      score: { measures: scaleScore(e), labels: labelsOf(e), colors: marked(6, PAPER_HIGHLIGHT, 3) },
+      score: { measures: scaleScore(e), labels: scaleLabels(e), colors: marked(6, PAPER_HIGHLIGHT, 3) },
       sound: scaleSound(e),
     }
   },
@@ -1112,7 +1108,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:twelve': () => ({
     title: 'The 12 bars',
     subtitle: 'Three lines of four',
-    hook: 'A bar is another word for a measure, and each slash is one beat. The chart reads in three lines of four bars. Line 1 is all I. Line 2 is IV, IV, I, I. Line 3 is V, IV, I, I. Then it starts again from the top. Press ▶ Hear for all 12 bars in A.',
+    hook: 'A bar is another word for a measure, and each slash is one beat. The chart reads in three lines of four bars. Line 1 is all I. Line 2 is IV, IV, I, I. Line 3 is V, IV, I, I. Then it starts again from the top. Press ▶\uFE0E Hear for all 12 bars in A.',
     chart: { bars: TWELVE.map((d) => NUMERALS[d]) },
     listen: hearBars(TWELVE),
     sound: [],
@@ -1155,8 +1151,8 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     return {
       title: 'Why hear the scale',
       subtitle: 'Bright or bluesy',
-      hook: 'Hearing whether a solo uses the major or the minor pentatonic tells you which one to reach for when you play along. Press ▶ Hear: C major pentatonic, then C minor pentatonic.',
-      score: { measures: [oneMeasure(majorPentatonic('C')), oneMeasure(minorPentatonic('C'))], labels: [...labelsOf(majorPentatonic('C')), ...labelsOf(minorPentatonic('C'))] },
+      hook: 'Hearing whether a solo uses the major or the minor pentatonic tells you which one to reach for when you play along. Press ▶\uFE0E Hear: C major pentatonic, then C minor pentatonic.',
+      score: { measures: [oneMeasure(majorPentatonic('C')), oneMeasure(minorPentatonic('C'))], labels: [...scaleLabels(majorPentatonic('C')), ...scaleLabels(minorPentatonic('C'))] },
       listen: { notes: [...major, ...minor] },
       sound: [],
     }
@@ -1165,7 +1161,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'Major or minor pentatonic',
     subtitle: 'Listen to the first step',
     hook: 'The major pentatonic climbs a whole step from the root, then another, to a bright 3rd. The minor pentatonic leaps straight up a minor 3rd: darker and bluesy. Here: A major pentatonic, then A minor pentatonic.',
-    score: { measures: [oneMeasure(majorPentatonic('A')), oneMeasure(A_PENT)], labels: [...labelsOf(majorPentatonic('A')), ...labelsOf(A_PENT)] },
+    score: { measures: [oneMeasure(majorPentatonic('A')), oneMeasure(A_PENT)], labels: [...scaleLabels(majorPentatonic('A')), ...scaleLabels(A_PENT)] },
     listen: { notes: [...MAJOR_PENT_STEPS.map((s) => 45 + s), ...MINOR_PENT_STEPS.map((s) => 45 + s)] },
     sound: [],
   }),
@@ -1173,7 +1169,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'Hear the blue note',
     subtitle: 'Three notes, a half step apart',
     hook: 'The blue note fills the gap between the 4th and the 5th, so in the middle of the blues scale you hear three notes climbing a half step at a time: D, E♭, E in A. The minor pentatonic steps straight from the 4th to the 5th. Here: A minor pentatonic, then A blues.',
-    score: { measures: [oneMeasure(A_PENT), oneMeasure(A_BLUES)], labels: [...labelsOf(A_PENT), ...labelsOf(A_BLUES)] },
+    score: { measures: [oneMeasure(A_PENT), oneMeasure(A_BLUES)], labels: [...scaleLabels(A_PENT), ...scaleLabels(A_BLUES)] },
     listen: { notes: [...MINOR_PENT_STEPS.map((s) => 45 + s), ...BLUES_STEPS.map((s) => 45 + s)] },
     sound: [],
   }),

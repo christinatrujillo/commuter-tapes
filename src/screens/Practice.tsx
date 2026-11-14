@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Button, LabelTape, LedButtons, TabShell, Toggle } from '../components/ui'
+import { Button, LabelTape, LedButtons, TabShell, Toggle, TransportIcon } from '../components/ui'
 import { drillToQuery, type DrillOptions } from '../game/drill'
 import { recordedOn, THEORY_JAMS } from '../game/jams'
 import { describeFact, dueFacts, weakestFacts } from '../game/review'
@@ -96,8 +96,9 @@ export function PracticeScreen() {
               preset.sealed
             )}
           </p>
-          <Button className="mt-4" disabled={!sprintReady} onClick={() => navigate(`/sprint?p=${sprint}`)}>
-            ▶ Count me in
+          <Button className="mt-4 flex items-center justify-center gap-[0.45em]" disabled={!sprintReady} onClick={() => navigate(`/sprint?p=${sprint}`)}>
+            <TransportIcon kind="play" />
+            Count me in
           </Button>
         </section>
 
@@ -188,8 +189,9 @@ export function PracticeScreen() {
             <Toggle label="Sharps & flats" checked={drill.accidentals} onChange={(accidentals) => update({ accidentals })} />
           </div>
 
-          <Button className="mt-3" disabled={!canStart} onClick={() => navigate(`/drill?${drillToQuery(drill)}`)}>
-            ▶ Start jam
+          <Button className="mt-3 flex items-center justify-center gap-[0.45em]" disabled={!canStart} onClick={() => navigate(`/drill?${drillToQuery(drill)}`)}>
+            <TransportIcon kind="play" />
+            Start jam
           </Button>
         </section>
       </div>

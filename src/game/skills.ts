@@ -5,7 +5,7 @@ const SKILLS: { label: string; test: RegExp }[] = [
   { label: 'Fretboard', test: /^\d:\d+$/ },
   { label: 'Reading', test: /^(staff|rule|motion):/ },
   { label: 'Rhythm', test: /^(sym|count|fill):/ },
-  { label: 'Scales & keys', test: /^(step|scale|degree|key|rel|minor|pmin|pdeg|pmaj|prel|pblues|pbox|ppat):/ },
+  { label: 'Scales & keys', test: /^(step|scale|degree|key|rel|minor|pmin|pdeg|pmaj|prel|pblues|pbox|ppat|mode|modek|modec|modesp|moden|modeh|modev|modeneck):/ },
   { label: 'Intervals', test: /^(iv|ivnum|ivn|invnum|inv):/ },
   { label: 'Triads', test: /^(triad|tri|tq|tinv|tneck):/ },
   { label: 'Chords', test: /^(hd|hrn|hprim|hbox|hprog|chd|chq|csym|h7|diag|caged|mh|mrn|hmin|hmv|mprog|kfind|b12|b12key|b12var|bminor):/ },

@@ -668,7 +668,7 @@ const INTERVAL_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   }),
   'invert:qualities': () => ({
     title: 'Qualities flip',
-    subtitle: 'Major ↔ minor, augmented ↔ diminished',
+    subtitle: 'Major ↔\uFE0E minor, augmented ↔\uFE0E diminished',
     hook: 'Major turns into minor and minor into major; augmented turns into diminished. Perfect stays perfect: a perfect 4th turns into a perfect 5th. C up to E♭ (minor 3rd) turned over is E♭ up to C (major 6th).',
     score: { measures: [[stack(w('C', 4), w('E', 4, -1)), stack(w('E', 4, -1), w('C', 5))]], labels: ['m3', 'M6'] },
     sound: [48, 51, 51, 60],

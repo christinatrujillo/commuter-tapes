@@ -67,6 +67,8 @@ beforeEach(() => {
   localStorage.clear()
   useProgress.getState().reset()
   useProgress.getState().updateSettings({ sound: false, haptics: false, autoContinue: false })
+  // The first-run guide has its own tests; everywhere else it's been seen already, tips and all.
+  useProgress.setState({ guideDone: true, tipsSeen: { play: true, rehearsal: true, take: true } })
   history.replaceState(null, '', '#/')
 })
 
@@ -354,6 +356,36 @@ function minorStepSymbol(tonic: string, step: string): string {
 const TWELVE_BARS = ['I', 'I', 'I', 'I', 'IV', 'IV', 'I', 'I', 'V', 'IV', 'I', 'I']
 /** The root of I, IV or V in a key (or a minor key's i, iv or v). */
 const bluesRoot = (key: string, numeral: string, minor = false) => scaleDegree(key, { I: 1, IV: 4, V: 5 }[numeral]!, minor)
+
+// The modes in order, from the major scale's 1st note up.
+const MODE_ORDER = ['Ionian', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Aeolian', 'Locrian']
+const MODE_BUTTON = /^(Ionian|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/
+const MODE_NAMED = /^[A-G][♯♭]? (Ionian|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/
+// Each mode's color notes, as [degree, half steps moved], against major (Lydian, Mixolydian) or natural minor.
+const MODE_COLOR: Record<string, [number, number][]> = { Lydian: [[4, 1]], Mixolydian: [[7, -1]], Dorian: [[6, 1]], Phrygian: [[2, -1]], Locrian: [[2, -1], [5, -1]] }
+const MAJOR_MODES = ['Ionian', 'Lydian', 'Mixolydian']
+const MODE_FORMULA: Record<string, string> = {
+  'major with a raised 4th': 'Lydian',
+  'major with a lowered 7th': 'Mixolydian',
+  'minor with a raised 6th': 'Dorian',
+  'minor with a lowered 2nd': 'Phrygian',
+  'minor with a lowered 2nd and 5th': 'Locrian',
+}
+const COLOR_LABEL: Record<string, string> = { Lydian: 'Raised 4th', Mixolydian: 'Lowered 7th', Dorian: 'Raised 6th', Phrygian: 'Lowered 2nd', Locrian: 'Lowered 2nd and 5th' }
+const HOME_SUFFIX: Record<string, string> = { Ionian: 'maj7', Dorian: 'm7', Phrygian: 'm7', Lydian: 'maj7', Mixolydian: '7', Aeolian: 'm7', Locrian: 'm7♭5' }
+
+/** A note moved a half step by its sign: B♭ up is B, F♯ down is F. */
+function shiftNote(note: string, by: number): string {
+  const acc = (note.endsWith('♯') ? 1 : note.endsWith('♭') ? -1 : 0) + by
+  return note[0] + (acc === 1 ? '♯' : acc === -1 ? '♭' : '')
+}
+
+/** A mode on `root`, worked out from the major or natural minor scale on that root and its color notes. */
+function spellMode(root: string, mode: string): string[] {
+  const notes = [1, 2, 3, 4, 5, 6, 7].map((d) => scaleDegree(root, d, !MAJOR_MODES.includes(mode)))
+  for (const [d, by] of MODE_COLOR[mode] ?? []) notes[d - 1] = shiftNote(notes[d - 1], by)
+  return notes
+}
 
 // Pentatonics worked out independently: the minor scale without its 2nd and 6th, the major without its 4th and 7th.
 const PENT_DEGREES: Record<string, number[]> = { minor: [1, 3, 4, 5, 7], major: [1, 2, 3, 5, 6] }
@@ -701,6 +733,64 @@ function answerTheory(text: string, correctly: boolean): boolean {
     pickOption(`${bluesRoot(m[1], TWELVE_BARS[Number(m[2]) - 1], true)}m7`, (b) => /^[A-G][♯♭]?m?7$/.test(b), correctly)
   } else if (text === 'Quick change, or does it stay on I?') {
     pickOption(heard.notes[4] !== heard.notes[0] ? 'Quick change' : 'Stays on I', (b) => /^(Quick change|Stays on I)$/.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) major’s notes, played from (\S+) to \2: which mode\?$/))) {
+    pickOption(MODE_ORDER[letterGap(m[1], m[2])], (b) => MODE_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^Which degree of the major scale does (\w+) start on\?$/))) {
+    pickOption(String(MODE_ORDER.indexOf(m[1]) + 1), (b) => /^[1-7]$/.test(b), correctly)
+  } else if ((m = text.match(/^Which mode starts on the (\d)\w+ degree of the major scale\?$/))) {
+    pickOption(MODE_ORDER[Number(m[1]) - 1], (b) => MODE_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) (\w+) has the same notes as which major scale\?$/))) {
+    // The parent is the major scale with the mode's first note in the mode's place.
+    const d = MODE_ORDER.indexOf(m[2]) + 1
+    const parent = screen.getAllByRole('button').map((b) => b.textContent!).find((b) => / major$/.test(b) && scaleDegree(b.replace(' major', ''), d) === m![1])!
+    pickOption(parent, (b) => / major$/.test(b), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which note does (\w+) start on\?$/))) {
+    pickOption(scaleDegree(m[1], MODE_ORDER.indexOf(m[2]) + 1), (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^Which note of (\S+) (\w+) isn’t in \1 (major|minor)\?$/))) {
+    pickOption(spellMode(m[1], m[2])[MODE_COLOR[m[2]][0][0] - 1], (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^Which mode is ((?:major|minor) with a (?:raised|lowered) .+)\?$/))) {
+    pickOption(MODE_FORMULA[m[1]], (b) => MODE_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^What’s (\w+)’s color note\?$|^What are (\w+)’s color notes\?$/))) {
+    pickOption(COLOR_LABEL[m[1] ?? m[2]], (b) => /^(Raised|Lowered) /.test(b), correctly)
+  } else if ((m = text.match(/^Which notes make (\S+) (Ionian|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)\?$/))) {
+    pickOption(spellMode(m[1], m[2]).join(' '), (b) => /^([A-G][♯♭]? ?){7}$/.test(b), correctly)
+  } else if ((m = text.match(/^In a major key, which mode starts on the root of the (\S+) chord\?$/))) {
+    pickOption(MODE_ORDER[degreeOfNumeral(m[1]) - 1], (b) => MODE_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^In a major key, (\w+) starts on the root of which chord\?$/))) {
+    const d = MODE_ORDER.indexOf(m[1]) + 1
+    pickOption(numeralFor(d, d === 7 ? 'diminished' : [1, 4, 5].includes(d) ? 'major' : 'minor'), (b) => NUMERAL_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^What’s the home chord of (\S+) (\w+)\?$/))) {
+    pickOption(m[1] + HOME_SUFFIX[m[2]], (b) => /^[A-G][♯♭]?(maj7|7|m7|m7♭5)$/.test(b), correctly)
+  } else if ((m = text.match(/^Which mode has ([A-G][♯♭]?)(7|m7♭5) as its home chord\?$/))) {
+    pickOption(`${m[1]} ${m[2] === '7' ? 'Mixolydian' : 'Locrian'}`, (b) => MODE_NAMED.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) – (\S+), over and over: which mode\?$/))) {
+    // Whether the first chord is minor, and how far up the second chord's root is, name the mode.
+    const minor = m[1].endsWith('m')
+    const root = minor ? m[1].slice(0, -1) : m[1]
+    const semis = (labelPc(m[2].replace(/m$/, '')) - labelPc(root) + 12) % 12
+    const mode = minor ? (semis === 5 ? 'Dorian' : 'Phrygian') : semis === 10 ? 'Mixolydian' : 'Lydian'
+    pickOption(`${root} ${mode}`, (b) => MODE_NAMED.test(b), correctly)
+  } else if ((m = text.match(/^Tap a root of (\S+) (\w+) in this (\S+) major pattern$/))) {
+    const root = labelPc(m[1])
+    const dots = boardMarkers().map((mk) => mk.pos)
+    const spot = hitSpots().find((s) => dots.some((d) => d.string === s.pos.string && d.fret === s.pos.fret) && (pitchClass(midiAt(s.pos)) === root) === correctly)
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if ((m = text.match(/^In this (\S+) major pattern, the lit notes are home\. Which mode is it\?$/))) {
+    const home = pitchClass(midiAt(markerPos('root')))
+    const d = [1, 2, 3, 4, 5, 6, 7].find((n) => labelPc(scaleDegree(m![1], n)) === home)!
+    pickOption(MODE_ORDER[d - 1], (b) => MODE_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^(Dorian|Mixolydian|Lydian|Phrygian) or (natural minor|major)\?$/))) {
+    // Each mode leaves the plain scale at one spot in the climb.
+    const climb = heard.notes.map((n) => n - heard.notes[0])
+    const isMode = { Dorian: climb[5] === 9, Mixolydian: climb[6] === 10, Lydian: climb[3] === 6, Phrygian: climb[1] === 1 }[m[1]]
+    pickOption(isMode ? m[1] : capitalize(m[2]), (b) => b === m![1] || b === capitalize(m![2]), correctly)
+  } else if (text === 'Which mode does this vamp sound like?') {
+    // Home's quality, then how far up the second chord's root is, name the mode.
+    const n = heard.notes
+    const step = (n[3] - n[0] + 12) % 12
+    const mode = n[1] - n[0] === 3 ? (step === 5 ? 'Dorian' : 'Phrygian') : step === 10 ? 'Mixolydian' : 'Lydian'
+    pickOption(mode, (b) => /^(Mixolydian|Lydian|Dorian|Phrygian)$/.test(b), correctly)
   } else {
     return false
   }
@@ -842,10 +932,10 @@ describe('the app', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Tape 1: Reading basics/ }))
     expect(lcd()).toContain('UP NEXT')
     // Load tape opens the tape's page; Play starts the lesson.
-    fireEvent.click(screen.getByRole('button', { name: '⏏ Load tape' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Load tape' }))
     expect(window.location.hash).toBe('#/tape/r1')
     expect(screen.getByText('Liner notes')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '▶ Play' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     expect(window.location.hash).toBe('#/rehearse/r1-1')
     expect(screen.getByText('New idea 1 of 7')).toBeTruthy()
   })
@@ -1023,6 +1113,15 @@ describe('the app', () => {
       expect(screen.getByText('Take recorded')).toBeTruthy()
     })
   }
+
+  it('says right or wrong once, then springs the right note into place and lights a CLIP lamp for a miss', () => {
+    render(<App />)
+    go('/lesson/u7-1')
+    answer(false)
+    expect(screen.getByRole('status').dataset.result).toBe('clipped')
+    expect(document.querySelector('g[data-tone="correct"]')!.getAttribute('class')).toBe('marker-spring')
+    expect(document.querySelectorAll('[data-guide="clips"] .clip-on')).toHaveLength(1)
+  })
 
   it('runs a custom drill and a weak-spot round', () => {
     render(<App />)
@@ -1265,6 +1364,118 @@ describe('the app', () => {
     expect(panel()).toContain('Pattern 1 of the A minor pentatonic')
     fireEvent.click(document.querySelector('rect.fret-hit[data-pos="0:5"]')!)
     expect(panel()).toContain('The root of the A minor pentatonic')
+  })
+
+  it('adds the modes to the Scale view with the Modes tape', () => {
+    render(<App />)
+    const done = { stars: 3, completions: 1 }
+    act(() => useProgress.setState({ lessons: { 't2-2': done, 'md1-1': done } }))
+    go('/explore')
+    fireEvent.click(screen.getByRole('button', { name: 'Scale' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Modes' }))
+    const dots = () => [...document.querySelectorAll<SVGGElement>('svg[aria-label="Guitar fretboard"] g[data-tone]')]
+    const labels = (tone?: string) => new Set(dots().filter((g) => !tone || g.dataset.tone === tone).map((g) => g.querySelector('text')!.textContent))
+    // Dorian first: C's key button names D, every note of C major is lit, and the Ds glow as home.
+    expect(screen.getByRole('button', { name: 'Dorian' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'D' }).getAttribute('aria-pressed')).toBe('true')
+    expect(labels()).toEqual(new Set(['C', 'D', 'E', 'F', 'G', 'A', 'B']))
+    expect(labels('root')).toEqual(new Set(['D']))
+    // Mixolydian in C is G Mixolydian, its degrees counted from G.
+    fireEvent.click(screen.getByRole('button', { name: 'Mixolydian' }))
+    expect(screen.getByRole('button', { name: 'G' }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'Degrees' }))
+    expect(labels()).toEqual(new Set(['1', '2', '3', '4', '5', '6', '♭7']))
+    fireEvent.click(document.querySelector('rect.fret-hit[data-pos="0:3"]')!)
+    expect(screen.getByText('The root of G Mixolydian')).toBeTruthy()
+  })
+
+  describe('the first-run guide', () => {
+    const guide = () => screen.queryByRole('dialog', { name: /^Guide:/ })
+    const press = (name: string) => fireEvent.click(within(guide()!).getByRole('button', { name }))
+    // Long enough for one bubble to fade out and the next to rise in (about 550ms).
+    const settle = () => advanceTo(Date.now() + 600)
+
+    it('tours the home screen and ends there, then explains each new screen once', () => {
+      useProgress.setState({ guideDone: false, tipsSeen: {} })
+      render(<App />)
+      settle()
+      for (const text of ['Tapes are your lessons.', 'Jam is extra practice.', 'Fretboard is a reference neck.', 'Meters show your progress.']) {
+        expect(guide()!.textContent).toContain(text)
+        press('Next')
+        settle()
+      }
+      expect(guide()!.textContent).toContain('Tap Load tape whenever you’re ready.')
+      press('Got it')
+      settle()
+      // The tour opens nothing: it ends where it started.
+      expect(guide()).toBeNull()
+      expect(window.location.hash).toBe('#/')
+      expect(useProgress.getState().guideDone).toBe(true)
+      // Each new screen gets one tip, the first time you reach it, with nothing to skip.
+      fireEvent.click(screen.getByRole('button', { name: 'Load tape' }))
+      settle()
+      expect(guide()!.textContent).toContain('Play starts the next one.')
+      expect(within(guide()!).queryByRole('button', { name: 'Skip' })).toBeNull()
+      press('Got it')
+      settle()
+      expect(guide()).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+      settle()
+      expect(guide()!.textContent).toContain('Mistakes here don’t count.')
+      // A tip closes wherever you tap.
+      fireEvent.click(document.querySelector('[data-guide-catcher]')!, { clientX: 300, clientY: 500 })
+      settle()
+      expect(guide()).toBeNull()
+      playRehearsal()
+      fireEvent.click(screen.getByRole('button', { name: '● Record take' }))
+      settle()
+      expect(guide()!.textContent).toContain('Each mistake lights a CLIP lamp.')
+      press('Got it')
+      settle()
+      expect(guide()).toBeNull()
+      expect(useProgress.getState().tipsSeen).toEqual({ play: true, rehearsal: true, take: true })
+      go('/tape/r1')
+      settle()
+      expect(guide()).toBeNull()
+    })
+
+    it('can be skipped on any step without skipping the tips, and Settings brings it all back', () => {
+      useProgress.setState({ guideDone: false, tipsSeen: {} })
+      render(<App />)
+      settle()
+      press('Next')
+      settle()
+      press('Skip')
+      settle()
+      expect(guide()).toBeNull()
+      expect(useProgress.getState().guideDone).toBe(true)
+      go('/tape/r1')
+      settle()
+      expect(guide()!.textContent).toContain('Play starts the next one.')
+      press('Got it')
+      settle()
+      go('/settings')
+      fireEvent.click(screen.getByRole('button', { name: 'Show the guide again' }))
+      settle()
+      expect(window.location.hash).toBe('#/')
+      expect(guide()!.textContent).toContain('Tapes are your lessons.')
+      expect(useProgress.getState().tipsSeen).toEqual({})
+    })
+
+    it('leaves people with progress alone, and ignores taps outside the lit control on the tour', () => {
+      useProgress.setState({ guideDone: false, lessons: { 'r1-1': { stars: 3, completions: 1 } }, tipsSeen: { play: true, rehearsal: true, take: true } })
+      const first = render(<App />)
+      settle()
+      expect(guide()).toBeNull()
+      first.unmount()
+      useProgress.setState({ lessons: {}, tipsSeen: {} })
+      render(<App />)
+      settle()
+      fireEvent.click(document.querySelector('[data-guide-catcher]')!, { clientX: 200, clientY: 300 })
+      settle()
+      expect(guide()!.textContent).toContain('Tapes are your lessons.')
+      expect(window.location.hash).toBe('#/')
+    })
   })
 
   it('renders every tab and screen', () => {

@@ -613,7 +613,7 @@ const MINOR_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'mkey:why': () => ({
     title: 'Why minor keys',
     subtitle: 'Same notes, a darker home',
-    hook: 'Many songs are in a minor key: they feel at home on a minor chord, and sound darker or sadder for it. A minor key shares all its notes with its relative major (tape 27), so it shares its seven chords too. Only the home chord changes. Press ▶ Hear: Am, Dm, Em, Am.',
+    hook: 'Many songs are in a minor key: they feel at home on a minor chord, and sound darker or sadder for it. A minor key shares all its notes with its relative major (tape 27), so it shares its seven chords too. Only the home chord changes. Press ▶\uFE0E Hear: Am, Dm, Em, Am.',
     score: { measures: chordMeasures(...aChords(0, 3, 4, 0)), labels: ['Am', 'Dm', 'Em', 'Am'] },
     listen: listenTo(3, ...aChords(0, 3, 4, 0)),
     sound: [],
@@ -646,7 +646,7 @@ const MINOR_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'mkey:harmonic-why': () => ({
     title: 'A weak pull home',
     subtitle: 'The trouble with v',
-    hook: 'In natural minor, the chord on the 5th note is minor: Em in A minor. Its middle note, G, sits a whole step below home, so it doesn’t lead back to A very strongly. Press ▶ Hear: Em, then Am.',
+    hook: 'In natural minor, the chord on the 5th note is minor: Em in A minor. Its middle note, G, sits a whole step below home, so it doesn’t lead back to A very strongly. Press ▶\uFE0E Hear: Em, then Am.',
     score: { measures: chordMeasures(...aChords(4, 0)), labels: ['v', 'i'] },
     listen: listenTo(3, ...aChords(4, 0)),
     sound: [],
@@ -665,7 +665,7 @@ const MINOR_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'mkey:harmonic-v': () => ({
     title: 'A major V',
     subtitle: 'E instead of Em',
-    hook: 'With the raised 7th, the chord on the 5th note turns major: E G♯ B instead of E G B. It’s written V, capital for major. Add the 7th, D, and it’s V7: E7, the dominant 7th from tape 47. Both pull home to Am much harder than Em does. Press ▶ Hear: E7, then Am.',
+    hook: 'With the raised 7th, the chord on the 5th note turns major: E G♯ B instead of E G B. It’s written V, capital for major. Add the 7th, D, and it’s V7: E7, the dominant 7th from tape 47. Both pull home to Am much harder than Em does. Press ▶\uFE0E Hear: E7, then Am.',
     score: { measures: chordMeasures(H.V7.tones, A_TRIADS[0].tones), labels: ['V7', 'i'] },
     listen: listenTo(4, H.V7.tones, [...A_TRIADS[0].tones, parseTone('A')]),
     sound: [],
