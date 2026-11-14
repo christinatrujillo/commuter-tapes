@@ -26,7 +26,8 @@ describe('the shelf', () => {
     expect(tapeNumber(keys)).toBe(25)
     expect(tapeBefore(keys)).toBe(24)
     expect(tapeNumber(triads)).toBe(33)
-    expect(tapeBefore(triads)).toBe(32)
+    // Tape 32 is ear training, which holds nothing up.
+    expect(tapeBefore(triads)).toBe(31)
     expect(tapeNumber(findLesson('hk1-1')!.unit)).toBe(40)
     expect(tapeNumber(findLesson('cb1-1')!.unit)).toBe(45)
     expect(tapeNumber(findLesson('mk1-1')!.unit)).toBe(52)

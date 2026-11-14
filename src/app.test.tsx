@@ -940,6 +940,24 @@ describe('the app', () => {
     expect(screen.getByText('New idea 1 of 7')).toBeTruthy()
   })
 
+  it('starts the next track straight from the deck, and skips ear training while listening is paused', () => {
+    render(<App />)
+    // A sealed tape has nothing to play yet.
+    fireEvent.click(screen.getByRole('button', { name: /^Tape 3: B String · Staff/ }))
+    expect(screen.queryByRole('button', { name: 'Play next track' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^Tape 1: Reading basics/ }))
+    // Everything before the first ear-training tape is recorded: it's up next.
+    const done = ALL_LESSONS.slice(0, ALL_LESSONS.findIndex((l) => l.id === 't9-1')).map((l) => [l.id, { stars: 3, completions: 1 }])
+    act(() => useProgress.setState({ lessons: Object.fromEntries(done) }))
+    const lcd = () => document.querySelector('section .lcd')!.textContent
+    expect(lcd()).toContain('Octaves and 5ths')
+    // No headphones: the next track is the first that needs no sound, and it isn't sealed.
+    act(() => useProgress.getState().pauseListening())
+    expect(lcd()).toContain('Three notes, stacked')
+    fireEvent.click(screen.getByRole('button', { name: 'Play next track' }))
+    expect(window.location.hash).toBe('#/rehearse/tr1-1')
+  })
+
   it('rehearses a track, then records it; next time Record goes straight to the take', () => {
     render(<App />)
     go('/rehearse/r1-1')
@@ -1423,7 +1441,7 @@ describe('the app', () => {
         press('Next')
         settle()
       }
-      expect(guide()!.textContent).toContain('Tap Load tape whenever you’re ready.')
+      expect(guide()!.textContent).toContain('Tap Play next track whenever you’re ready.')
       press('Got it')
       settle()
       // The tour opens nothing: it ends where it started.

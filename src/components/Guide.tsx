@@ -25,10 +25,10 @@ const TOUR: Bubble[] = [
   {
     id: 'load',
     screen: 'home',
-    target: '[data-guide="load-tape"]',
+    target: '[data-guide="play-next"]',
     place: 'below',
     title: 'Your first lesson',
-    text: 'It’s loaded in the deck. Tap Load tape whenever you’re ready.',
+    text: 'It’s loaded in the deck. Tap Play next track whenever you’re ready.',
   },
 ]
 

@@ -72,7 +72,7 @@ export function MonitorsOffScreen() {
         <p className="mt-2 max-w-xs text-muted">
           {off === 'settings'
             ? 'This track is ear training, which is turned off in Settings.'
-            : 'This track is ear training, so it needs sound. Put your headphones on and switch the monitors back on, or come back later.'}
+            : 'This track is ear training, so it needs sound. Put your headphones on and switch the monitors back on, or come back later. The tracks after it stay open, so you can carry on without it.'}
         </p>
       </div>
       <div className="w-full max-w-xs">

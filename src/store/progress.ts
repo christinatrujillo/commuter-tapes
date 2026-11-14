@@ -287,15 +287,19 @@ export function isUnlocked(lessonId: string, lessons: Record<string, LessonRecor
   // Anything already recorded stays open, even if the shelf order has changed since.
   if (unlockAll || (lessons[lessonId]?.stars ?? 0) > 0) return true
   const i = ALL_LESSONS.findIndex((l) => l.id === lessonId)
-  // With ear training turned off, listening tracks don't hold up the ones after them.
-  const before = ALL_LESSONS.slice(0, Math.max(0, i)).filter((l) => earTraining || !isListening(l))
+  // Listening tracks never hold up the ones after them (no headphones on the train); they only wait on each other.
+  const waitsOnListening = earTraining && i >= 0 && isListening(ALL_LESSONS[i])
+  const before = ALL_LESSONS.slice(0, Math.max(0, i)).filter((l) => waitsOnListening || !isListening(l))
   return i <= 0 || !before.length || (lessons[before[before.length - 1].id]?.stars ?? 0) > 0
 }
 
-/** The first lesson you haven't finished yet (skipping listening tracks if ear training is off). */
+/** The first lesson you haven't finished yet (skipping listening tracks while listening is off or paused). */
 export function currentLessonId(lessons: Record<string, LessonRecord>, earTraining = true): string | null {
   return ALL_LESSONS.find((l) => !lessons[l.id]?.stars && (earTraining || !isListening(l)))?.id ?? null
 }
+
+/** Where a track starts: its rehearsal the first time through, then straight to the take. */
+export const trackPath = (id: string, s: Pick<ProgressData, 'rehearsed' | 'lessons'>) => (s.rehearsed[id] || s.lessons[id]?.stars ? `/lesson/${id}` : `/rehearse/${id}`)
 
 /** Why listening questions are off right now: turned off in Settings, paused with "Can't listen now", or null if they're on. */
 export function listeningOff(state: Pick<ProgressData, 'settings' | 'listeningPausedUntil'>, now = Date.now()): 'settings' | 'paused' | null {

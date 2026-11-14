@@ -4,7 +4,7 @@ import { HeadphonesIcon } from '../components/Monitors'
 import { LabelTape, TabShell, TransportIcon } from '../components/ui'
 import { navigate } from '../lib/router'
 import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber, VOLUMES, type Unit } from '../music/curriculum'
-import { currentLessonId, isUnlocked, useProgress } from '../store/progress'
+import { currentLessonId, isUnlocked, listeningOff, trackPath, useProgress } from '../store/progress'
 
 /** Wood grain, for the rack and its shelf rails. */
 const WOOD = 'bg-[repeating-linear-gradient(90deg,#4a3222_0px,#4f3625_5px,#432d1f_9px,#553a28_12px,#4a3222_17px)]'
@@ -28,7 +28,9 @@ function RackHome() {
   const lessons = useProgress((s) => s.lessons)
   const unlockAll = useProgress((s) => s.settings.unlockAll)
   const earTraining = useProgress((s) => s.settings.earTraining)
-  const current = currentLessonId(lessons, earTraining)
+  // With listening off or paused, the next track is the first one that doesn't need sound.
+  const listening = useProgress((s) => listeningOff(s) === null)
+  const current = currentLessonId(lessons, listening)
   const found = current ? findLesson(current) : null
   const doneCount = ALL_LESSONS.filter((l) => lessons[l.id]?.stars).length
   // The tape in the deck: your next lesson's, unless you've picked another off the rack.
@@ -100,9 +102,13 @@ function RackHome() {
 /** The tape deck: the loaded tape turning in the window, its next lesson on the LCD, and a key to open it. */
 function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit; isNext: boolean; locked: boolean }) {
   const lessons = useProgress((s) => s.lessons)
+  const rehearsed = useProgress((s) => s.rehearsed)
+  const unlockAll = useProgress((s) => s.settings.unlockAll)
+  const earTraining = useProgress((s) => s.settings.earTraining)
   const tape = tapeNumber(unit)
   const recorded = unit.lessons.filter((l) => lessons[l.id]?.stars).length
   const next = unit.lessons.find((l) => !lessons[l.id]?.stars)
+  const playable = next && isUnlocked(next.id, lessons, unlockAll, earTraining) ? next : null
   // What the LCD reads for this tape.
   const [top, middle, bottom] = locked
     ? ['SEALED', unit.title, `FINISH TAPE ${tapeBefore(unit)} FIRST`]
@@ -147,7 +153,17 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
         <span className="truncate text-lg leading-tight">{middle}</span>
         <span className="text-[11px] opacity-75">{bottom}</span>
       </div>
-      <button onClick={() => navigate(`/tape/${unit.id}`)} data-guide="load-tape" className="hw-btn hw-amber mt-4 flex w-full items-center justify-center gap-[0.45em] py-3.5 text-xl">
+      {/* The main key says what it does: it starts the next track. Load tape (the track list and liner notes) sits under it. */}
+      {playable && (
+        <button onClick={() => navigate(trackPath(playable.id, { rehearsed, lessons }))} data-guide="play-next" className="hw-btn hw-amber mt-4 flex w-full items-center justify-center gap-[0.45em] py-3.5 text-xl">
+          <TransportIcon kind="play" />
+          Play next track
+        </button>
+      )}
+      <button
+        onClick={() => navigate(`/tape/${unit.id}`)}
+        className={`hw-btn flex w-full items-center justify-center gap-[0.45em] ${playable ? 'hw-dark mt-2.5 py-2.5 text-sm' : 'hw-amber mt-4 py-3.5 text-xl'}`}
+      >
         <TransportIcon kind="eject" />
         Load tape
       </button>

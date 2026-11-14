@@ -155,6 +155,10 @@ describe('listening and the MONITORS switch', () => {
     // The second ear-training track waits for the first, unless ear training is off.
     expect(isUnlocked('t9-2', lessons, false)).toBe(false)
     expect(isUnlocked('t9-2', lessons, false, false)).toBe(true)
+    // Ear-training tracks never hold up the tracks after them.
+    const upToEar = Object.fromEntries(ALL_LESSONS.slice(0, ALL_LESSONS.findIndex((l) => l.id === 't9-1')).map((l) => [l.id, { stars: 3, completions: 1 }]))
+    expect(isUnlocked('tr1-1', upToEar, false)).toBe(true)
+    expect(isUnlocked('tr1-2', upToEar, false)).toBe(false)
   })
 
   it('leaves listening review out while listening is off, and tags it with its tape when on', () => {

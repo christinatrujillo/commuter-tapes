@@ -1792,8 +1792,8 @@ const NUMBERS = new Map(VOLUMES.flatMap((v) => v.tapes).map((t, i) => [t, i + 1]
 /** A tape's number on the shelf. */
 export const tapeNumber = (t: Unit | PlannedTape): number => NUMBERS.get(t)!
 
-/** The number of the tape to finish before this one opens: the recorded tape just before it. */
-export const tapeBefore = (unit: Unit): number => tapeNumber(UNITS[UNITS.indexOf(unit) - 1])
+/** The number of the tape to finish before this one opens: the recorded tape just before it, not counting ear-training tapes (they hold nothing up). */
+export const tapeBefore = (unit: Unit): number => tapeNumber(UNITS.slice(0, UNITS.indexOf(unit)).findLast((u) => !u.lessons.every(isListening))!)
 
 export function findLesson(id: string): { unit: Unit; lesson: LessonSpec } | null {
   for (const unit of UNITS) {

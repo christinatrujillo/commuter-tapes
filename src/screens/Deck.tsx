@@ -5,10 +5,10 @@ import { Fretboard, type Marker } from '../components/Fretboard'
 import { Staff } from '../components/Staff'
 import { BackHeader, Button, LabelTape, LedBar, TransportIcon } from '../components/ui'
 import { navigate } from '../lib/router'
-import { isListening, tapeNumber, UNITS, type LessonSpec } from '../music/curriculum'
+import { isListening, tapeBefore, tapeNumber, UNITS, type LessonSpec } from '../music/curriculum'
 import { mastery } from '../game/questions'
 import { allPositions, isNatural, midiAt, pcName, pitchClass, posKey } from '../music/notes'
-import { isUnlocked, RATING_NAMES, useProgress, type Rating } from '../store/progress'
+import { isUnlocked, RATING_NAMES, trackPath, useProgress, type Rating } from '../store/progress'
 
 /** One tape in the deck: its track list (lessons) and liner notes (tips). */
 export function DeckScreen({ unitId }: { unitId: string }) {
@@ -25,7 +25,7 @@ export function DeckScreen({ unitId }: { unitId: string }) {
   const next = unit.lessons.find((l) => !lessons[l.id]?.stars)
   const canRecord = next ? isUnlocked(next.id, lessons, unlockAll, earTraining) : false
   // The first time through, a track starts with its rehearsal.
-  const startPath = (id: string) => (rehearsed[id] || lessons[id]?.stars ? `/lesson/${id}` : `/rehearse/${id}`)
+  const startPath = (id: string) => trackPath(id, { rehearsed, lessons })
   const region = unit.tipRegion
   const spots = region ? allPositions(region).filter((p) => unit.tipAccidentals || isNatural(midiAt(p))) : []
   const fluent = spots.filter((p) => mastery(stats[posKey(p)]) === 'fluent').length
@@ -109,7 +109,7 @@ export function DeckScreen({ unitId }: { unitId: string }) {
                 Play
               </>
             ) : (
-              'Sealed: finish the tape before this one'
+              `Sealed: finish tape ${tapeBefore(unit)} first`
             )}
           </Button>
         ) : (
