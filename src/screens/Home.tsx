@@ -195,6 +195,8 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
 
 /** How many lamps each tape had lit the last time the rack was on screen, so newly recorded tracks can light up. */
 const lampsSeen = new Map<string, number>()
+/** Whether each tape was sealed the last time the rack was on screen, so a newly opened one can shed its cellophane. */
+const sealSeen = new Map<string, boolean>()
 
 /** One tape in the rack, spine out: color stripe, label-tape title, a lamp per lesson, and where you stand. */
 function Spine({
@@ -221,6 +223,8 @@ function Spine({
   const listening = unit.lessons.some(isListening)
   const litBefore = lampsSeen.get(unit.id) ?? done
   useEffect(() => void lampsSeen.set(unit.id, done), [unit.id, done])
+  const unwrapping = (sealSeen.get(unit.id) ?? locked) && !locked
+  useEffect(() => void sealSeen.set(unit.id, locked), [unit.id, locked])
   return (
     <button
       onClick={onPick}
@@ -230,7 +234,7 @@ function Spine({
         inDeck
           ? 'translate-x-3 bg-[linear-gradient(#3a2f28,#2a221d)] shadow-[0_0_18px_rgba(255,181,71,0.3)] ring-1 ring-amber/70'
           : 'bg-[linear-gradient(#2f2723,#211b18)]'
-      } ${locked ? 'opacity-55' : ''}`}
+      } ${locked ? 'opacity-55' : ''} ${unwrapping ? 'tape-unwrap' : ''}`}
     >
       <span className="w-2 self-stretch" style={{ background: locked ? 'var(--color-screw)' : unit.color }} />
       <span className="w-6 shrink-0 text-center font-mono text-xs text-muted">{String(number).padStart(2, '0')}</span>
@@ -253,7 +257,7 @@ function Spine({
         )}
       </span>
       {!locked && (
-        <span className="flex shrink-0 gap-1" aria-hidden>
+        <span className={`flex shrink-0 gap-1 ${unwrapping ? 'unwrap-lamps' : ''}`} aria-hidden>
           {unit.lessons.map((l, k) => (
             <span key={l.id} className={`led !h-2 !w-2 ${k < done ? 'led-green' : ''} ${k >= litBefore && k < done ? 'lamp-on' : ''}`} />
           ))}
@@ -261,8 +265,10 @@ function Spine({
       )}
       {/* The case's plastic: a faint sheen and a lit top edge. */}
       <span className="pointer-events-none absolute inset-0 rounded-[3px] bg-[linear-gradient(180deg,rgba(255,255,255,0.09)_0%,rgba(255,255,255,0.025)_45%,transparent_46%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" />
-      {/* Unopened tapes still have their cellophane. */}
-      {locked && <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_30%,rgba(255,255,255,0.08)_45%,transparent_60%)]" />}
+      {/* Unopened tapes still have their cellophane. When a tape opens, its shine sweeps off once. */}
+      {(locked || unwrapping) && (
+        <span className={`pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_30%,rgba(255,255,255,0.08)_45%,transparent_60%)] ${unwrapping ? 'unwrap-shine' : ''}`} />
+      )}
     </button>
   )
 }

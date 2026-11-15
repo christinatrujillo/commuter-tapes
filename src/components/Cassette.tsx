@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useEffect, useId, type ReactNode } from 'react'
 
 interface Props {
   title: string
@@ -13,11 +13,16 @@ interface Props {
   listening?: boolean
 }
 
+/** Whether each tape (by number) was finished the last time it was drawn, so the badge is pressed on once, when that changes. */
+const completeSeen = new Map<number, boolean>()
+
 /** A cassette with a handwritten label. The tape in the window winds over as tracks get recorded. */
 export function Cassette({ title, number, color, recorded, total, sealed = false, playing = false, listening = false }: Props) {
   const p = total ? recorded / total : 0
   const glass = useId()
   const complete = !sealed && recorded >= total
+  const pressBadge = complete && !(completeSeen.get(number) ?? complete)
+  useEffect(() => void completeSeen.set(number, complete), [number, complete])
   // The title sits on a strip of label-maker tape sized to fit it.
   const tapeWidth = Math.min(156, title.length * 6.4 + 14)
   const reel = (cx: number, pack: number) => (
@@ -114,8 +119,10 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
 
       {complete && (
         <g transform="translate(176 40) rotate(12)">
-          <circle r={11} fill="var(--color-gold)" stroke="#8a5a14" />
-          <path d="M-5 0.5 L-1.5 4 L5 -4" fill="none" stroke="#2a1a05" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+          <g className={pressBadge ? 'badge-press' : undefined}>
+            <circle r={11} fill="var(--color-gold)" stroke="#8a5a14" />
+            <path d="M-5 0.5 L-1.5 4 L5 -4" fill="none" stroke="#2a1a05" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+          </g>
         </g>
       )}
       {sealed && <path d="M 2 40 L 60 2 L 90 2 L 2 64 Z" fill="#ffffff" opacity={0.05} />}
