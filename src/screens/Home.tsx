@@ -109,6 +109,24 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
   const theoryFirst = useProgress((s) => s.settings.theoryFirst)
   const tape = tapeNumber(unit)
   const recorded = unit.lessons.filter((l) => lessons[l.id]?.stars).length
+  // The tape in the well trails the one picked: the old tape lifts out, then the new one drops in.
+  const [shown, setShown] = useState(unit)
+  const [change, setChange] = useState<'out' | 'in' | null>(null)
+  useEffect(() => {
+    if (unit === shown) return setChange(null)
+    setChange('out')
+    const swap = setTimeout(() => {
+      setShown(unit)
+      setChange('in')
+    }, 210)
+    const settle = setTimeout(() => setChange(null), 630)
+    return () => {
+      clearTimeout(swap)
+      clearTimeout(settle)
+    }
+    // Only a new pick starts a change; `shown` catching up must not cancel it.
+  }, [unit])
+  const shownSealed = !isUnlocked(shown.lessons[0].id, lessons, unlockAll, earTraining, theoryFirst)
   const next = unit.lessons.find((l) => !lessons[l.id]?.stars)
   const playable = next && isUnlocked(next.id, lessons, unlockAll, earTraining, theoryFirst) ? next : null
   // What the LCD reads for this tape.
@@ -119,9 +137,10 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
       : [isNext ? 'UP NEXT' : 'NEXT ON THIS TAPE', next.title, `TAPE ${tape} · TRACK ${unit.lessons.indexOf(next) + 1} OF ${unit.lessons.length}`]
   return (
     <section ref={ref} className="panel scroll-mt-4 px-4 pt-6 pb-4">
-      {/* The tape in the deck, front and center; a newly loaded tape slides in. The band on it: blinking
+      {/* The tape in the deck, front and center; a newly loaded tape drops in. The band on it: blinking
           "now playing" for your next lesson's tape, steady "loaded" for one you're browsing. */}
       <DeckWell
+        open={change !== null}
         band={
           <>
             <span className={`led !h-2 !w-2 ${isNext ? 'led-red breathe' : 'led-amber'}`} />
@@ -129,16 +148,16 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
           </>
         }
       >
-        <div key={unit.id} className="slide-up">
+        <div className={change ? `tape-${change}` : ''}>
           <Cassette
-            title={unit.title}
-            number={tape}
-            color={unit.color}
-            recorded={recorded}
-            total={unit.lessons.length}
-            sealed={locked}
-            playing={!locked}
-            listening={unit.lessons.some(isListening)}
+            title={shown.title}
+            number={tapeNumber(shown)}
+            color={shown.color}
+            recorded={shown.lessons.filter((l) => lessons[l.id]?.stars).length}
+            total={shown.lessons.length}
+            sealed={shownSealed}
+            playing={!shownSealed && !change}
+            listening={shown.lessons.some(isListening)}
           />
         </div>
       </DeckWell>

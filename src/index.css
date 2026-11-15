@@ -383,6 +383,28 @@ p {
   60% { box-shadow: 0 0 14px var(--color-led); }
 }
 
+/*
+ * Changing the tape in the deck: the door tips open, the old tape lifts out, the new one drops in
+ * and settles, and the door closes (see Deck in Home.tsx for the timing).
+ */
+.deck-door {
+  transform-origin: bottom;
+  transition: transform 260ms ease-out, opacity 260ms ease-out;
+}
+.deck-door-open {
+  transform: perspective(500px) rotateX(-42deg);
+  opacity: 0.45;
+  transition-duration: 180ms;
+}
+.tape-out { animation: tape-out 200ms ease-in forwards; }
+@keyframes tape-out {
+  to { transform: translateY(-112%); }
+}
+.tape-in { animation: tape-in 420ms cubic-bezier(0.3, 1.25, 0.5, 1) backwards; }
+@keyframes tape-in {
+  from { transform: translateY(-112%); }
+}
+
 /* ---------- First-run guide ---------- */
 
 /*
@@ -465,7 +487,8 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .breathe, .level-bar, .blink, .reel-spin, .fade-in, .slide-up, .marker-pop, .marker-pulse, .stamp { animation: none; }
-  .panel-rise, .marker-spring, .clip-on, .lamp-on { animation: none; }
+  .panel-rise, .marker-spring, .clip-on, .lamp-on, .tape-out, .tape-in { animation: none; }
+  .deck-door { transition: none; }
   .guide-spot, .guide-ring, .guide-in, .guide-out, .guide-words-in, .guide-words-out, .guide-dot-on { animation: none; }
   .guide-arrow { transition: none; }
 }

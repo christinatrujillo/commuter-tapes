@@ -359,10 +359,38 @@ function Pace({ kind, ms }: { kind: Question['kind']; ms: number }) {
 // End screens
 // ---------------------------------------------------------------------------
 
-function EndReadout({ label, value }: { label: string; value: string }) {
+/** A number that climbs from 0 to `to` after `delay` ms, for the end-of-take readouts. */
+function useCountUp(to: number, delay: number): number {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return setValue(to)
+    let frame = 0
+    const timer = setTimeout(() => {
+      const start = performance.now()
+      const step = (now: number) => {
+        const p = Math.min(1, (now - start) / 500)
+        setValue(Math.round(to * (1 - (1 - p) ** 3)))
+        if (p < 1) frame = requestAnimationFrame(step)
+      }
+      frame = requestAnimationFrame(step)
+    }, delay)
+    return () => {
+      clearTimeout(timer)
+      cancelAnimationFrame(frame)
+    }
+  }, [to, delay])
+  return value
+}
+
+/** How long after the screen opens each readout starts counting, and when the stamp lands after the last. */
+const READOUT_DELAYS = [200, 480, 760]
+const STAMP_DELAY = '1.3s'
+
+function EndReadout({ label, to, show, order }: { label: string; to: number; show: (n: number) => string; order: number }) {
+  const value = useCountUp(to, READOUT_DELAYS[order])
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <span className="lcd w-full py-2 text-center text-xl">{value}</span>
+      <span className="lcd w-full py-2 text-center text-xl">{show(value)}</span>
       <span className="label-text text-[11px] text-muted">{label}</span>
     </div>
   )
@@ -393,15 +421,16 @@ function CompleteScreen({ summary, title, offerReview }: { summary: Summary; tit
             <LabelTape size="lg">{title}</LabelTape>
           </h1>
           {summary.rating && (
-            <div className="stamp label-text absolute right-4 bottom-2.5 rounded border-2 border-stamp px-2 py-0.5 text-sm text-stamp">
+            <div className="stamp label-text absolute right-4 bottom-2.5 rounded border-2 border-stamp px-2 py-0.5 text-sm text-stamp" style={{ animationDelay: STAMP_DELAY }}>
               {RATING_NAMES[summary.rating]}
             </div>
           )}
         </div>
         <div className="grid w-full max-w-sm grid-cols-3 gap-3">
-          <EndReadout label="Notes" value={`+${summary.nailed}`} />
-          <EndReadout label="Accuracy" value={`${Math.round(summary.accuracy * 100)}%`} />
-          <EndReadout label="On the beat" value={summary.timed ? `${summary.onBeat}/${summary.timed}` : '—'} />
+          {/* The readouts count up one after another, then the stamp lands. */}
+          <EndReadout order={0} label="Notes" to={summary.nailed} show={(n) => `+${n}`} />
+          <EndReadout order={1} label="Accuracy" to={Math.round(summary.accuracy * 100)} show={(n) => `${n}%`} />
+          <EndReadout order={2} label="On the beat" to={summary.onBeat} show={(n) => (summary.timed ? `${n}/${summary.timed}` : '—')} />
         </div>
         {summary.streakExtended && (
           <p className="label-text text-sm text-amber">

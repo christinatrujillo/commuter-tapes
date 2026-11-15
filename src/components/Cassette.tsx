@@ -139,9 +139,10 @@ function HeadphonesMark({ ink }: { ink: string }) {
 
 /**
  * The deck a loaded tape sits in: a dark, recessed well behind a tinted acrylic door, like a
- * front-loading cassette deck. `band` floats over the top edge ("Now playing").
+ * front-loading cassette deck. `band` floats over the top edge ("Now playing"). `open` tips the door
+ * forward while a tape is being changed.
  */
-export function DeckWell({ children, band }: { children: ReactNode; band?: ReactNode }) {
+export function DeckWell({ children, band, open = false }: { children: ReactNode; band?: ReactNode; open?: boolean }) {
   return (
     <div className="relative w-full overflow-hidden rounded-lg bg-[#0d0a08] p-3 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]">
       {band && (
@@ -150,7 +151,7 @@ export function DeckWell({ children, band }: { children: ReactNode; band?: React
       {children}
       {/* The door: reflections across the acrylic, and a hinge along the bottom. It doesn't catch taps. */}
       <div
-        className="pointer-events-none absolute inset-1.5 z-10 rounded-[2px] border border-white/10 bg-[rgba(28,18,12,0.22)] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.35)]"
+        className={`deck-door ${open ? 'deck-door-open' : ''} pointer-events-none absolute inset-1.5 z-10 rounded-[2px] border border-white/10 bg-[rgba(28,18,12,0.22)] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.35)]`}
         aria-hidden
       >
         <div className="absolute inset-0 rounded-[2px] bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.11)_30%,rgba(255,255,255,0.03)_40%,transparent_47%,transparent_62%,rgba(255,255,255,0.06)_68%,transparent_74%)]" />
