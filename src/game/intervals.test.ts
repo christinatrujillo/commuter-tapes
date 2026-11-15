@@ -132,7 +132,7 @@ describe('Vol. 4 teaching', () => {
 })
 
 describe('listening and the MONITORS switch', () => {
-  const settings = (earTraining: boolean) => ({ sound: false, haptics: false, autoContinue: false, leftHanded: false, highEOnTop: true, unlockAll: false, dailyGoal: 30, metronome: 'click' as const, earTraining })
+  const settings = (earTraining: boolean) => ({ sound: false, haptics: false, autoContinue: false, leftHanded: false, highEOnTop: true, unlockAll: false, dailyGoal: 30, metronome: 'click' as const, earTraining, theoryFirst: false })
 
   it('knows which tracks are ear training', () => {
     expect(isListening(findLesson('t9-1')!.lesson)).toBe(true)

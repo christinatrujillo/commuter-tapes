@@ -10,13 +10,18 @@ import { PracticeScreen } from './screens/Practice'
 import { RehearsalScreen } from './screens/Rehearsal'
 import { SettingsScreen } from './screens/Settings'
 import { SprintScreen } from './screens/Sprint'
+import { StartScreen } from './screens/Start'
 import { StatsScreen } from './screens/Stats'
+import { useProgress } from './store/progress'
 
 export function App() {
   const { parts, query } = useRoute()
   // Changing screens cuts off anything the last one was still playing.
   const where = `${parts.join('/')}?${query}`
   useEffect(() => stopSounds(), [where])
+  // Someone brand new picks where to start before anything else, the tour included.
+  const askStart = useProgress((s) => !s.startChosen && !s.guideDone && Object.keys(s.lessons).length === 0)
+  if (askStart) return <StartScreen />
   return (
     <>
       <Screen parts={parts} query={query} />

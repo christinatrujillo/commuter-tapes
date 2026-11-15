@@ -16,20 +16,14 @@ interface Bubble {
   text: string
 }
 
-/** The tour: the four tabs, then where your first lesson is. It stays on the home screen. */
+/** The tour: the four tabs, then the deck's two keys. It stays on the home screen. */
 const TOUR: Bubble[] = [
   { id: 'tapes', screen: 'home', target: '[data-guide="tab-tapes"]', place: 'above', title: 'Tabs', text: 'Tapes are your lessons.' },
   { id: 'jam', screen: 'home', target: '[data-guide="tab-practice"]', place: 'above', title: 'Tabs', text: 'Jam is extra practice.' },
   { id: 'fretboard', screen: 'home', target: '[data-guide="tab-explore"]', place: 'above', title: 'Tabs', text: 'Fretboard is a reference neck.' },
   { id: 'meters', screen: 'home', target: '[data-guide="tab-stats"]', place: 'above', title: 'Tabs', text: 'Meters show your progress.' },
-  {
-    id: 'load',
-    screen: 'home',
-    target: '[data-guide="play-next"]',
-    place: 'below',
-    title: 'Your first lesson',
-    text: 'It’s loaded in the deck. Tap Play next track whenever you’re ready.',
-  },
+  { id: 'next', screen: 'home', target: '[data-guide="play-next"]', place: 'below', title: 'Your first lesson', text: 'Play next track starts your next lesson straight away.' },
+  { id: 'load', screen: 'home', target: '[data-guide="load-tape"]', place: 'below', title: 'The tape', text: 'Load tape opens the tape first: its track list and liner notes.' },
 ]
 
 /** One-time tips, each the first time you reach its screen yourself. */

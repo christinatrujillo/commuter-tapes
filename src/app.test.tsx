@@ -6,7 +6,7 @@ import { ALL_LESSONS } from './music/curriculum'
 import { INTERVALS, midiAt, parsePosKey, pcName, pitchClass, spelledMidi, type Letter } from './music/notes'
 import { eventQuarters, METER_PULSE, METER_QUARTERS, onsets, SYMBOLS, symbolOf, type Measure, type Meter, type RhythmEvent } from './music/rhythm'
 import { KEYS, MOTION_NAMES, motionBetween, resolveNotes, type KeyId, type ScoreMeasure } from './music/score'
-import { useProgress } from './store/progress'
+import { currentLessonId, isUnlocked, THEORY_START, useProgress } from './store/progress'
 
 // Ear questions play notes the player can't see; the stand-in remembers the last ones played.
 // It also counts how often the screens ask for sound to stop.
@@ -940,6 +940,37 @@ describe('the app', () => {
     expect(screen.getByText('New idea 1 of 7')).toBeTruthy()
   })
 
+  it('asks a brand-new learner where to start, and opens Vol. 3 for straight to theory', () => {
+    useProgress.setState({ guideDone: false })
+    render(<App />)
+    // Asked from any screen (Settings, after erasing everything), the answer lands on the deck.
+    go('/settings')
+    fireEvent.click(screen.getByRole('button', { name: /Straight to theory/ }))
+    expect(window.location.hash).toBe('#/')
+    expect(document.querySelector('section .lcd')!.textContent).toContain('Half and whole steps')
+    const { lessons, settings } = useProgress.getState()
+    expect(isUnlocked(THEORY_START, lessons, false, true, settings.theoryFirst)).toBe(true)
+    expect(isUnlocked('t1-2', lessons, false, true, settings.theoryFirst)).toBe(false)
+    // The reading tapes are still there, from their first track.
+    expect(isUnlocked('r1-1', lessons, false, true, settings.theoryFirst)).toBe(true)
+    // After the theory tapes, the reading and fretboard tapes come up next.
+    const theory = Object.fromEntries(ALL_LESSONS.slice(ALL_LESSONS.findIndex((l) => l.id === THEORY_START)).map((l) => [l.id, { stars: 3, completions: 1 }]))
+    expect(currentLessonId(theory, true, true)).toBe('r1-1')
+  })
+
+  it('picks a take up where it left off after a reload', () => {
+    const { unmount } = render(<App />)
+    act(() => useProgress.setState({ rehearsed: { 'r1-1': true } }))
+    go('/lesson/r1-1')
+    answer(true)
+    fireEvent.click(continueButton()!)
+    const second = prompt()
+    unmount()
+    render(<App />)
+    expect(prompt()).toBe(second)
+    expect(document.querySelector('header')!.textContent).toContain('2')
+  })
+
   it('starts the next track straight from the deck, and skips ear training while listening is paused', () => {
     render(<App />)
     // A sealed tape has nothing to play yet.
@@ -1433,7 +1464,7 @@ describe('the app', () => {
     const settle = () => advanceTo(Date.now() + 600)
 
     it('tours the home screen and ends there, then explains each new screen once', () => {
-      useProgress.setState({ guideDone: false, tipsSeen: {} })
+      useProgress.setState({ guideDone: false, tipsSeen: {}, startChosen: true })
       render(<App />)
       settle()
       for (const text of ['Tapes are your lessons.', 'Jam is extra practice.', 'Fretboard is a reference neck.', 'Meters show your progress.']) {
@@ -1441,7 +1472,10 @@ describe('the app', () => {
         press('Next')
         settle()
       }
-      expect(guide()!.textContent).toContain('Tap Play next track whenever you’re ready.')
+      expect(guide()!.textContent).toContain('Play next track starts your next lesson straight away.')
+      press('Next')
+      settle()
+      expect(guide()!.textContent).toContain('Load tape opens the tape first')
       press('Got it')
       settle()
       // The tour opens nothing: it ends where it started.
@@ -1477,7 +1511,7 @@ describe('the app', () => {
     })
 
     it('can be skipped on any step without skipping the tips, and Settings brings it all back', () => {
-      useProgress.setState({ guideDone: false, tipsSeen: {} })
+      useProgress.setState({ guideDone: false, tipsSeen: {}, startChosen: true })
       render(<App />)
       settle()
       press('Next')
@@ -1505,7 +1539,7 @@ describe('the app', () => {
       settle()
       expect(guide()).toBeNull()
       first.unmount()
-      useProgress.setState({ lessons: {}, tipsSeen: {} })
+      useProgress.setState({ lessons: {}, tipsSeen: {}, startChosen: true })
       render(<App />)
       settle()
       fireEvent.click(document.querySelector('[data-guide-catcher]')!, { clientX: 200, clientY: 300 })

@@ -113,6 +113,43 @@ function Unavailable({ message }: { message: string }) {
 // The lesson itself
 // ---------------------------------------------------------------------------
 
+/**
+ * The take in progress, saved as it goes: if the tab closes or the page reloads (your stop came
+ * up), opening the same session again the same day picks up at the question you were on.
+ */
+const TAKE_KEY = 'commuter-tapes-take'
+// Bump when the shape of a saved question changes, so an old save is dropped instead of resumed.
+const TAKE_VERSION = 1
+
+interface TakeState {
+  queue: Question[]
+  index: number
+  mistakes: number
+  correct: number
+  onBeat: number
+  timed: number
+}
+
+function loadTake(): TakeState | null {
+  try {
+    const t = JSON.parse(localStorage.getItem(TAKE_KEY) ?? 'null') as (TakeState & { v: number; route: string; day: string }) | null
+    const ok = t && t.v === TAKE_VERSION && t.route === window.location.hash && t.day === today() && Array.isArray(t.queue) && t.index < t.queue.length
+    // Fresh ids, so they can't collide with questions made after the reload.
+    return ok ? { ...t, queue: t.queue.map((q) => ({ ...q, id: newQuestionId() })) } : null
+  } catch {
+    return null
+  }
+}
+
+function saveTake(take: TakeState | null) {
+  try {
+    if (take) localStorage.setItem(TAKE_KEY, JSON.stringify({ v: TAKE_VERSION, route: window.location.hash, day: today(), ...take }))
+    else localStorage.removeItem(TAKE_KEY)
+  } catch {
+    // Storage is full or blocked: the take just can't be resumed.
+  }
+}
+
 function LessonRunner({
   questions,
   lessonId,
@@ -130,18 +167,25 @@ function LessonRunner({
   const autoContinue = useProgress((s) => s.settings.autoContinue)
   const landscape = useLandscape()
 
-  const [queue, setQueue] = useState(questions)
-  const [index, setIndex] = useState(0)
-  const [mistakes, setMistakes] = useState(0)
-  const [correct, setCorrect] = useState(0)
-  const [onBeat, setOnBeat] = useState(0)
-  const [timed, setTimed] = useState(0)
+  const [saved] = useState(loadTake)
+  const [queue, setQueue] = useState(saved?.queue ?? questions)
+  const [index, setIndex] = useState(saved?.index ?? 0)
+  const [mistakes, setMistakes] = useState(saved?.mistakes ?? 0)
+  const [correct, setCorrect] = useState(saved?.correct ?? 0)
+  const [onBeat, setOnBeat] = useState(saved?.onBeat ?? 0)
+  const [timed, setTimed] = useState(saved?.timed ?? 0)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [failed, setFailed] = useState(false)
   const questionStart = useRef(Date.now())
 
   const q = queue[index]
+
+  // Saved at the start of each question, so a resumed take asks the one you were on again.
+  useEffect(() => {
+    if (!answer && !summary && !failed) saveTake({ queue, index, mistakes, correct, onBeat, timed })
+    // The counts only change with an answer, and the next question saves them.
+  }, [answer, index, queue])
 
   function submit(ok: boolean, detail: Omit<Answer, 'ok' | 'ms'> = {}) {
     if (answer) return
@@ -170,7 +214,10 @@ function LessonRunner({
   const input = useQuestionInput(q, answer, submit)
 
   function next() {
-    if (mistakes >= MAX_CLIPS) return setFailed(true)
+    if (mistakes >= MAX_CLIPS) {
+      saveTake(null)
+      return setFailed(true)
+    }
     if (index + 1 >= queue.length) return finish()
     setIndex((i) => i + 1)
     setAnswer(null)
@@ -178,6 +225,7 @@ function LessonRunner({
   }
 
   function finish() {
+    saveTake(null)
     const { streakExtended } = completeSession({ lessonId, nailed: correct, mistakes })
     setSummary({
       nailed: correct,
@@ -212,7 +260,10 @@ function LessonRunner({
   }
 
   function quit() {
-    if ((index === 0 && !answer) || window.confirm('Stop recording? You’ll lose this take.')) goBack()
+    if ((index === 0 && !answer) || window.confirm('Stop recording? You’ll lose this take.')) {
+      saveTake(null)
+      goBack()
+    }
   }
 
   // A Review session doesn't offer another one straight after.

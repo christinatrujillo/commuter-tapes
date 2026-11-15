@@ -18,12 +18,13 @@ export function DeckScreen({ unitId }: { unitId: string }) {
   const stats = useProgress((s) => s.stats)
   const unlockAll = useProgress((s) => s.settings.unlockAll)
   const earTraining = useProgress((s) => s.settings.earTraining)
+  const theoryFirst = useProgress((s) => s.settings.theoryFirst)
   if (!unit) return <BackHeader title="Tape not found" />
 
   const tape = tapeNumber(unit)
   const recorded = unit.lessons.filter((l) => lessons[l.id]?.stars).length
   const next = unit.lessons.find((l) => !lessons[l.id]?.stars)
-  const canRecord = next ? isUnlocked(next.id, lessons, unlockAll, earTraining) : false
+  const canRecord = next ? isUnlocked(next.id, lessons, unlockAll, earTraining, theoryFirst) : false
   // The first time through, a track starts with its rehearsal.
   const startPath = (id: string) => trackPath(id, { rehearsed, lessons })
   const region = unit.tipRegion
@@ -69,7 +70,7 @@ export function DeckScreen({ unitId }: { unitId: string }) {
                   number={i + 1}
                   lesson={lesson}
                   rating={(lessons[lesson.id]?.stars as Rating | undefined) ?? null}
-                  unlocked={isUnlocked(lesson.id, lessons, unlockAll, earTraining)}
+                  unlocked={isUnlocked(lesson.id, lessons, unlockAll, earTraining, theoryFirst)}
                   rehearsed={!!rehearsed[lesson.id]}
                   startPath={startPath(lesson.id)}
                 />

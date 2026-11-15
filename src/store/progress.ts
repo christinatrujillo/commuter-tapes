@@ -40,6 +40,8 @@ export interface Settings {
   metronome: 'click' | 'vibrate'
   /** Ear-training questions (they need headphones on a train). Off means listening tracks are skipped. */
   earTraining: boolean
+  /** Start at Vol. 3, for people who already read music and know the neck. Vol. 1 and 2 stay on the rack. */
+  theoryFirst: boolean
 }
 
 export interface LessonRecord {
@@ -74,6 +76,8 @@ interface ProgressData {
   guideDone: boolean
   /** One-time tips already shown. */
   tipsSeen: Partial<Record<TipId, true>>
+  /** The first-run question (from the beginning, or straight to theory) has been answered. */
+  startChosen: boolean
 }
 
 export type Rating = 1 | 2 | 3
@@ -101,6 +105,8 @@ interface ProgressState extends ProgressData {
   /** Ends the tour (Got it or Skip) for good. */
   finishGuide: () => void
   seeTip: (id: TipId) => void
+  /** Answers the first-run question. */
+  chooseStart: (theoryFirst: boolean) => void
   /** "Show the guide again": the tour from the start, and the tips once more. */
   replayGuide: () => void
 }
@@ -115,6 +121,7 @@ const DEFAULT_SETTINGS: Settings = {
   dailyGoal: 30,
   metronome: 'click',
   earTraining: true,
+  theoryFirst: false,
 }
 
 /** How long "Can't listen now" lasts. */
@@ -133,6 +140,7 @@ const initialData = (): ProgressData => ({
   jam: { setup: DEFAULT_DRILL, sprint: null },
   guideDone: false,
   tipsSeen: {},
+  startChosen: false,
 })
 
 export const useProgress = create<ProgressState>()(
@@ -220,13 +228,15 @@ export const useProgress = create<ProgressState>()(
 
       seeTip: (id) => set((state) => ({ tipsSeen: { ...state.tipsSeen, [id]: true } })),
 
+      chooseStart: (theoryFirst) => set((state) => ({ startChosen: true, settings: { ...state.settings, theoryFirst } })),
+
       replayGuide: () => set({ guideStep: 0, tipsSeen: {} }),
     }),
     {
       // Kept from the app's original name so saved progress isn't lost.
       name: 'fretboard-trainer',
       version: 3,
-      partialize: ({ nailed, bests, rehearsed, lessons, stats, streak, daily, settings, listeningPausedUntil, jam, guideDone, tipsSeen }) => ({
+      partialize: ({ nailed, bests, rehearsed, lessons, stats, streak, daily, settings, listeningPausedUntil, jam, guideDone, tipsSeen, startChosen }) => ({
         nailed,
         bests,
         rehearsed,
@@ -239,6 +249,7 @@ export const useProgress = create<ProgressState>()(
         jam,
         guideDone,
         tipsSeen,
+        startChosen,
       }),
       // Version 1 counted XP (with lesson bonuses); keep it as the starting "notes nailed" count.
       migrate: (persisted, version) => {
@@ -283,9 +294,13 @@ export function currentStreak(streak: ProgressData['streak']): number {
 
 export const todayNailed = (daily: ProgressData['daily']) => (daily.date === today() ? daily.nailed : 0)
 
-export function isUnlocked(lessonId: string, lessons: Record<string, LessonRecord>, unlockAll: boolean, earTraining = true): boolean {
+/** The first track of Vol. 3, where the theory starts. */
+export const THEORY_START = 't1-1'
+
+export function isUnlocked(lessonId: string, lessons: Record<string, LessonRecord>, unlockAll: boolean, earTraining = true, theoryFirst = false): boolean {
   // Anything already recorded stays open, even if the shelf order has changed since.
   if (unlockAll || (lessons[lessonId]?.stars ?? 0) > 0) return true
+  if (theoryFirst && lessonId === THEORY_START) return true
   const i = ALL_LESSONS.findIndex((l) => l.id === lessonId)
   // Listening tracks never hold up the ones after them (no headphones on the train); they only wait on each other.
   const waitsOnListening = earTraining && i >= 0 && isListening(ALL_LESSONS[i])
@@ -294,8 +309,10 @@ export function isUnlocked(lessonId: string, lessons: Record<string, LessonRecor
 }
 
 /** The first lesson you haven't finished yet (skipping listening tracks while listening is off or paused). */
-export function currentLessonId(lessons: Record<string, LessonRecord>, earTraining = true): string | null {
-  return ALL_LESSONS.find((l) => !lessons[l.id]?.stars && (earTraining || !isListening(l)))?.id ?? null
+export function currentLessonId(lessons: Record<string, LessonRecord>, earTraining = true, theoryFirst = false): string | null {
+  // Starting at theory: Vol. 3 onward comes first, then the reading and fretboard tapes.
+  const start = theoryFirst ? ALL_LESSONS.findIndex((l) => l.id === THEORY_START) : 0
+  return [...ALL_LESSONS.slice(start), ...ALL_LESSONS.slice(0, start)].find((l) => !lessons[l.id]?.stars && (earTraining || !isListening(l)))?.id ?? null
 }
 
 /** Where a track starts: its rehearsal the first time through, then straight to the take. */
@@ -351,7 +368,7 @@ function readSettings(v: unknown): Settings {
  * The progress in a backup file, or null if it isn't one. Only the fields a backup holds are read,
  * and anything of the wrong shape is dropped, so a damaged or tampered file can't break the app.
  */
-export function readBackup(data: unknown): Omit<ProgressData, 'listeningPausedUntil' | 'jam' | 'guideDone' | 'tipsSeen'> | null {
+export function readBackup(data: unknown): Omit<ProgressData, 'listeningPausedUntil' | 'jam' | 'guideDone' | 'tipsSeen' | 'startChosen'> | null {
   if (!isObject(data) || !isObject(data.stats) || !isObject(data.lessons)) return null
   const streak = isObject(data.streak) ? data.streak : {}
   const daily = isObject(data.daily) ? data.daily : {}

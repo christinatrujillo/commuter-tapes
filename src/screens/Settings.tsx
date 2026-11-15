@@ -112,6 +112,12 @@ export function SettingsScreen() {
               onChange={(autoContinue) => update({ autoContinue })}
             />
             <Toggle
+              label="Start at theory"
+              hint="Open Vol. 3 first, if you already read music and know the neck. Vol. 1 and 2 stay on the rack."
+              checked={settings.theoryFirst}
+              onChange={(theoryFirst) => update({ theoryFirst })}
+            />
+            <Toggle
               label="Unseal every tape"
               hint="Record any track without finishing the ones before it"
               checked={settings.unlockAll}

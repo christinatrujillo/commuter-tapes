@@ -7,10 +7,10 @@ import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber
 import { currentLessonId, isUnlocked, listeningOff, trackPath, useProgress } from '../store/progress'
 
 /** Wood grain, for the rack and its shelf rails. */
-const WOOD = 'bg-[repeating-linear-gradient(90deg,#4a3222_0px,#4f3625_5px,#432d1f_9px,#553a28_12px,#4a3222_17px)]'
+export const WOOD = 'bg-[repeating-linear-gradient(90deg,#4a3222_0px,#4f3625_5px,#432d1f_9px,#553a28_12px,#4a3222_17px)]'
 /** Lettering cut into the rails: shaded darker at the top of each letter, its top lip in shadow, its bottom edge catching the light. */
-const CARVED = 'bg-clip-text text-transparent [filter:drop-shadow(0_-1px_0_rgba(0,0,0,0.85))_drop-shadow(0_1px_0_rgba(255,226,180,0.22))]'
-const CARVED_TITLE = 'bg-[linear-gradient(180deg,#6f5234_0%,#b0905f_45%,#ead0a6_100%)]'
+export const CARVED = 'bg-clip-text text-transparent [filter:drop-shadow(0_-1px_0_rgba(0,0,0,0.85))_drop-shadow(0_1px_0_rgba(255,226,180,0.22))]'
+export const CARVED_TITLE = 'bg-[linear-gradient(180deg,#6f5234_0%,#b0905f_45%,#ead0a6_100%)]'
 const CARVED_LABEL = 'bg-[linear-gradient(180deg,#5e452b_0%,#94784f_45%,#c9ab80_100%)]'
 
 /** Home: a tape deck holding your next lesson's tape, and a rack of every tape below it, by volume. */
@@ -30,7 +30,8 @@ function RackHome() {
   const earTraining = useProgress((s) => s.settings.earTraining)
   // With listening off or paused, the next track is the first one that doesn't need sound.
   const listening = useProgress((s) => listeningOff(s) === null)
-  const current = currentLessonId(lessons, listening)
+  const theoryFirst = useProgress((s) => s.settings.theoryFirst)
+  const current = currentLessonId(lessons, listening, theoryFirst)
   const found = current ? findLesson(current) : null
   const doneCount = ALL_LESSONS.filter((l) => lessons[l.id]?.stars).length
   // The tape in the deck: your next lesson's, unless you've picked another off the rack.
@@ -50,7 +51,7 @@ function RackHome() {
           ref={deckRef}
           unit={loaded}
           isNext={loaded === found?.unit}
-          locked={!isUnlocked(loaded.lessons[0].id, lessons, unlockAll, earTraining)}
+          locked={!isUnlocked(loaded.lessons[0].id, lessons, unlockAll, earTraining, theoryFirst)}
         />
       ) : (
         <p className="panel p-5 text-cream">Every tape is recorded. Keep it fresh in Jam.</p>
@@ -84,7 +85,7 @@ function RackHome() {
                         done={t.lessons.filter((l) => lessons[l.id]?.stars).length}
                         isCurrent={t === found?.unit}
                         inDeck={t === loaded}
-                        locked={!isUnlocked(t.lessons[0].id, lessons, unlockAll, earTraining)}
+                        locked={!isUnlocked(t.lessons[0].id, lessons, unlockAll, earTraining, theoryFirst)}
                         onPick={() => pick(t)}
                       />
                     </li>
@@ -105,10 +106,11 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
   const rehearsed = useProgress((s) => s.rehearsed)
   const unlockAll = useProgress((s) => s.settings.unlockAll)
   const earTraining = useProgress((s) => s.settings.earTraining)
+  const theoryFirst = useProgress((s) => s.settings.theoryFirst)
   const tape = tapeNumber(unit)
   const recorded = unit.lessons.filter((l) => lessons[l.id]?.stars).length
   const next = unit.lessons.find((l) => !lessons[l.id]?.stars)
-  const playable = next && isUnlocked(next.id, lessons, unlockAll, earTraining) ? next : null
+  const playable = next && isUnlocked(next.id, lessons, unlockAll, earTraining, theoryFirst) ? next : null
   // What the LCD reads for this tape.
   const [top, middle, bottom] = locked
     ? ['SEALED', unit.title, `FINISH TAPE ${tapeBefore(unit)} FIRST`]
@@ -162,6 +164,7 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
       )}
       <button
         onClick={() => navigate(`/tape/${unit.id}`)}
+        data-guide="load-tape"
         className={`hw-btn flex w-full items-center justify-center gap-[0.45em] ${playable ? 'hw-dark mt-2.5 py-2.5 text-sm' : 'hw-amber mt-4 py-3.5 text-xl'}`}
       >
         <TransportIcon kind="eject" />
