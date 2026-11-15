@@ -4,7 +4,7 @@ import { HeadphonesIcon } from '../components/Monitors'
 import { LabelTape, TabShell, TransportIcon } from '../components/ui'
 import { navigate } from '../lib/router'
 import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber, VOLUMES, type Unit } from '../music/curriculum'
-import { currentLessonId, isUnlocked, listeningOff, trackPath, useProgress } from '../store/progress'
+import { currentLessonId, isUnlocked, earTracksWaiting, trackPath, useProgress } from '../store/progress'
 
 /** Wood grain, for the rack and its shelf rails. */
 export const WOOD = 'bg-[repeating-linear-gradient(90deg,#4a3222_0px,#4f3625_5px,#432d1f_9px,#553a28_12px,#4a3222_17px)]'
@@ -29,7 +29,7 @@ function RackHome() {
   const unlockAll = useProgress((s) => s.settings.unlockAll)
   const earTraining = useProgress((s) => s.settings.earTraining)
   // With listening off or paused, the next track is the first one that doesn't need sound.
-  const listening = useProgress((s) => listeningOff(s) === null)
+  const listening = useProgress((s) => !earTracksWaiting(s))
   const theoryFirst = useProgress((s) => s.settings.theoryFirst)
   const current = currentLessonId(lessons, listening, theoryFirst)
   const found = current ? findLesson(current) : null

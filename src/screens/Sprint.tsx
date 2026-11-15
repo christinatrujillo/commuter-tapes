@@ -164,7 +164,7 @@ function SprintRunner({ preset, questions, onAgain }: { preset: SprintPreset; qu
 
   function submit(ok: boolean, detail: Omit<Flash, 'ok'> = {}) {
     if (flash || phase !== 'running') return
-    recordAnswer(q.facts, ok, Date.now() - questionStart.current, FLUENT_MS[q.kind] ?? null)
+    recordAnswer(q.facts, ok, Date.now() - questionStart.current, FLUENT_MS[q.kind] ?? null, true)
     setFlash({ ok, ...detail })
     if (ok) {
       setScore((s) => s + 1)

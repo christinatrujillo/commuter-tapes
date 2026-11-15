@@ -1178,6 +1178,10 @@ describe('the app', () => {
     playLesson()
     expect(screen.getByText('Take recorded')).toBeTruthy()
     expect(screen.queryByText('Master take')).toBeNull()
+    // A drill on notes no tape has taught leaves no trace, so they can't come back as review.
+    expect(Object.keys(useProgress.getState().stats)).toEqual([])
+    const met = { seen: 2, correct: 1, recent: 0.5, ms: 3000 }
+    act(() => useProgress.setState({ stats: Object.fromEntries([0, 1, 3, 5].map((fret) => [`0:${fret}`, met])) }))
     go('/weak')
     playLesson([0, 3])
     expect(screen.getByText('Trouble spots')).toBeTruthy()

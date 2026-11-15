@@ -11,9 +11,12 @@ import { buildJam, recordedOn, THEORY_JAMS } from '../game/jams'
 import { buildSession, FLUENT_MS, needsListening, newQuestionId, type Question } from '../game/questions'
 import { buildReview, buildTroubleSpots, dueFacts, mixInReview } from '../game/review'
 import { today } from '../lib/date'
-import { findLesson, isListening } from '../music/curriculum'
+import { findLesson, isListening, isPlanned, VOLUMES, type Unit } from '../music/curriculum'
 import { goBack, navigate } from '../lib/router'
-import { currentStreak, listeningOff, RATING_NAMES, ratingFor, useProgress, type Rating } from '../store/progress'
+import { currentStreak, downloadBackup, listeningOff, RATING_NAMES, ratingFor, useProgress, type Rating } from '../store/progress'
+
+/** The last track of each volume: recording one for the first time is the moment to suggest a backup. */
+const VOLUME_ENDS = new Set(VOLUMES.map((v) => v.tapes.filter((t): t is Unit => !isPlanned(t)).at(-1)?.lessons.at(-1)?.id))
 
 /** Clip three times and the take is ruined. */
 const MAX_CLIPS = 3
@@ -28,6 +31,8 @@ interface Summary {
   /** Only lessons get a rating; drills don't. */
   rating: Rating | null
   streakExtended: boolean
+  /** A volume's last track, recorded for the first time. */
+  volumeDone: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +196,7 @@ function LessonRunner({
     if (answer) return
     const ms = Date.now() - questionStart.current
     const target = FLUENT_MS[q.kind] ?? null
-    recordAnswer(q.facts, ok, ms, target)
+    recordAnswer(q.facts, ok, ms, target, !lessonId)
     setAnswer({ ok, ms, ...detail })
     if (ok) {
       setCorrect((c) => c + 1)
@@ -234,6 +239,7 @@ function LessonRunner({
       timed,
       rating: lessonId ? ratingFor(mistakes) : null,
       streakExtended,
+      volumeDone: !!lessonId && VOLUME_ENDS.has(lessonId) && useProgress.getState().lessons[lessonId]?.completions === 1,
     })
   }
 
@@ -408,6 +414,14 @@ function CompleteScreen({ summary, title, offerReview }: { summary: Summary; tit
           <Button variant="dark" onClick={() => navigate('/review', { replace: true })}>
             <TransportIcon kind="redo" /> Review {REVIEW_SESSION} due · no clips
           </Button>
+        )}
+        {summary.volumeDone && (
+          <>
+            <p className="text-center text-sm text-muted">Volume finished. Your progress lives only on this phone, so save a copy.</p>
+            <Button variant="dark" onClick={downloadBackup}>
+              Export backup
+            </Button>
+          </>
         )}
         <Button onClick={() => goBack()}>Done <TransportIcon kind="next" /></Button>
       </div>

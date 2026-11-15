@@ -86,7 +86,8 @@ export const ratingFor = (mistakes: number): Rating => (mistakes === 0 ? 3 : mis
 
 interface ProgressState extends ProgressData {
   /** `targetMs` is the fluency target for the question type, or null if it isn't timed. */
-  recordAnswer: (facts: string[], ok: boolean, ms: number, targetMs: number | null) => void
+  /** `knownOnly` (sprints and custom jams) skips anything no tape has taught yet, so it can't turn up as review. */
+  recordAnswer: (facts: string[], ok: boolean, ms: number, targetMs: number | null, knownOnly?: boolean) => void
   /** Saves a sprint score. Returns true if it's a new best. */
   recordBest: (key: string, score: number) => boolean
   markRehearsed: (lessonId: string) => void
@@ -149,7 +150,7 @@ export const useProgress = create<ProgressState>()(
       ...initialData(),
       guideStep: null,
 
-      recordAnswer: (facts, ok, ms, targetMs) =>
+      recordAnswer: (facts, ok, ms, targetMs, knownOnly = false) =>
         set((state) => {
           const stats = { ...state.stats }
           // Cap long pauses (the train pulled in, you looked up) so one doesn't wreck the average.
@@ -158,6 +159,7 @@ export const useProgress = create<ProgressState>()(
           const day = today()
           for (const key of facts) {
             const prev: FactStat | undefined = stats[key]
+            if (knownOnly && !prev) continue
             const hit = ok ? 1 : 0
             const pace = ratio === null ? prev?.pace : prev?.pace !== undefined ? prev.pace * 0.6 + ratio * 0.4 : ratio
             const next = schedule(prev, ok, ratio === null || ratio <= 1, day)
@@ -322,6 +324,24 @@ export const trackPath = (id: string, s: Pick<ProgressData, 'rehearsed' | 'lesso
 export function listeningOff(state: Pick<ProgressData, 'settings' | 'listeningPausedUntil'>, now = Date.now()): 'settings' | 'paused' | null {
   if (!state.settings.earTraining) return 'settings'
   return state.listeningPausedUntil && now < state.listeningPausedUntil ? 'paused' : null
+}
+
+/**
+ * Whether ear-training tracks are skipped as "next": while listening is off, and for the rest of the
+ * day after "Can't listen now" (the pause itself ends after 15 minutes, but the train ride may not).
+ */
+export function earTracksWaiting(state: Pick<ProgressData, 'settings' | 'listeningPausedUntil'>, now = Date.now()): boolean {
+  if (listeningOff(state, now)) return true
+  return !!state.listeningPausedUntil && new Date(state.listeningPausedUntil).toDateString() === new Date(now).toDateString()
+}
+
+/** Saves a backup file to the phone. */
+export function downloadBackup() {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([exportData()], { type: 'application/json' }))
+  a.download = `commuter-tapes-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mastery } from '../game/questions'
-import { exportData, mergeSaved, readBackup, schedule, useProgress } from './progress'
+import { earTracksWaiting, exportData, mergeSaved, readBackup, schedule, useProgress } from './progress'
 
 beforeEach(() => useProgress.getState().reset())
 
@@ -134,5 +134,24 @@ describe('the first-run guide', () => {
     expect(useProgress.getState().importData({ stats: {}, lessons: { 'r1-1': { stars: 3, completions: 1 } } })).toBe(true)
     expect(useProgress.getState().guideDone).toBe(true)
     expect(useProgress.getState().tipsSeen).toEqual({ play: true, rehearsal: true, take: true })
+  })
+})
+
+describe('practice outside the tapes', () => {
+  it('leaves untaught facts alone in sprints and custom jams', () => {
+    useProgress.getState().reset()
+    useProgress.getState().recordAnswer(['2:9'], true, 1000, 2000, true)
+    expect(useProgress.getState().stats['2:9']).toBeUndefined()
+    useProgress.getState().recordAnswer(['2:9'], true, 1000, 2000)
+    useProgress.getState().recordAnswer(['2:9'], true, 1000, 2000, true)
+    expect(useProgress.getState().stats['2:9'].seen).toBe(2)
+  })
+
+  it('keeps ear tracks out of the way for the rest of the day after a pause', () => {
+    const settings = useProgress.getState().settings
+    const now = new Date(2026, 0, 5, 9).getTime()
+    expect(earTracksWaiting({ settings, listeningPausedUntil: null }, now)).toBe(false)
+    expect(earTracksWaiting({ settings, listeningPausedUntil: now - 60_000 }, now)).toBe(true)
+    expect(earTracksWaiting({ settings, listeningPausedUntil: now - 60_000 }, now + 24 * 3600_000)).toBe(false)
   })
 })

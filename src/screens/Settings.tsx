@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { canVibrate, testVibration } from '../audio/metronome'
 import { BackHeader, Button, LedButtons, Toggle } from '../components/ui'
 import { navigate } from '../lib/router'
-import { exportData, useProgress } from '../store/progress'
+import { downloadBackup, useProgress } from '../store/progress'
 
 const GOALS = [
   { value: 15, label: 'Warm-up · 15' },
@@ -38,15 +38,6 @@ export function SettingsScreen() {
       : buzzed
         ? 'It should have buzzed. If it didn’t, check silent mode, Do Not Disturb, battery saver and your phone’s vibration strength.'
         : 'Buzz when you clip. Turn it off and on to test it.'
-
-  const download = () => {
-    const blob = new Blob([exportData()], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `commuter-tapes-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(a.href)
-  }
 
   const restore = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -154,9 +145,9 @@ export function SettingsScreen() {
           <Section title="Your tapes">
             <div className="flex flex-col gap-3 py-3">
               <p className="text-sm text-muted">
-                Progress is saved on this phone only. Clearing Chrome’s site data erases it, so export a backup now and then.
+                Progress is saved on this phone only. Clearing your browser’s site data erases it, and an iPhone can clear it by itself if the app isn’t installed and goes unopened for a week or so. Export a backup now and then.
               </p>
-              <Button variant="cream" onClick={download}>
+              <Button variant="cream" onClick={downloadBackup}>
                 Export backup
               </Button>
               <Button variant="cream" onClick={() => fileInput.current?.click()}>
