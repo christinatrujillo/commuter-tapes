@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { playNotes, playStrum, playWrong } from '../audio/sound'
 import { QuestionStage } from '../components/QuestionStage'
-import { Button } from '../components/ui'
+import { Button, TransportIcon } from '../components/ui'
 import { answerSound, pickIsCorrect } from '../game/present'
 import { namedIntervals, namedKeys } from '../game/jams'
 import { buildFromPositions, buildSession, FLUENT_MS, isPick, practicedPositions, type Question, type Stats } from '../game/questions'
@@ -95,7 +95,7 @@ export function SprintScreen({ presetId }: { presetId: string }) {
       <div className="flex h-dvh flex-col items-center justify-center gap-6 px-8 text-center">
         <p className="text-lg text-muted">{preset.sealed}</p>
         <Button variant="dark" className="max-w-xs" onClick={() => goBack()}>
-          ◂◂ Back
+          <TransportIcon kind="rewind" /> Back
         </Button>
       </div>
     )
@@ -215,7 +215,7 @@ function SprintRunner({ preset, questions, onAgain }: { preset: SprintPreset; qu
       <header className="shrink-0 border-b border-edge bg-tolex">
         <div className="flex items-center gap-3 px-3 py-2">
           <button onClick={() => goBack()} aria-label="Stop sprint" className="hw-btn hw-dark px-2.5 py-1.5 text-sm">
-            ■
+            <TransportIcon kind="stop" />
           </button>
           <span className="min-w-0 flex-1 truncate text-sm text-cream">{preset.label}</span>
           <span className={`lcd px-2 py-0.5 text-lg ${remaining <= 10 ? '!text-rec' : ''}`} aria-label={`${remaining} seconds left`}>
@@ -300,9 +300,9 @@ function SprintDone({
         )}
       </div>
       <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
-        <Button onClick={onAgain}>◂◂ Again</Button>
+        <Button onClick={onAgain}><TransportIcon kind="rewind" /> Again</Button>
         <Button variant="dark" onClick={() => goBack()}>
-          Done ▸▸
+          Done <TransportIcon kind="next" />
         </Button>
       </div>
     </div>

@@ -72,7 +72,7 @@ function LinerNote({ entry, at, onClose }: Open & { onClose: () => void }) {
         <div className="mt-[2px] h-[2px] bg-[#b5473a]/80" />
         <div className="px-5 pt-3 pb-5">
           <div className="flex items-center justify-between">
-            <span className="font-typed text-[10px] tracking-[0.25em] text-ink/50 uppercase">Liner note</span>
+            <span className="font-typed text-[11px] tracking-[0.25em] text-ink/50 uppercase">Liner note</span>
             <button onClick={onClose} aria-label="Close" className="-mr-1.5 px-1.5 text-lg leading-none text-ink/45 hover:text-ink">
               ×
             </button>

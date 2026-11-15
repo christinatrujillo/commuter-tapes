@@ -59,9 +59,6 @@ export function DeckScreen({ unitId }: { unitId: string }) {
           <section className="paper px-4 pt-3 pb-2" aria-label="Tracks">
             <div className="flex items-baseline justify-between border-b-2 border-ink/80 pb-1 font-typed">
               <span className="text-sm">Tracks · Side A</span>
-              <span className="text-sm">
-                {recorded}/{unit.lessons.length}
-              </span>
             </div>
             <ol>
               {unit.lessons.map((lesson, i) => (
@@ -125,7 +122,7 @@ export function DeckScreen({ unitId }: { unitId: string }) {
 function FluencyMeter({ fluent, total }: { fluent: number; total: number }) {
   return (
     <div className="mt-3 flex items-center justify-center gap-2" aria-label={`${fluent} of ${total} spots fluent`}>
-      <span className="label-text text-[10px] text-muted">Fluent</span>
+      <span className="label-text text-[11px] text-muted">Fluent</span>
       <LedBar value={fluent} total={total} />
       <span className="font-mono text-xs text-cream">
         {fluent}/{total}
@@ -151,19 +148,19 @@ function TrackRow({
 }) {
   return (
     <li className="flex items-center gap-3 border-b border-ink/15 py-2.5 last:border-b-0">
-      <span className="w-5 font-typed text-sm text-ink/60">{number}</span>
+      <span className="w-5 font-typed text-sm text-ink/80">{number}</span>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
         <span className="flex items-center gap-1.5">
           <LabelTape className={unlocked ? '' : 'opacity-40'}>{lesson.title}</LabelTape>
           {isListening(lesson) && (
             <>
-              <HeadphonesIcon className="h-3.5 w-3.5 shrink-0 text-ink/60" />
+              <HeadphonesIcon className="h-3.5 w-3.5 shrink-0 text-ink/80" />
               <span className="sr-only">Needs headphones</span>
             </>
           )}
         </span>
         {rating && (
-          <span className="label-text -rotate-2 rounded border border-[#b5473a] px-1.5 text-[10px] whitespace-nowrap text-[#b5473a]">
+          <span className="label-text -rotate-2 rounded border border-[#b5473a] px-1.5 text-[11px] whitespace-nowrap text-[#b5473a]">
             {RATING_NAMES[rating]}
           </span>
         )}
@@ -184,11 +181,11 @@ function TrackRow({
             className="hw-btn hw-rec px-2.5 py-1 text-xs"
             aria-label={`${rating ? 'Re-record' : 'Record'} ${lesson.title}`}
           >
-            {rating ? '↺ Redo' : '● Rec'}
+            {rating ? <><TransportIcon kind="redo" /> Redo</> : <><TransportIcon kind="rec" /> Rec</>}
           </button>
         </span>
       ) : (
-        <span className="label-text text-[10px] text-ink/40">Locked</span>
+        <span className="label-text text-[11px] text-ink/65">Locked</span>
       )}
     </li>
   )

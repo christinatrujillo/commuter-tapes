@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Fretboard, useLandscape, type Marker } from '../components/Fretboard'
-import { Button, LedBar, TabShell } from '../components/ui'
+import { Button, LedBar, TabShell, TransportIcon } from '../components/ui'
 import { heatColor } from '../lib/color'
 import { navigate } from '../lib/router'
 import { mastery, type Mastery } from '../game/questions'
@@ -38,7 +38,7 @@ export function StatsScreen() {
 
   const summary = (
     <>
-      <h1 className="label-text text-sm text-muted">Meters</h1>
+      <h1 className="sr-only">Meters</h1>
       {/* Days in a row and notes nailed are already in the strip at the top. */}
       <div className="panel grid grid-cols-2 gap-x-4 p-5">
         <Readout label="Fluent spots" value={`${fluent}/${ALL_SPOTS}`} />
@@ -64,7 +64,7 @@ export function StatsScreen() {
           learning, <span style={{ color: MASTERY_FILL.accurate }}>amber</span> is right but slow,{' '}
           <span style={{ color: MASTERY_FILL.fluent }}>green</span> is fluent (right and fast). Tap a spot for details.
         </p>
-        <p className="mt-2 min-h-[1.5rem] font-mono text-sm text-amber">
+        <p className="mt-2 min-h-[1.5rem] text-sm text-amber">
           {selected && selectedStat
             ? `${pcName(pitchClass(midiAt(selected)))} · ${describePosition(selected)} · ${mastery(selectedStat)} · ${selectedStat.correct}/${selectedStat.seen} · ~${(selectedStat.ms / 1000).toFixed(1)}s`
             : selected
@@ -73,7 +73,7 @@ export function StatsScreen() {
         </p>
       </section>
       <Button variant="rec" onClick={() => navigate('/weak')} disabled={positions.length < 3}>
-        ● Jam on trouble spots
+        <TransportIcon kind="rec" /> Jam on trouble spots
       </Button>
     </>
   )
@@ -105,7 +105,7 @@ function Readout({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="lcd px-3 py-2 text-2xl">{value}</div>
-      <div className="label-text mt-1.5 text-[10px] text-muted">{label}</div>
+      <div className="label-text mt-1.5 text-[11px] text-muted">{label}</div>
     </div>
   )
 }

@@ -60,7 +60,7 @@ export function PracticeScreen() {
   return (
     <TabShell>
       <div className="mx-auto flex max-w-lg flex-col gap-5 p-4">
-        <h1 className="label-text text-sm text-muted">Jam room</h1>
+        <h1 className="sr-only">Jam room</h1>
 
         <section className="panel px-5 pt-5 pb-5">
           <h2 className="label-text text-lg text-cream">Review</h2>
@@ -77,7 +77,7 @@ export function PracticeScreen() {
             )}
           </p>
           <Button variant="cream" className="mt-4" disabled={!due} onClick={() => navigate('/review')}>
-            ↺ Review now
+            <TransportIcon kind="redo" /> Review now
           </Button>
         </section>
 
@@ -118,7 +118,7 @@ export function PracticeScreen() {
             <p className="mt-3 text-sm text-muted">Record a few tracks first so there’s something to work on.</p>
           )}
           <Button variant="rec" className="mt-5" disabled={weak.length < 3} onClick={() => navigate('/weak')}>
-            ● Jam on these
+            <TransportIcon kind="rec" /> Jam on these
           </Button>
         </section>
 
@@ -137,8 +137,8 @@ export function PracticeScreen() {
                     className="hw-btn hw-dark flex flex-col items-center px-2 py-3 text-sm"
                   >
                     {j.label}
-                    {!j.ready && <span className="mt-0.5 text-[10px] normal-case opacity-80">Record its tape first</span>}
-                    {j.ready && waiting && <span className="mt-0.5 text-[10px] normal-case opacity-80">Monitors off</span>}
+                    {!j.ready && <span className="mt-0.5 text-[11px] normal-case opacity-80">Record its tape first</span>}
+                    {j.ready && waiting && <span className="mt-0.5 text-[11px] normal-case opacity-80">Monitors off</span>}
                   </button>
                 )
               })}

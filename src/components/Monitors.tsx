@@ -1,6 +1,6 @@
 import { goBack } from '../lib/router'
 import { listeningOff, useProgress } from '../store/progress'
-import { Button } from './ui'
+import { Button, TransportIcon } from './ui'
 
 /** A pair of studio headphones, drawn in the current text color. */
 export function HeadphonesIcon({ off = false, className = 'h-5 w-5' }: { off?: boolean; className?: string }) {
@@ -79,7 +79,7 @@ export function MonitorsOffScreen() {
         <MonitorsSwitch />
       </div>
       <Button variant="dark" className="max-w-xs" onClick={() => goBack()}>
-        ◂◂ Back
+        <TransportIcon kind="rewind" /> Back
       </Button>
     </div>
   )

@@ -56,7 +56,7 @@ function RehearsalRunner({ plan, onRecord, onAgain }: { plan: Rehearsal; onRecor
       <header className="shrink-0 border-b border-edge bg-tolex">
         <div className="flex items-center gap-3 px-3 py-2">
           <button onClick={() => goBack()} className="hw-btn hw-dark px-3 py-1.5 text-sm" aria-label="Back">
-            ◂◂
+            <TransportIcon kind="rewind" />
           </button>
           <div className="min-w-0 flex-1">
             <div className="label-text text-[11px] text-muted">{plan.mode === 'learn' ? 'Rehearsal' : 'Warm-up'}</div>
@@ -64,7 +64,7 @@ function RehearsalRunner({ plan, onRecord, onAgain }: { plan: Rehearsal; onRecor
           </div>
           {step.kind !== 'ready' && (
             <button onClick={onRecord} className="label-text px-1 text-xs text-muted">
-              Skip ▸▸
+              Skip <TransportIcon kind="next" />
             </button>
           )}
         </div>
@@ -110,7 +110,7 @@ function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; on
 
   const paper = (
     <div className="paper px-4 pt-3 pb-4" data-step="card">
-      <div className="font-typed text-xs text-ink/60">{card.counter}</div>
+      <div className="font-typed text-xs text-ink/80">{card.counter}</div>
       <h1 className="mt-2">
         <LabelTape size="lg">{card.title}</LabelTape>
       </h1>
@@ -120,7 +120,7 @@ function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; on
       </p>
       {card.onGuitar && (
         <p className="mt-3 border-t border-ink/15 pt-2 font-typed text-[14px] leading-snug">
-          <span className="label-text mr-2 text-[10px] text-amber-dim">On guitar</span>
+          <span className="label-text mr-2 text-[11px] text-amber-dim">On guitar</span>
           <GlossaryText text={card.onGuitar} skip={[card.title]} />
         </p>
       )}
@@ -283,7 +283,7 @@ function CheckView({ questions, onDone, onBack }: { questions: Question[]; onDon
         <GlossaryText text={feedbackDetail(q, answer)} />
       </p>
       <Button variant={answer.ok ? 'amber' : 'cream'} className="mt-3" onClick={next}>
-        Next ▸▸
+        Next <TransportIcon kind="next" />
       </Button>
     </div>
   )
@@ -301,10 +301,10 @@ function CheckView({ questions, onDone, onBack }: { questions: Question[]; onDon
       label={
         <div className="mb-0.5 flex items-center gap-1.5">
           <span className="led led-green !h-2 !w-2" />
-          <span className="label-text text-[10px] text-muted">Quick check · no clips</span>
+          <span className="label-text text-[11px] text-muted">Quick check · no clips</span>
           {onBack && (
             <button onClick={onBack} aria-label="Back to the card" className="hw-btn hw-dark ml-auto px-2.5 py-0.5 text-xs">
-              ◂
+              <TransportIcon kind="back" />
             </button>
           )}
         </div>
@@ -333,10 +333,10 @@ function ReadyView({ plan, onRecord, onAgain }: { plan: Rehearsal; onRecord: () 
       </div>
       <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
         <Button variant="rec" onClick={onRecord}>
-          ● Record take
+          <TransportIcon kind="rec" /> Record take
         </Button>
         <Button variant="dark" onClick={onAgain}>
-          ◂◂ Rehearse again
+          <TransportIcon kind="rewind" /> Rehearse again
         </Button>
       </div>
     </div>

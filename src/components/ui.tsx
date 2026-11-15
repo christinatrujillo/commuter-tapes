@@ -17,15 +17,31 @@ export function Button({
  * play and eject symbols into color emoji). They grow with the text, the triangle as tall as its
  * capitals.
  */
-export function TransportIcon({ kind }: { kind: 'back' | 'play' | 'next' | 'eject' }) {
+export function TransportIcon({ kind }: { kind: 'back' | 'play' | 'next' | 'eject' | 'rewind' | 'stop' | 'rec' | 'redo' | 'check' }) {
   const shapes = {
     back: ['M11 2 L3 8 L11 14 Z'],
     play: ['M3 2 L12 8 L3 14 Z'],
     next: ['M1 2 L8 8 L1 14 Z', 'M9 2 L16 8 L9 14 Z'],
+    rewind: ['M8 2 L1 8 L8 14 Z', 'M16 2 L9 8 L16 14 Z'],
     eject: ['M7 2 L13 9.5 L1 9.5 Z', 'M1 11.75 H13 V14.25 H1 Z'],
+    stop: ['M2 3 H12 V13 H2 Z'],
+    rec: ['M7 2.5 A5.5 5.5 0 1 0 7.01 2.5 Z'],
+    // Drawn as lines: a turn-back arrow and a tick.
+    redo: ['M3.4 5.6 A5 5 0 1 1 2.3 9.6', 'M3.2 1.6 V5.8 H7.4'],
+    check: ['M2 8.5 L5.5 12 L12 4'],
   }[kind]
+  const lines = kind === 'redo' || kind === 'check'
   return (
-    <svg viewBox={kind === 'next' ? '0 0 17 16' : '0 0 14 16'} className="h-[1.05em] w-auto shrink-0" fill="currentColor" aria-hidden>
+    <svg
+      viewBox={kind === 'next' || kind === 'rewind' ? '0 0 17 16' : '0 0 14 16'}
+      className="inline-block h-[1.05em] w-auto shrink-0 align-[-0.14em]"
+      fill={lines ? 'none' : 'currentColor'}
+      stroke={lines ? 'currentColor' : undefined}
+      strokeWidth={lines ? 2 : undefined}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       {shapes.map((d) => (
         <path key={d} d={d} />
       ))}
@@ -75,7 +91,7 @@ export function ClipLeds({ clips, max }: { clips: number; max: number }) {
           <span key={`${i}-${i < clips}`} className={`led ${i < clips ? 'led-red clip-on' : ''}`} />
         ))}
       </div>
-      <span className="label-text text-[10px] text-muted">Clip</span>
+      <span className="label-text text-[11px] text-muted">Clip</span>
     </div>
   )
 }
@@ -157,7 +173,7 @@ export function BackHeader({ title, subtitle }: { title: string; subtitle?: stri
   return (
     <header className="flex items-center gap-3 border-b border-edge bg-tolex px-3 py-2">
       <button onClick={() => goBack()} className="hw-btn hw-dark px-3 py-1.5 text-sm" aria-label="Back">
-        ◂◂
+        <TransportIcon kind="rewind" />
       </button>
       <div className="min-w-0">
         {subtitle && <div className="label-text text-[11px] text-muted">{subtitle}</div>}
@@ -218,7 +234,7 @@ function ConsoleStrip() {
     <header className="flex items-center gap-3 border-b border-edge bg-tolex px-3 py-2">
       <VuMeter value={today} goal={goal} />
       <div className="flex flex-col">
-        <span className="label-text text-[10px] text-muted">Daily goal</span>
+        <span className="label-text text-[11px] text-muted">Daily goal</span>
         <span className="font-mono text-sm text-cream">
           {today}/{goal}
         </span>
@@ -338,7 +354,7 @@ function DeckKeys() {
           >
             <span className={`led !h-1.5 !w-1.5 ${on ? 'led-amber' : ''}`} />
             {t.icon}
-            <span className="label-text text-[10px] font-semibold">{t.label}</span>
+            <span className="label-text text-[11px] font-semibold">{t.label}</span>
           </button>
         )
       })}

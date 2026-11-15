@@ -4,7 +4,7 @@ import { useLandscape } from '../components/Fretboard'
 import { GlossaryText } from '../components/GlossaryText'
 import { MonitorsOffScreen } from '../components/Monitors'
 import { QuestionStage, useQuestionInput } from '../components/QuestionStage'
-import { Button, ClipLeds, LabelTape, Reels } from '../components/ui'
+import { Button, ClipLeds, LabelTape, Reels, TransportIcon } from '../components/ui'
 import { drillFromQuery } from '../game/drill'
 import { answerSound, feedbackDetail, type Answer } from '../game/present'
 import { buildJam, recordedOn, THEORY_JAMS } from '../game/jams'
@@ -103,7 +103,7 @@ function Unavailable({ message }: { message: string }) {
       <span className="led" />
       <p className="text-lg text-muted">{message}</p>
       <Button variant="dark" className="max-w-xs" onClick={() => goBack()}>
-        ◂◂ Back
+        <TransportIcon kind="rewind" /> Back
       </Button>
     </div>
   )
@@ -274,7 +274,7 @@ function LessonRunner({
     <div className="flex h-dvh flex-col">
       <header className="flex shrink-0 items-center gap-3 border-b border-edge bg-tolex px-3 py-2">
         <button onClick={quit} aria-label="Stop recording" className="hw-btn hw-dark px-2.5 py-1.5 text-sm">
-          ■
+          <TransportIcon kind="stop" />
         </button>
         <Reels value={(index + (answer ? 1 : 0)) / queue.length} counter={index + 1} />
         <ClipLeds clips={mistakes} max={MAX_CLIPS} />
@@ -290,13 +290,13 @@ function LessonRunner({
         label={
           q.review ? (
             <div className="mb-0.5 flex items-center gap-1.5">
-              <span className="font-label text-sm leading-none text-amber">↺</span>
-              <span className="label-text truncate text-[10px] text-amber">Review · from tape {q.review.tape}</span>
+              <span className="text-sm leading-none text-amber"><TransportIcon kind="redo" /></span>
+              <span className="label-text truncate text-[11px] text-amber">Review · from tape {q.review.tape}</span>
             </div>
           ) : (
             <div className="mb-0.5 flex items-center gap-1.5">
               <span className="led led-red blink !h-2 !w-2" />
-              <span className="label-text truncate text-[10px] text-muted">Rec · {title}</span>
+              <span className="label-text truncate text-[11px] text-muted">Rec · {title}</span>
             </div>
           )
         }
@@ -330,7 +330,7 @@ function FeedbackPanel({ q, answer, rounded, onContinue }: { q: Question; answer
         <GlossaryText text={feedbackDetail(q, answer)} />
       </p>
       <Button variant={ok ? 'amber' : 'cream'} className="mt-3" onClick={onContinue}>
-        Next ▸▸
+        Next <TransportIcon kind="next" />
       </Button>
     </div>
   )
@@ -356,7 +356,7 @@ function EndReadout({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-center gap-1.5">
       <span className="lcd w-full py-2 text-center text-xl">{value}</span>
-      <span className="label-text text-[10px] text-muted">{label}</span>
+      <span className="label-text text-[11px] text-muted">{label}</span>
     </div>
   )
 }
@@ -406,10 +406,10 @@ function CompleteScreen({ summary, title, offerReview }: { summary: Summary; tit
         {offerReview && due >= REVIEW_SESSION && (
           // Replaces this screen in the history, so Back from the review doesn't restart the take.
           <Button variant="dark" onClick={() => navigate('/review', { replace: true })}>
-            ↺ Review {REVIEW_SESSION} due · no clips
+            <TransportIcon kind="redo" /> Review {REVIEW_SESSION} due · no clips
           </Button>
         )}
-        <Button onClick={() => goBack()}>Done ▸▸</Button>
+        <Button onClick={() => goBack()}>Done <TransportIcon kind="next" /></Button>
       </div>
     </div>
   )
@@ -428,9 +428,9 @@ function FailedScreen({ onRetry }: { onRetry: () => void }) {
         <p className="max-w-xs text-muted">Three clips. Rewind and run it again. The notes you missed will come up more often.</p>
       </div>
       <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
-        <Button onClick={onRetry}>◂◂ Rewind and retry</Button>
+        <Button onClick={onRetry}><TransportIcon kind="rewind" /> Rewind and retry</Button>
         <Button variant="dark" onClick={() => goBack()}>
-          ■ Stop
+          <TransportIcon kind="stop" /> Stop
         </Button>
       </div>
     </div>

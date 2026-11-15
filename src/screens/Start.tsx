@@ -50,7 +50,6 @@ export function StartScreen() {
           <div className="flex items-center gap-2">
             <span className="led led-red breathe !h-2 !w-2" />
             <span className="label-text text-xs text-cream">Commuter Tapes</span>
-            <span className="label-text ml-auto text-[10px] text-muted">Deck empty</span>
           </div>
           <div className="lcd lcd-wide mt-3 flex flex-col px-3 py-2">
             <span className="text-[11px] opacity-75">NO TAPE LOADED</span>

@@ -115,9 +115,7 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
       {complete && (
         <g transform="translate(176 40) rotate(12)">
           <circle r={11} fill="#d9a441" stroke="#8a5a14" />
-          <text y={4} fontSize={12} textAnchor="middle" fill="#2a1a05" fontWeight={700}>
-            ✓
-          </text>
+          <path d="M-5 0.5 L-1.5 4 L5 -4" fill="none" stroke="#2a1a05" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
         </g>
       )}
       {sealed && <path d="M 2 40 L 60 2 L 90 2 L 2 64 Z" fill="#ffffff" opacity={0.05} />}
@@ -152,10 +150,10 @@ export function DeckWell({ children, band }: { children: ReactNode; band?: React
       {children}
       {/* The door: reflections across the acrylic, and a hinge along the bottom. It doesn't catch taps. */}
       <div
-        className="pointer-events-none absolute inset-1.5 z-10 rounded-md border border-white/10 bg-[rgba(28,18,12,0.22)] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.35)]"
+        className="pointer-events-none absolute inset-1.5 z-10 rounded-[2px] border border-white/10 bg-[rgba(28,18,12,0.22)] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-10px_18px_rgba(0,0,0,0.35)]"
         aria-hidden
       >
-        <div className="absolute inset-0 rounded-md bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.11)_30%,rgba(255,255,255,0.03)_40%,transparent_47%,transparent_62%,rgba(255,255,255,0.06)_68%,transparent_74%)]" />
+        <div className="absolute inset-0 rounded-[2px] bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.11)_30%,rgba(255,255,255,0.03)_40%,transparent_47%,transparent_62%,rgba(255,255,255,0.06)_68%,transparent_74%)]" />
         <div className="absolute inset-x-3 bottom-0 h-1.5 rounded-t-sm bg-[linear-gradient(#2a221d,#15110e)]" />
       </div>
     </div>

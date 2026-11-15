@@ -69,7 +69,7 @@ function RackHome() {
           {VOLUMES.map((volume) => (
             <li key={volume.label}>
               <h3 className={`mb-1.5 flex items-baseline gap-2 rounded-[2px] px-2 py-1 shadow-[0_2px_4px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] ${WOOD}`}>
-                <span className={`label-text text-[10px] ${CARVED} ${CARVED_LABEL}`}>{volume.label}</span>
+                <span className={`label-text text-[11px] ${CARVED} ${CARVED_LABEL}`}>{volume.label}</span>
                 <span className={`font-label text-[15px] ${CARVED} ${CARVED_TITLE}`}>{volume.title}</span>
               </h3>
               <ol className="flex flex-col gap-1">
@@ -125,7 +125,7 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
         band={
           <>
             <span className={`led !h-2 !w-2 ${isNext ? 'led-red breathe' : 'led-amber'}`} />
-            <span className={`label-text text-[10px] ${isNext ? 'text-cream' : 'text-amber'}`}>{isNext ? 'Now playing' : 'Loaded'}</span>
+            <span className={`label-text text-[11px] ${isNext ? 'text-cream' : 'text-amber'}`}>{isNext ? 'Now playing' : 'Loaded'}</span>
           </>
         }
       >
@@ -195,7 +195,7 @@ function Spine({
   const finished = done >= total && !locked
   const status = locked ? `Locked · finish tape ${tapeBefore(unit)} first` : finished ? 'Done' : `${done} of ${total} tracks`
   // The lights show how many tracks are recorded, so this line only says what they can't. Why a tape is sealed shows on the deck.
-  const line = locked ? 'Sealed' : finished ? '✓ Done' : ''
+  const line = locked ? 'Sealed' : finished ? 'Done' : ''
   const listening = unit.lessons.some(isListening)
   return (
     <button
@@ -223,6 +223,7 @@ function Spine({
                 <span className="text-cream">Now playing{line ? ' ·' : ''}</span>
               </>
             )}
+            {finished && <TransportIcon kind="check" />}
             {line}
           </span>
         )}

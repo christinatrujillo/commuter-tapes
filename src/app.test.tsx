@@ -890,7 +890,7 @@ const continueButton = () => screen.queryByRole('button', { name: /Next/ })
 /** Steps through a rehearsal's cards and checks (answering correctly) until it's ready to record. */
 function playRehearsal() {
   for (let i = 0; i < 120; i++) {
-    if (screen.queryByRole('button', { name: '● Record take' })) return
+    if (screen.queryByRole('button', { name: 'Record take' })) return
     if (!document.querySelector('[data-step="card"]')) {
       answer(true)
       expect(screen.getByRole('status').dataset.result).toBe('clean')
@@ -993,7 +993,7 @@ describe('the app', () => {
     render(<App />)
     go('/rehearse/r1-1')
     playRehearsal()
-    fireEvent.click(screen.getByRole('button', { name: '● Record take' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Record take' }))
     expect(window.location.hash).toBe('#/lesson/r1-1')
     expect(useProgress.getState().rehearsed['r1-1']).toBe(true)
     go('/tape/r1')
@@ -1059,7 +1059,7 @@ describe('the app', () => {
       render(<App />)
       go(`/rehearse/${id}`)
       playRehearsal()
-      fireEvent.click(screen.getByRole('button', { name: '● Record take' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Record take' }))
       expect(window.location.hash).toBe(`#/lesson/${id}`)
     })
   }
@@ -1119,7 +1119,7 @@ describe('the app', () => {
     useProgress.setState({ stats: { 'sym:half': { seen: 3, correct: 3, recent: 0.9, ms: 1500 }, '5:1': { seen: 3, correct: 3, recent: 0.9, ms: 1500 } } })
     go('/practice')
     expect(screen.getByText('Review')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '↺ Review now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review now' }))
     expect(window.location.hash).toBe('#/review')
     let asked = 0
     for (let i = 0; i < 20 && document.querySelector('h2'); i++) {
@@ -1498,7 +1498,7 @@ describe('the app', () => {
       settle()
       expect(guide()).toBeNull()
       playRehearsal()
-      fireEvent.click(screen.getByRole('button', { name: '● Record take' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Record take' }))
       settle()
       expect(guide()!.textContent).toContain('Each mistake lights a CLIP lamp.')
       press('Got it')

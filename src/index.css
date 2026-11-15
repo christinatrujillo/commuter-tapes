@@ -38,6 +38,18 @@ body {
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
+  /* Digits all the same width, so counters and timers don't shift as they change. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wrapped headings break into even lines; body text avoids a lone last word. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
 }
 
 /* ---------- Hardware buttons ---------- */
@@ -432,4 +444,19 @@ body {
   .panel-rise, .marker-spring, .clip-on { animation: none; }
   .guide-spot, .guide-ring, .guide-in, .guide-out, .guide-words-in, .guide-words-out, .guide-dot-on { animation: none; }
   .guide-arrow { transition: none; }
+}
+
+/* Sheet music still loading (the notation library arrives with the first staff): five blank staff lines, gently pulsing. */
+.staff:empty,
+.score:empty,
+.notation:empty {
+  background: repeating-linear-gradient(to bottom, rgba(29, 25, 22, 0.45) 0 1px, transparent 1px 10px) center / 100% 41px no-repeat;
+  animation: staff-wait 0.9s ease-in-out infinite alternate;
+}
+@keyframes staff-wait {
+  from { opacity: 0.35; }
+  to { opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff:empty, .score:empty, .notation:empty { animation: none; }
 }
