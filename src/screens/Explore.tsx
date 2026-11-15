@@ -21,13 +21,15 @@ import {
   type Position,
 } from '../music/notes'
 import { keyLabel, type KeyId } from '../music/score'
-import { intervalName, intervalSize, majorScale, parseInterval, relativeMinor, toneId, toneName, tonePc, type Tone } from '../music/theory'
+import { intervalAbove, intervalName, intervalSize, majorScale, parseInterval, relativeMinor, toneId, toneName, tonePc, type Tone } from '../music/theory'
 import { bluesScale, majorPentatonic, minorPentatonic, patternSpots, SCALE_DEGREES } from '../game/blues'
 import { fretboardViews, type ScaleView } from '../game/jams'
 import { MODE_NAMES, MODES, modeDegrees, modeScale, type ModeId } from '../game/modes'
 import { useProgress } from '../store/progress'
 
 const PCS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+/** A single pentatonic pattern gets a longer neck, so it's whole in every key. */
+const PATTERN_MAX_FRET = 15
 
 type Mode = 'notes' | 'scale' | 'interval'
 /** Which notes the Notes view shows, and what it calls the ones between the natural notes. */
@@ -92,9 +94,12 @@ export function ExploreScreen() {
   const tones = shown.tones
   const scalePcs = tones.map(tonePc)
   const onePattern = scale === 'minorPent' && unlocked.patterns.includes(pattern)
-  const patternNotes = onePattern ? patternSpots(toneId(tones[0]), pattern) : []
+  const patternNotes = onePattern ? patternSpots(toneId(tones[0]), pattern, PATTERN_MAX_FRET) : []
   const size = intervalSize(parseInterval(interval)) ?? 7
   const ivName = intervalName(parseInterval(interval))
+  // The upper note takes the interval's letter (F up a 4th is B flat, not A sharp); sharp names only where that would need a double sharp.
+  const upper = selected ? intervalAbove(spellMidi(midiAt(selected), 'sharp'), parseInterval(interval)) : null
+  const upperName = upper ? toneName(upper) : selected ? pcName(pitchClass(midiAt(selected) + size), 'sharp') : ''
 
   let markers: Marker[]
   if (mode === 'scale') {
@@ -111,7 +116,7 @@ export function ExploreScreen() {
           { pos: selected, tone: 'root', label: noteAt(selected) },
           ...allPositions(FULL_NECK)
             .filter((p) => midiAt(p) === midiAt(selected) + size)
-            .map((p): Marker => ({ pos: p, tone: 'correct', label: noteAt(p) })),
+            .map((p): Marker => ({ pos: p, tone: 'correct', label: upperName })),
         ]
       : []
   } else {
@@ -142,7 +147,7 @@ export function ExploreScreen() {
     mode === 'interval' ? (
       <p className="px-2 text-cream">
         {selected
-          ? `${noteAt(selected)} up ${/^[aeiou]/.test(ivName) ? 'an' : 'a'} ${ivName} is ${pcName(pitchClass(midiAt(selected) + size), 'sharp')}: ${size} half steps. Every spot lit green plays it.`
+          ? `${noteAt(selected)} up ${/^[aeiou]/.test(ivName) ? 'an' : 'a'} ${ivName} is ${upperName}: ${size} half steps. Every spot lit green plays it.`
           : 'Tap any note to start from it.'}
       </p>
     ) : selected && written ? (
@@ -168,7 +173,7 @@ export function ExploreScreen() {
       <p className="px-2 text-muted">
         {mode === 'scale'
           ? onePattern
-            ? `Pattern ${pattern} of the ${shown.name}, the root glowing.${patternNotes.length < 12 ? ' Part of it runs past the 12th fret, where this neck ends.' : ' Tap a note to hear it.'}`
+            ? `Pattern ${pattern} of the ${shown.name}, the root glowing. Tap a note to hear it.`
             : `Every note of ${theName}, the root glowing. Tap one to hear it.`
           : 'Tap any note to hear it and see where it’s written on the staff.'}
       </p>
@@ -176,7 +181,7 @@ export function ExploreScreen() {
 
   const controls = (
     <div className="flex flex-col gap-3">
-      <h1 className="label-text text-sm text-muted">Fretboard reference</h1>
+      <h1 className="sr-only">Fretboard</h1>
       {modes.length > 1 && (
         <LedButtons
           columns={modes.length}
@@ -289,12 +294,14 @@ export function ExploreScreen() {
     </div>
   )
 
+  const neckEnd = mode === 'scale' && onePattern ? PATTERN_MAX_FRET : undefined
+
   if (landscape) {
     return (
       <TabShell>
         <div className="flex h-full gap-3 p-3">
           <div className="min-h-0 flex-1">
-            <Fretboard markers={markers} onTap={tap} />
+            <Fretboard markers={markers} onTap={tap} maxFret={neckEnd} />
           </div>
           <div className="w-[38%] overflow-y-auto">{controls}</div>
         </div>
@@ -306,7 +313,7 @@ export function ExploreScreen() {
     <TabShell>
       <div className="mx-auto flex max-w-lg flex-col gap-3 p-4">
         {controls}
-        <Fretboard markers={markers} onTap={tap} fit="width" />
+        <Fretboard markers={markers} onTap={tap} maxFret={neckEnd} fit="width" />
       </div>
     </TabShell>
   )

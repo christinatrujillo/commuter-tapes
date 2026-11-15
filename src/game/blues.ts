@@ -300,10 +300,10 @@ function rawPattern(tonic: string, n: number): Position[] {
   })
 }
 
-/** Every spot of pattern `n` from the nut to the 12th fret, in whichever octaves it lands there (for the Fretboard tab). */
-export function patternSpots(tonic: string, n: number): Position[] {
+/** Every spot of pattern `n` from the nut to `maxFret`, in whichever octaves it lands there (for the Fretboard tab). */
+export function patternSpots(tonic: string, n: number, maxFret: number): Position[] {
   const notes = rawPattern(tonic, n)
-  return [-24, -12, 0, 12].flatMap((shift) => notes.map((p) => ({ ...p, fret: p.fret + shift }))).filter((p) => p.fret >= 0 && p.fret <= 12)
+  return [-24, -12, 0, 12].flatMap((shift) => notes.map((p) => ({ ...p, fret: p.fret + shift }))).filter((p) => p.fret >= 0 && p.fret <= maxFret)
 }
 
 /** Each note's degree in the minor scale (1, 3, 4, 5 or 7). */

@@ -33,6 +33,7 @@ import {
   makeTwelveVariation,
   minorPentatonic,
   pentPattern,
+  patternSpots,
 } from './blues'
 
 const seeds = Array.from({ length: 40 }, (_, i) => seeded(i + 1))
@@ -65,6 +66,11 @@ describe('the five patterns', () => {
     expect(shape(pentPattern('A', 5)!)).toBe('3/5 3/5 2/5 2/5 3/5 3/5')
     // Patterns 3 and 4 of A sit past the 12th fret, so the tapes use other keys for them.
     expect(pentPattern('A', 3)).toBeNull()
+  })
+
+  it('fits every pattern whole on a 15-fret neck in every key', () => {
+    for (const pc of ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'])
+      for (const n of [1, 2, 3, 4, 5]) expect(patternSpots(pc, n, 15).length).toBeGreaterThanOrEqual(12)
   })
 
   it('joins each pattern to the next, using only the scale’s notes', () => {

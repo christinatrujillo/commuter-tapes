@@ -44,6 +44,10 @@ export function audioContext(): AudioContext | null {
   return typeof AudioContext === 'undefined' ? null : audio()
 }
 
+// iPhones only start sound from inside a tap, and an ear question plays as it appears. Waking the
+// context on every tap means it's already running by then, and again after the app was in the background.
+if (typeof window !== 'undefined') window.addEventListener('click', audioContext, true)
+
 function pluckBuffer(ac: AudioContext, midi: number, muted = false): AudioBuffer {
   const cacheKey = muted ? -midi : midi
   const cached = buffers.get(cacheKey)
