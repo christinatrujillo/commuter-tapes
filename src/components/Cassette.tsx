@@ -22,18 +22,18 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
   const tapeWidth = Math.min(156, title.length * 6.4 + 14)
   const reel = (cx: number, pack: number) => (
     <g>
-      <circle cx={cx} cy={68} r={pack} fill="#4a3426" />
+      <circle cx={cx} cy={68} r={pack} fill="var(--color-tape)" />
       <g className={playing ? 'reel-spin' : undefined}>
         <circle cx={cx} cy={68} r={5.5} fill={sealed ? '#8d857c' : '#e9dcc0'} />
         {[0, 60, 120, 180, 240, 300].map((a) => (
-          <rect key={a} x={cx - 0.9} y={62.5} width={1.8} height={2.6} fill="#1b1512" transform={`rotate(${a} ${cx} 68)`} />
+          <rect key={a} x={cx - 0.9} y={62.5} width={1.8} height={2.6} fill="var(--color-soot)" transform={`rotate(${a} ${cx} 68)`} />
         ))}
       </g>
     </g>
   )
   return (
     <svg viewBox="0 0 200 128" className="block h-auto w-full drop-shadow-[0_6px_8px_rgba(0,0,0,0.5)]" role="img" aria-label={title}>
-      <rect x={2} y={2} width={196} height={124} rx={8} fill={sealed ? '#3b3532' : '#2a2320'} stroke="#000" />
+      <rect x={2} y={2} width={196} height={124} rx={8} fill={sealed ? 'var(--color-sealed)' : '#2a2320'} stroke="#000" />
       {[
         [10, 10],
         [190, 10],
@@ -42,22 +42,22 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
         [100, 118],
       ].map(([x, y]) => (
         <g key={`${x}-${y}`}>
-          <circle cx={x} cy={y} r={3} fill="#5d5148" />
+          <circle cx={x} cy={y} r={3} fill="var(--color-screw)" />
           <line x1={x - 2} y1={y} x2={x + 2} y2={y} stroke="#2a2320" strokeWidth={0.8} />
         </g>
       ))}
 
       {/* Label */}
-      <rect x={16} y={9} width={168} height={76} rx={4} fill={sealed ? '#625a53' : '#efe5cf'} />
+      <rect x={16} y={9} width={168} height={76} rx={4} fill={sealed ? '#625a53' : 'var(--color-cream)'} />
       {!sealed && <rect x={16} y={24} width={168} height={6} fill={color} />}
-      <text x={24} y={20} fontSize={8} className="font-label" fill={sealed ? '#3b3532' : '#6b5f55'} letterSpacing={1.5}>
+      <text x={24} y={20} fontSize={8} className="font-label" fill={sealed ? 'var(--color-sealed)' : 'var(--color-print)'} letterSpacing={1.5}>
         SIDE A
       </text>
-      <text x={176} y={20} fontSize={8} textAnchor="end" className="font-mono" fill={sealed ? '#3b3532' : '#6b5f55'}>
+      <text x={176} y={20} fontSize={8} textAnchor="end" className="font-mono" fill={sealed ? 'var(--color-sealed)' : 'var(--color-print)'}>
         No.{String(number).padStart(2, '0')}
       </text>
       {sealed ? (
-        <text x={100} y={50} fontSize={11} textAnchor="middle" className="font-label" fill="#3b3532" letterSpacing={3}>
+        <text x={100} y={50} fontSize={11} textAnchor="middle" className="font-label" fill="var(--color-sealed)" letterSpacing={3}>
           SEALED
         </text>
       ) : (
@@ -78,10 +78,10 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
         </g>
       )}
 
-      {listening && <HeadphonesMark ink={sealed ? '#3b3532' : '#6b5f55'} />}
+      {listening && <HeadphonesMark ink={sealed ? 'var(--color-sealed)' : 'var(--color-print)'} />}
 
       {/* Window with reels */}
-      <rect x={56} y={56} width={88} height={24} rx={12} fill="#120e0c" stroke="#000" />
+      <rect x={56} y={56} width={88} height={24} rx={12} fill="var(--color-well)" stroke="#000" />
       {reel(78, 6 + 5 * (1 - p))}
       {reel(122, 6 + 5 * p)}
       {/* Smoked plastic over the window: a light tint, two soft reflections and a lit top rim. */}
@@ -101,7 +101,7 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
       </g>
       <rect x={56.4} y={56.4} width={87.2} height={23.2} rx={11.6} fill="none" stroke={`url(#${glass}-rim)`} strokeWidth={0.8} pointerEvents="none" />
       {!sealed && (
-        <text x={178} y={80} fontSize={8} textAnchor="end" className="font-mono" fill="#6b5f55">
+        <text x={178} y={80} fontSize={8} textAnchor="end" className="font-mono" fill="var(--color-print)">
           {recorded}/{total}
         </text>
       )}
@@ -114,7 +114,7 @@ export function Cassette({ title, number, color, recorded, total, sealed = false
 
       {complete && (
         <g transform="translate(176 40) rotate(12)">
-          <circle r={11} fill="#d9a441" stroke="#8a5a14" />
+          <circle r={11} fill="var(--color-gold)" stroke="#8a5a14" />
           <path d="M-5 0.5 L-1.5 4 L5 -4" fill="none" stroke="#2a1a05" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
         </g>
       )}

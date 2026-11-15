@@ -94,7 +94,7 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
         const ax = centers[marker]
         const ay = Math.max(2, top - 40)
         arrow.setAttribute('d', `M ${ax - 6} ${ay} L ${ax + 6} ${ay} L ${ax} ${ay + 9} Z`)
-        arrow.setAttribute('fill', '#a8742a')
+        arrow.setAttribute('fill', 'var(--color-amber-dim)')
         arrow.setAttribute('stroke', 'none')
         arrow.setAttribute('data-marker', String(marker))
         svg.appendChild(arrow)

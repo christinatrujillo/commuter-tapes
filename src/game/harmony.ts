@@ -630,7 +630,7 @@ const HARMONY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'harm:staff': () => ({
     title: 'Numerals on the staff',
     subtitle: 'Name the chord, then count',
-    hook: 'On the staff, name the chord first: read its notes with the key signature and find its root, as on tape 36. Then count up from the key’s home note. In G major, the snowman A C E is A minor, on the 2nd note: ii.',
+    hook: 'On the staff, name the chord first: read its notes with the key signature and find its root, as on tape 37. Then count up from the key’s home note. In G major, the snowman A C E is A minor, on the 2nd note: ii.',
     score: { measures: [chordScore('G', 1)], keySig: 'G', labels: ['ii'] },
     listen: heard('G', [1]),
     sound: [],
@@ -656,7 +656,7 @@ const HARMONY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'harm:neck': () => ({
     title: 'I, IV and V on the neck',
     subtitle: 'One shape, any key',
-    hook: 'Put the I chord’s root on the 6th string. IV’s root is right next to it on the 5th string, same fret: a perfect 4th up, the shape from tape 28. V’s root is two frets further along: a perfect 5th up. With G at the 3rd fret, C is at the 3rd fret of the 5th string and D at the 5th.',
+    hook: 'Put the I chord’s root on the 6th string. IV’s root is right next to it on the 5th string, same fret: a perfect 4th up, the shape from tape 29. V’s root is two frets further along: a perfect 5th up. With G at the 3rd fret, C is at the 3rd fret of the 5th string and D at the 5th.',
     onGuitar: 'Move the shape to any fret and it gives you I, IV and V in a new key. Rock and blues players think this way all the time.',
     board: G_BOX,
     sound: [43, 48, 50],

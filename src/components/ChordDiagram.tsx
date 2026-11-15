@@ -1,8 +1,8 @@
 import type { DiagramSpec } from '../music/chordShapes'
 import { PAPER_HIGHLIGHT, PAPER_RUST } from '../lib/color'
 
-const INK = '#1d1916'
-const PAPER = '#f6eedc'
+const INK = 'var(--color-ink)'
+const PAPER = 'var(--color-paper)'
 const LEFT = 26
 const TOP = 26
 const STRING_GAP = 16

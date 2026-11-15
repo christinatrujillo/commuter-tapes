@@ -41,7 +41,7 @@ export function MonitorsSwitch() {
         aria-label="Monitors"
         disabled={off === 'settings'}
         onClick={() => (on ? pause() : resume())}
-        className="relative h-7 w-12 shrink-0 rounded-full border border-black bg-[#120e0c] shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] transition disabled:opacity-40 aria-checked:bg-[#2f6b45]"
+        className="relative h-7 w-12 shrink-0 rounded-full border border-black bg-well shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] transition disabled:opacity-40 aria-checked:bg-[#2f6b45]"
       >
         <span
           className={`absolute top-[3px] left-[3px] h-5 w-5 rounded-full bg-[radial-gradient(circle_at_35%_30%,#ffffff,#a9a39b_60%,#6d665f)] shadow transition ${on ? 'translate-x-5' : ''}`}

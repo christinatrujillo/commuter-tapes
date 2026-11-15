@@ -149,7 +149,7 @@ export function triadSound(tones: Tone[], octave = 4): number[] {
 }
 
 /**
- * The root on the neck, in the major scale shape from tape 24 (root on the 6th or 5th string),
+ * The root on the neck, in the major scale shape from tape 25 (root on the 6th or 5th string),
  * and every note of the triad in that shape, spelled. `others` is how the 3rds and 5ths look.
  */
 function triadNeck(tones: Tone[], others: Marker['tone'] = 'correct'): { root: Marker; region: Region; notes: Marker[] } {
@@ -792,7 +792,7 @@ const TRIAD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'triad:thirds': () => ({
     title: 'Built from 3rds',
     subtitle: 'A major 3rd, then a minor 3rd',
-    hook: 'Measure the gaps in a major triad with the intervals from tape 29. The root up to the 3rd is a major 3rd (4 half steps). The 3rd up to the 5th is a minor 3rd (3 half steps). Together they span a perfect 5th, root to top. C up to E, then E up to G: every major triad is built this way.',
+    hook: 'Measure the gaps in a major triad with the intervals from tape 30. The root up to the 3rd is a major 3rd (4 half steps). The 3rd up to the 5th is a minor 3rd (3 half steps). Together they span a perfect 5th, root to top. C up to E, then E up to G: every major triad is built this way.',
     onGuitar: 'That’s how to find a triad without the scale: from the root, up a major 3rd (4 frets on one string), then a minor 3rd (3 more).',
     score: {
       measures: [triadScore(parseTones('C', 'E'), true), triadScore(parseTones('E', 'G'), true), triadScore(parseTones('C', 'G'), true)],
@@ -824,7 +824,7 @@ const TRIAD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     return {
       title: 'Minor in any key',
       subtitle: 'The 1st, 3rd and 5th of the minor scale',
-      hook: 'A minor triad is also the 1st, 3rd and 5th notes of the natural minor scale on its root, from tape 27. The A minor scale goes A B C D E F G, so the A minor triad is A, C and E. Either way works: count up the minor scale, or lower the 3rd of the major triad.',
+      hook: 'A minor triad is also the 1st, 3rd and 5th notes of the natural minor scale on its root, from tape 28. The A minor scale goes A B C D E F G, so the A minor triad is A, C and E. Either way works: count up the minor scale, or lower the 3rd of the major triad.',
       onGuitar: 'A minor’s notes come from the C major scale too, its relative major: same notes, different home.',
       score: { measures: scaleScore(scale), labels: [...scale, scale[0]].map(toneName), colors: [PAPER_HIGHLIGHT, undefined, PAPER_HIGHLIGHT, undefined, PAPER_HIGHLIGHT] },
       board: cardNeck(triad('A', 'min')),
@@ -834,7 +834,7 @@ const TRIAD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'triad:dim': () => ({
     title: 'Diminished triads',
     subtitle: 'Two minor 3rds',
-    hook: 'Stack two minor 3rds and you get a diminished triad. Another way: take a minor triad and lower its 5th by a half step. B minor is B D F♯; B diminished is B D F. From the root to the top is now the tritone from tape 29, a diminished 5th, which makes it sound tense.',
+    hook: 'Stack two minor 3rds and you get a diminished triad. Another way: take a minor triad and lower its 5th by a half step. B minor is B D F♯; B diminished is B D F. From the root to the top is now the tritone from tape 30, a diminished 5th, which makes it sound tense.',
     onGuitar: 'Diminished chords often pass between two other chords, and one sits on the 7th note of every major scale: B diminished in C major.',
     score: { measures: [[...triadScore(triad('B', 'min'), true), ...triadScore(triad('B', 'dim'), true)]], labels: ['B minor', 'B diminished'] },
     board: cardNeck(triad('B', 'dim')),

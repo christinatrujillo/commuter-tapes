@@ -117,11 +117,11 @@ describe('triads in review', () => {
     for (const junk of ['tri:H', 'tri:Dsus', 'tri:', 'tq:sus', 'tq:constructor']) expect(theoryReview(junk, 1, seeded(1))).toBeNull()
   })
 
-  it('labels the facts and tags them with tape 33', () => {
+  it('labels the facts and tags them with tape 34', () => {
     expect(describeFact('tri:Bb')).toBe('B♭ major triad')
     expect(describeFact('tq:maj')).toBe('How major triads are stacked')
     expect(describeFact('triad:letters')).toBe('Triad letters')
-    for (const fact of ['tri:D', 'tq:maj', 'triad:letters']) expect(tapeOf(fact)).toBe(33)
+    for (const fact of ['tri:D', 'tq:maj', 'triad:letters']) expect(tapeOf(fact)).toBe(34)
     const due = { seen: 3, correct: 3, recent: 0.9, ms: 2000, interval: 2, due: '2026-01-01' }
     const review = buildReview({ 'tri:D': due, 'tq:maj': due }, '2026-01-05', 5, seeded(2))
     expect(review.map((q) => q.kind)).toContain('triadSpell')
@@ -294,16 +294,16 @@ describe('hearing triads', () => {
 describe('every triad fact', () => {
   it('comes back in review, with a label and the tape that taught it', () => {
     const tapes: Record<string, number> = {
-      'tri:Dm': 34,
-      'tq:min': 34,
-      'tri:Bdim': 35,
-      'tq:aug': 35,
-      'tinv:1': 37,
-      'tneck:top-maj': 38,
-      'tneck:top-min': 38,
-      'tneck:middle-min': 38,
-      'ear:maj': 39,
-      'ear:aug': 39,
+      'tri:Dm': 35,
+      'tq:min': 35,
+      'tri:Bdim': 36,
+      'tq:aug': 36,
+      'tinv:1': 38,
+      'tneck:top-maj': 39,
+      'tneck:top-min': 39,
+      'tneck:middle-min': 39,
+      'ear:maj': 40,
+      'ear:aug': 40,
     }
     for (const [fact, tape] of Object.entries(tapes)) {
       expect(tapeOf(fact), fact).toBe(tape)

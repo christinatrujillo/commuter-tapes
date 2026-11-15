@@ -257,7 +257,7 @@ function scaleNoteQuestion(id: number, kind: 'scaleNote' | 'minorNote', tones: T
 }
 
 /**
- * The scale's root on the neck, in the shape from tape 24 (root on the 6th or 5th string); once
+ * The scale's root on the neck, in the shape from tape 25 (root on the 6th or 5th string); once
  * answered, every note of the shape appears, spelled, with the asked-about degree lit.
  */
 function rootBoard(tones: Tone[], d: number): NonNullable<PickQuestion['board']> {
@@ -852,7 +852,7 @@ const THEORY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'scale:c-major': () => ({
     title: 'Why C major is all naturals',
     subtitle: 'Its half steps land on E–F and B–C',
-    hook: 'Start the pattern on C and the two half steps fall from the 3rd note to the 4th and the 7th to the 8th: E to F, and B to C. Those are exactly the two natural half steps from tape 22, so the C major scale needs no sharps or flats.',
+    hook: 'Start the pattern on C and the two half steps fall from the 3rd note to the 4th and the 7th to the 8th: E to F, and B to C. Those are exactly the two natural half steps from tape 23, so the C major scale needs no sharps or flats.',
     ...withColors(scaleCard(majorScale('C'), 'names'), [undefined, undefined, HIGHLIGHT, HIGHLIGHT, undefined, undefined, HIGHLIGHT, HIGHLIGHT]),
     board: scaleNeck(majorScale('C'), 'C', ['E', 'F', 'B']),
   }),
@@ -899,7 +899,7 @@ const THEORY_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'pattern:6': () => ({
     title: 'Root on the 6th string',
     subtitle: 'G major at the 3rd fret',
-    hook: 'Here’s the whole shape, each note numbered by its degree (its place in the scale, from tape 23). Learn where 1, 3 and 5 sit first; they’re the notes chords are built from later.',
+    hook: 'Here’s the whole shape, each note numbered by its degree (its place in the scale, from tape 24). Learn where 1, 3 and 5 sit first; they’re the notes chords are built from later.',
     board: patternBoard(0, 3),
     sound: [43, 45, 47, 48, 50, 52, 54, 55],
   }),

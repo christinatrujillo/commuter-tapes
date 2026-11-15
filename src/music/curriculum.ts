@@ -69,6 +69,8 @@ export type ExerciseType =
   | 'chordSymbolWrite' // "how is B diminished written?"
   | 'chordSpell' // "what notes make G7?"
   | 'chordKind' // "G B D F: which chord?"
+  | 'slashRead' // "what does C/E mean?" or "in D/F♯, which note of the chord is on the bottom?"
+  | 'slashWrite' // "G major with B in the bass: how is it written?"
   | 'seventhOnDegree' // "what's the 7th chord on the 5th note of G major?"
   | 'seventhNumeral' // "in F major, which numeral is Gm7?"
   | 'twoFiveSpell' // "in D major, what are the chords of ii7–V7–Imaj7?"
@@ -221,6 +223,8 @@ const WITH_RESTS: SymbolId[] = [...BASICS, 'wholeRest', 'halfRest', 'quarterRest
 const WITH_DOTTED_HALF: SymbolId[] = [...WITH_RESTS, 'dottedHalf']
 const WITH_EIGHTHS: SymbolId[] = [...WITH_DOTTED_HALF, 'eighth']
 const WITH_TIES: SymbolId[] = [...WITH_EIGHTHS, 'tie', 'dottedQuarter']
+const WITH_EIGHTH_RESTS: SymbolId[] = [...WITH_TIES, 'eighthRest']
+const WITH_SIXTEENTHS: SymbolId[] = [...WITH_EIGHTH_RESTS, 'sixteenth']
 
 function stringUnit(n: number, string: number, description: string, tips: string[], extra: LessonSpec[] = []): Unit {
   const id = `u${n}`
@@ -542,7 +546,7 @@ const TAPES: Unit[] = [
     color: COLORS[0],
     tips: [
       'Each string’s 5th fret is the next string’s open note, except the G string, where it’s the 4th fret.',
-      'Looking for every C? The same note comes back on other strings; tape 21 shows quick shapes to jump between them.',
+      'Looking for every C? The same note comes back on other strings; tape 22 shows quick shapes to jump between them.',
     ],
     tipRegion: FULL_NECK,
     lessons: [
@@ -616,6 +620,33 @@ const TAPES: Unit[] = [
         region: FULL_NECK,
         symbols: WITH_TIES,
         meters: ['4/4', '3/4', '2/4', '2/2'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'r12',
+    title: 'Sixteenths & Syncopation',
+    description: 'Smaller beats, off-beat notes and pickups',
+    color: COLORS[1],
+    tips: [
+      'An eighth rest is half a beat of silence. With one on the beat, the next note lands on the &.',
+      'Sixteenth notes get a quarter of a beat each, so four fit in one beat. Count them 1 e & a.',
+      'Syncopation puts the weight on the & instead of the beat. Keep counting the beats you don’t play.',
+      'A pickup is a short measure before the first full one. Its notes are counted as the end of a bar.',
+    ],
+    lessons: [
+      { id: 'r12-1', title: 'Eighth rests', exercises: ['symbolName', 'beats', 'countBeat', 'tapRhythm'], region: FULL_NECK, symbols: WITH_EIGHTH_RESTS, meters: ['4/4', '3/4'] },
+      { id: 'r12-2', title: 'Sixteenth notes', exercises: ['symbolName', 'beats', 'countBeat', 'tapRhythm'], region: FULL_NECK, symbols: WITH_SIXTEENTHS, meters: ['4/4', '2/4'] },
+      { id: 'r12-3', title: 'Syncopation', exercises: ['countBeat', 'tapRhythm'], region: FULL_NECK, symbols: [...WITH_EIGHTH_RESTS, 'syncopation'], meters: ['4/4'] },
+      { id: 'r12-4', title: 'Pickups', exercises: ['countBeat'], region: FULL_NECK, symbols: [...WITH_EIGHTH_RESTS, 'pickup'], meters: ['4/4', '3/4'] },
+      {
+        id: 'r12-5',
+        title: 'Rhythm review',
+        exercises: ['countBeat', 'measureFill', 'tapRhythm'],
+        region: FULL_NECK,
+        symbols: [...WITH_SIXTEENTHS, 'syncopation', 'pickup'],
+        meters: ['4/4', '3/4', '2/4'],
         count: 12,
       },
     ],
@@ -1326,6 +1357,23 @@ const TAPES: Unit[] = [
     ],
   },
   {
+    id: 'cb8',
+    title: 'Power & Slash Chords',
+    description: 'Two notes, and chords over a bass note',
+    color: COLORS[6],
+    tips: [
+      'A power chord is a root and its 5th, with no 3rd, so it’s neither major nor minor. It’s written with a 5: A5.',
+      'On the neck a power chord is one shape: the root, then the next string over, 2 frets up.',
+      'A slash chord names a chord and its lowest note: C/E is C major with E in the bass. Say “C over E”.',
+      'When the bass note is one of the chord’s own notes, a slash chord is an inversion written as a symbol.',
+    ],
+    lessons: [
+      { id: 'cb8-1', title: 'Power chords', exercises: ['chordSpell', 'chordKind'], region: FULL_NECK, chords: ['5'], keys: ['E', 'A', 'D', 'G', 'C', 'F', 'B'], topics: ['chord:power'] },
+      { id: 'cb8-2', title: 'Slash chords', exercises: ['slashRead', 'slashWrite'], region: FULL_NECK, keys: ['C', 'G', 'D', 'A', 'F'], topics: ['chord:slash'] },
+      { id: 'cb8-3', title: 'Power and slash review', exercises: ['chordSpell', 'chordKind', 'slashRead', 'slashWrite'], region: FULL_NECK, chords: ['5'], keys: ['C', 'G', 'D', 'A', 'F'], count: 12 },
+    ],
+  },
+  {
     id: 'cb5',
     title: 'Chord Diagrams',
     description: 'Reading chord boxes',
@@ -1740,7 +1788,7 @@ const soon = (title: string): PlannedTape => ({ planned: true, title })
  */
 export const VOLUMES: Volume[] = [
   { label: 'Vol. 1', title: 'Reading & the Neck', tapes: ['r1', 'r2', 'r3', 'r4', 'u7', 'r5', 'r6', 'r7', 'u1', 'u2', 'u3'].map(tape) },
-  { label: 'Vol. 2', title: 'The Whole Neck', tapes: ['r8', 'u4', 'u5', 'u6', 'u8', 'u9', 'r10', 'r11', 'u12', 'u13'].map(tape) },
+  { label: 'Vol. 2', title: 'The Whole Neck', tapes: ['r8', 'u4', 'u5', 'u6', 'u8', 'u9', 'r10', 'r11', 'r12', 'u12', 'u13'].map(tape) },
   { label: 'Vol. 3', title: 'Scales & Keys', tapes: ['t1', 't2', 't3', 'r9', 't4', 't5'].map(tape) },
   { label: 'Vol. 4', title: 'Intervals', tapes: ['u14', 't6', 't7', 't8', 't9'].map(tape) },
   {
@@ -1749,7 +1797,7 @@ export const VOLUMES: Volume[] = [
     tapes: ['tr1', 'tr2', 'tr3', 'tr4', 'tr5', 'tr6', 'tr7'].map(tape),
   },
   { label: 'Vol. 6', title: 'Chords in a Key', tapes: ['hk1', 'hk2', 'hk3', 'hk4', 'hk5'].map(tape) },
-  { label: 'Vol. 7', title: 'Building Chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb5', 'cb6', 'cb7'].map(tape) },
+  { label: 'Vol. 7', title: 'Building Chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb8', 'cb5', 'cb6', 'cb7'].map(tape) },
   { label: 'Vol. 8', title: 'Minor Keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4', 'mk5'].map(tape) },
   { label: 'Vol. 9', title: 'Blues & Pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5', 'bp6'].map(tape) },
   {

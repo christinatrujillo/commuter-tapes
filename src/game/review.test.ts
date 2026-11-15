@@ -13,10 +13,10 @@ const STATS: Stats = {
   'sym:half': learned('2026-01-02'), // tape 1
   'staff:77': learned('2026-01-09'), // F on the top line (tape 2)
   'rule:carry': learned('2026-01-05'), // tape 12
-  'key:G': learned('2026-01-06'), // tape 25
+  'key:G': learned('2026-01-06'), // tape 26
   'motion:step': learned('2026-01-07'), // tape 18
   'count:2/2': learned('2026-01-04'), // tape 19
-  'iv:12': learned('2026-01-03'), // tape 21
+  'iv:12': learned('2026-01-03'), // tape 22
   '1:3': learned('2026-02-01'), // not due yet
 }
 
@@ -26,7 +26,7 @@ describe('what comes back for review', () => {
   })
 
   it('knows which tape each fact came from', () => {
-    expect(['5:1', 'sym:half', 'staff:77', 'rule:carry', 'key:G', 'motion:step', 'count:2/2', 'iv:12'].map(tapeOf)).toEqual([2, 1, 2, 12, 25, 18, 19, 21])
+    expect(['5:1', 'sym:half', 'staff:77', 'rule:carry', 'key:G', 'motion:step', 'count:2/2', 'iv:12'].map(tapeOf)).toEqual([2, 1, 2, 12, 26, 18, 19, 22])
   })
 
   it('turns every kind of fact into a valid question about just that fact', () => {

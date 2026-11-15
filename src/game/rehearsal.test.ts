@@ -110,7 +110,7 @@ describe('what gets taught', () => {
     }
   })
 
-  it('opens tapes 11 and 28 by explaining what they’re for', () => {
+  it('opens tapes 11 and 29 by explaining what they’re for', () => {
     const low = buildRehearsal('u3-1', seeded(1))!
     expect(cards(low).map((x) => x.title)).toEqual(['Why these two strings', 'The 5th-fret link'])
     expect(low.steps.map((s) => s.kind)).toEqual(['card', 'card', 'ready'])

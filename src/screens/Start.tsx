@@ -59,7 +59,7 @@ export function StartScreen() {
         </section>
 
         <div className={`rounded-md p-2.5 shadow-[0_8px_14px_rgba(0,0,0,0.5)] ${WOOD}`}>
-          <div className="flex flex-col gap-2 rounded-sm bg-[#120e0c] p-1.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.85)]">
+          <div className="flex flex-col gap-2 rounded-sm bg-well p-1.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.85)]">
             <h2 className={`rounded-[2px] px-2 py-1 shadow-[0_2px_4px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] ${WOOD}`}>
               <span className={`font-label text-[15px] ${CARVED} ${CARVED_TITLE}`}>Where do you want to start?</span>
             </h2>

@@ -38,7 +38,9 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
       el.innerHTML = ''
       const total = METER_QUARTERS[measure.meter]
       const lead = (clef ? 42 : 8) + (timeSig ? 26 : 0)
-      const width = Math.max(150, lead + 40 + total * 56)
+      // A pickup measure is only as wide as the beats it holds; sixteenths need more room per beat.
+      const perBeat = measure.events.some((e) => e.dur === '16') ? 78 : 56
+      const width = Math.max(150, lead + 40 + (total - (measure.offset ?? 0)) * perBeat)
       const height = labels ? 132 : 112
       const renderer = new Renderer(el, Renderer.Backends.SVG)
       renderer.resize(width, height)
@@ -86,7 +88,7 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
         box.setAttribute('height', String(bottom - top + 12))
         box.setAttribute('rx', '4')
         box.setAttribute('fill', 'rgba(255,181,71,0.12)')
-        box.setAttribute('stroke', '#a8742a')
+        box.setAttribute('stroke', 'var(--color-amber-dim)')
         box.setAttribute('stroke-dasharray', '4 3')
         svg.appendChild(box)
       }
@@ -132,7 +134,7 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
         const line = document.createElementNS(SVG_NS, 'line')
         line.setAttribute('y1', String(top - 12))
         line.setAttribute('y2', String(bottom + 12))
-        line.setAttribute('stroke', '#a8742a')
+        line.setAttribute('stroke', 'var(--color-amber-dim)')
         line.setAttribute('stroke-width', '2')
         line.setAttribute('visibility', 'hidden')
         svg.appendChild(line)

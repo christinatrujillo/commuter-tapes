@@ -91,6 +91,8 @@ import {
   makeCagedNext,
   makeCagedShape,
   makeChordKind,
+  makeSlashRead,
+  makeSlashWrite,
   makeChordSpell,
   makeDiagramName,
   makeDiagramRole,
@@ -128,6 +130,7 @@ import {
   type Measure,
   type Meter,
   type SymbolId,
+  METER_QUARTERS,
 } from '../music/rhythm'
 import {
   FULL_NECK,
@@ -278,6 +281,8 @@ const PICK_KINDS = [
   'chordSymbolWrite',
   'chordSpell',
   'chordKind',
+  'slashRead',
+  'slashWrite',
   'seventhOnDegree',
   'seventhNumeral',
   'twoFiveSpell',
@@ -438,6 +443,8 @@ export const FLUENT_MS: Partial<Record<Question['kind'], number>> = {
   chordSymbolWrite: 3000,
   chordSpell: 6000,
   chordKind: 5000,
+  slashRead: 4000,
+  slashWrite: 4000,
   seventhOnDegree: 6000,
   seventhNumeral: 5000,
   twoFiveSpell: 8000,
@@ -748,6 +755,10 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
         return makeChordSpell(id, spec.keys ?? [], chords, rng)
       case 'chordKind':
         return makeChordKind(id, spec.keys ?? [], chords, rng)
+      case 'slashRead':
+        return makeSlashRead(id, spec.keys ?? [], rng)
+      case 'slashWrite':
+        return makeSlashWrite(id, spec.keys ?? [], rng)
       case 'seventhOnDegree':
         return makeSeventhOnDegree(id, spec.keys ?? ['C'], rng)
       case 'seventhNumeral':
@@ -895,8 +906,12 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
 /** A measure and a count ("beat 3", "the & of 2") to find in it. */
 export function makeCountBeat(id: number, meter: Meter, symbols: SymbolId[], rng: Rng, focus: SymbolId[] = []): Question {
   // A measure with at least two notes to choose between (a lone whole note makes it trivial).
-  let measure = randomMeasure(meter, symbols, rng, focus)
-  for (let i = 0; i < 20 && playedIndexes(measure).length < 2; i++) measure = randomMeasure(meter, symbols, rng, focus)
+  // Once pickups are taught, about half the measures are one: a bar that starts on its last beat or two.
+  const total = METER_QUARTERS[meter]
+  const pickup = symbols.includes('pickup') && meter !== '2/2' && (focus.includes('pickup') || rng() < 0.5)
+  const offset = pickup ? total - pick([1, 2].filter((n) => n < total), rng) : 0
+  let measure = randomMeasure(meter, symbols, rng, focus, offset)
+  for (let i = 0; i < 60 && playedIndexes(measure).length < 2; i++) measure = randomMeasure(meter, symbols, rng, focus, offset)
   const starts = onsets(measure)
   const played = playedIndexes(measure)
   // Beat 1 is too easy; ask about a later note when there is one.
@@ -913,22 +928,22 @@ export function makeTapRhythm(id: number, meter: Meter, symbols: SymbolId[], bpm
   let measure = randomMeasure(meter, symbols, rng, focus)
   for (let i = 0; i < 10 && playedIndexes(measure).length < 2; i++) measure = randomMeasure(meter, symbols, rng, focus)
   const used = [...new Set(measure.events.map(symbolOf))]
-  // In cut time the beat is a half note, so the same tempo would feel twice as fast; ease it off.
-  const tempo = meter === '2/2' ? Math.round(bpm * 0.8) : bpm
+  // In cut time the beat is a half note, so the same tempo would feel twice as fast; ease it off. Sixteenths get the same room.
+  const tempo = meter === '2/2' || used.includes('sixteenth') ? Math.round(bpm * 0.8) : bpm
   return { id, kind: 'tapRhythm', measure, bpm: tempo, facts: used.map((s) => `sym:${s}`) }
 }
 
 /** A measure with its last value blanked out, and choices for what fills it. */
 export function makeMeasureFill(id: number, meter: Meter, symbols: SymbolId[], rng: Rng): Question | null {
-  const nameable = NAMEABLE.filter((s) => symbols.includes(s) && s !== 'eighth')
+  const nameable = NAMEABLE.filter((s) => symbols.includes(s) && SYMBOLS[s].beats >= 1)
   for (let attempt = 0; attempt < 30; attempt++) {
     const full = randomMeasure(meter, symbols, rng)
     // Leave at least one value standing, so there's a measure to read.
     if (full.events.length < 2) continue
     const last = full.events[full.events.length - 1]
     const before = full.events[full.events.length - 2]
-    // Only blank a value that stands alone (not half of an eighth pair, a dotted pair, or a tie).
-    if (last.dur === '8' || before?.tie || before?.dots) continue
+    // Only blank a value that stands alone (not part of a beat of eighths or sixteenths, a dotted pair, or a tie).
+    if (last.dur === '8' || last.dur === '16' || before?.tie || before?.dots) continue
     const answer = symbolOf(last)
     if (!nameable.includes(answer)) continue
     const missing = eventQuarters(last)

@@ -442,7 +442,7 @@ export function makeModeVamp(id: number, keys: string[], minorKeys: string[], mo
 /** Parent keys for the neck tapes, all spelled on the Major scale tape, so every mode's name spells cleanly. */
 const NECK_KEYS: KeyId[] = ['C', 'G', 'D', 'A', 'E', 'F', 'Bb', 'Eb']
 
-/** A parent major scale in one position, as on tape 24: its root on the 6th or 5th string, every note from a fret below the root to three above. */
+/** A parent major scale in one position, as on tape 25: its root on the 6th or 5th string, every note from a fret below the root to three above. */
 function parentPattern(rootStrings: number[], rng: Rng) {
   const strings = rootStrings.filter((s) => s <= 1)
   for (let tries = 0; ; tries++) {
@@ -797,7 +797,7 @@ const A_DORIAN = modeScale('G', 'dorian')
 const A_MIXOLYDIAN = modeOn('A', 'mixolydian')!
 const D_MINOR = plainScale('D', 'dorian')!
 
-/** The G major pattern from tape 24 (root on the low E string, 3rd fret), its Gs labeled and every `home` lit. */
+/** The G major pattern from tape 25 (root on the low E string, 3rd fret), its Gs labeled and every `home` lit. */
 function gPattern(home: string): Card['board'] {
   const region: Region = { strings: ALL_STRINGS, minFret: 2, maxFret: 6 }
   const pcs = G_MAJOR.map(tonePc)
@@ -827,14 +827,14 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'modes:what': () => ({
     title: 'What a mode is',
     subtitle: 'A major scale from another note',
-    hook: 'A mode is a major scale played from one of its other notes. C major is C D E F G A B. Start on D instead and climb to the next D: D E F G A B C D. The notes haven’t changed, only which one is home (in amber). Like relative keys (tape 27), it’s the same set of notes heard from a new home.',
+    hook: 'A mode is a major scale played from one of its other notes. C major is C D E F G A B. Start on D instead and climb to the next D: D E F G A B C D. The notes haven’t changed, only which one is home (in amber). Like relative keys (tape 28), it’s the same set of notes heard from a new home.',
     score: { measures: scaleScore(D_DORIAN), labels: scaleLabels(D_DORIAN), colors: marked(7, PAPER_HIGHLIGHT, 0, 7) },
     sound: scaleSound(D_DORIAN),
   }),
   'modes:seven': () => ({
     title: 'Seven modes',
     subtitle: 'One on every note of the scale',
-    hook: 'A major scale has seven notes, so it has seven modes, one starting on each. In C major: C Ionian, D Dorian, E Phrygian, F Lydian, G Mixolydian, A Aeolian and B Locrian. You know two of them already, both in amber: Ionian is the major scale itself, and Aeolian, from the 6th note, is the natural minor scale (tape 27).',
+    hook: 'A major scale has seven notes, so it has seven modes, one starting on each. In C major: C Ionian, D Dorian, E Phrygian, F Lydian, G Mixolydian, A Aeolian and B Locrian. You know two of them already, both in amber: Ionian is the major scale itself, and Aeolian, from the 6th note, is the natural minor scale (tape 28).',
     score: { measures: scaleScore(C_MAJOR), labels: scaleLabels(C_MAJOR), colors: marked(7, PAPER_HIGHLIGHT, 0, 5) },
     sound: scaleSound(C_MAJOR),
   }),
@@ -863,7 +863,7 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'modes:colors-why': () => ({
     title: 'Color notes',
     subtitle: 'What makes each mode sound different',
-    hook: 'Tape 63 found each mode inside a major scale. Musicians also compare a mode with the plain major or minor scale on the same root: D Dorian with D minor. Then only one note is different (in amber), and that note gives the mode its color. It’s called the mode’s color note, and it’s the note to lean on when you play the mode. Press ▶\uFE0E Hear: D minor, then D Dorian.',
+    hook: 'Tape 65 found each mode inside a major scale. Musicians also compare a mode with the plain major or minor scale on the same root: D Dorian with D minor. Then only one note is different (in amber), and that note gives the mode its color. It’s called the mode’s color note, and it’s the note to lean on when you play the mode. Press ▶\uFE0E Hear: D minor, then D Dorian.',
     score: { measures: scaleScore(D_DORIAN), labels: scaleLabels(D_DORIAN), colors: marked(7, PAPER_HIGHLIGHT, 5) },
     sound: [...scaleSound(D_MINOR), ...scaleSound(D_DORIAN)],
   }),
@@ -878,7 +878,7 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'Mixolydian',
     subtitle: 'Major with a lowered 7th',
     hook: 'G major is G A B C D E F♯; G Mixolydian is G A B C D E F. Only the 7th changed: F♯ dropped to F (in amber). That lowered 7th is Mixolydian’s color note. It takes the edge off major and gives it an easygoing, bluesy sound that’s all over rock and folk.',
-    onGuitar: 'The lowered 7th is the note a dominant 7th chord adds (tape 46), so Mixolydian fits right over G7.',
+    onGuitar: 'The lowered 7th is the note a dominant 7th chord adds (tape 47), so Mixolydian fits right over G7.',
     score: { measures: scaleScore(G_MIXOLYDIAN), labels: scaleLabels(G_MIXOLYDIAN), colors: marked(7, PAPER_HIGHLIGHT, 6) },
     sound: scaleSound(G_MIXOLYDIAN),
   }),
@@ -919,7 +919,7 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'modes:chords-why': () => ({
     title: 'Modes over chords',
     subtitle: 'Pick the scale that fits',
-    hook: 'When a song sits on one chord for a while, players reach for the mode that fits it. Over Dm7 in C major, D Dorian fits: every note belongs to the key, and the chord’s root is home. Tape 40 built a chord on every note of a key; each of those chords has a mode too.',
+    hook: 'When a song sits on one chord for a while, players reach for the mode that fits it. Over Dm7 in C major, D Dorian fits: every note belongs to the key, and the chord’s root is home. Tape 41 built a chord on every note of a key; each of those chords has a mode too.',
     score: { measures: scaleScore(D_DORIAN), labels: scaleLabels(D_DORIAN) },
     sound: scaleSound(D_DORIAN),
   }),
@@ -933,7 +933,7 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'modes:home-chord': () => ({
     title: 'Home chords',
     subtitle: 'The 7th chord on a mode’s root',
-    hook: 'Stack 3rds from a mode’s first note, using only its notes, and you get its home chord (in amber). Ionian and Lydian give a major 7th, Mixolydian a dominant 7th, Dorian, Phrygian and Aeolian a minor 7th, and Locrian a half-diminished chord (tape 47). D Dorian stacks to D F A C: Dm7.',
+    hook: 'Stack 3rds from a mode’s first note, using only its notes, and you get its home chord (in amber). Ionian and Lydian give a major 7th, Mixolydian a dominant 7th, Dorian, Phrygian and Aeolian a minor 7th, and Locrian a half-diminished chord (tape 48). D Dorian stacks to D F A C: Dm7.',
     score: { measures: scaleScore(D_DORIAN), labels: scaleLabels(D_DORIAN), colors: marked(7, PAPER_HIGHLIGHT, 0, 2, 4, 6) },
     sound: triadSound([D_DORIAN[0], D_DORIAN[2], D_DORIAN[4], D_DORIAN[6]]),
   }),
@@ -950,7 +950,7 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'modes:neck-why': () => ({
     title: 'Modes on the neck',
     subtitle: 'No new shapes to learn',
-    hook: 'A mode uses its parent scale’s notes, so it uses the parent’s pattern too. To play A Dorian, play the G major pattern from tape 24 and treat A as home: start and end your lines on the As (lit), and lean on them.',
+    hook: 'A mode uses its parent scale’s notes, so it uses the parent’s pattern too. To play A Dorian, play the G major pattern from tape 25 and treat A as home: start and end your lines on the As (lit), and lean on them.',
     board: gPattern('A'),
     sound: scaleSound(A_DORIAN),
   }),
@@ -1006,7 +1006,7 @@ const MODES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'modes:ear-vamps': () => ({
     title: 'Hearing vamps',
     subtitle: 'Home first, then where it goes',
-    hook: 'You can hear a vamp’s mode too (tape 65). First listen to home: a major chord means Mixolydian or Lydian, a minor one Dorian or Phrygian. Then listen to where the second chord goes: a whole step down is Mixolydian, a whole step up is Lydian, a 4th up is Dorian, and just a half step up is Phrygian. Press ▶\uFE0E Hear: Am to D, then Em to F.',
+    hook: 'You can hear a vamp’s mode too (tape 67). First listen to home: a major chord means Mixolydian or Lydian, a minor one Dorian or Phrygian. Then listen to where the second chord goes: a whole step down is Mixolydian, a whole step up is Lydian, a 4th up is Dorian, and just a half step up is Phrygian. Press ▶\uFE0E Hear: Am to D, then Em to F.',
     listen: {
       notes: [...triadAt(45, true), ...triadAt(50, false), ...triadAt(45, true), ...triadAt(50, false), ...triadAt(52, true), ...triadAt(53, false), ...triadAt(52, true), ...triadAt(53, false)],
       chord: 3,

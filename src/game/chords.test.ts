@@ -18,6 +18,8 @@ import {
   makeSeventhHear,
   makeSeventhNumeral,
   makeSeventhOnDegree,
+  makeSlashRead,
+  makeSlashWrite,
   makeSymbolRead,
   makeSymbolWrite,
   makeTwoFiveSpell,
@@ -159,22 +161,26 @@ describe('hearing 7th chords', () => {
 describe('every building-chords fact', () => {
   it('comes back in review, with a label and the tape that taught it', () => {
     const tapes: Record<string, number> = {
-      'csym:dim': 45,
-      'chd:Cmaj7': 46,
-      'chd:G7': 46,
-      'chd:Bm7b5': 46,
-      'chq:m7': 46,
-      'h7:5': 47,
-      'h7:two-five': 47,
-      'chd:Dsus4': 48,
-      'chd:Cadd9': 48,
-      'chd:Am6': 48,
-      'diag:Am': 49,
-      'diag:G': 49,
-      'caged:A': 50,
-      'caged:order': 50,
-      'ear:7': 51,
-      'ear:m7b5': 51,
+      'csym:dim': 46,
+      'chd:Cmaj7': 47,
+      'chd:G7': 47,
+      'chd:Bm7b5': 47,
+      'chq:m7': 47,
+      'h7:5': 48,
+      'h7:two-five': 48,
+      'chd:Dsus4': 49,
+      'chd:Cadd9': 49,
+      'chd:Am6': 49,
+      'chd:E5': 50,
+      'chq:5': 50,
+      'slash:read': 50,
+      'slash:write': 50,
+      'diag:Am': 51,
+      'diag:G': 51,
+      'caged:A': 52,
+      'caged:order': 52,
+      'ear:7': 53,
+      'ear:m7b5': 53,
     }
     for (const [fact, tape] of Object.entries(tapes)) {
       expect(tapeOf(fact), fact).toBe(tape)
@@ -189,5 +195,31 @@ describe('every building-chords fact', () => {
   it('explains chord symbols before quizzing them', () => {
     const steps = buildRehearsal('cb1-1', seeded(1))!.steps.map((s) => (s.kind === 'card' ? s.card.title : s.kind))
     expect(steps).toEqual(['Why chord symbols', 'Letters and m', 'check', 'ready'])
+  })
+})
+
+describe('power chords and slash chords', () => {
+  it('spells a power chord as root and 5th, with one right choice', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const q = asPick(makeChordSpell(1, ['E', 'A', 'D'], ['5'], seeded(seed)))
+      expect(q.options[q.answer].split(' ')).toHaveLength(2)
+      expect(new Set(q.options).size).toBe(q.options.length)
+      expect(q.options.length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('reads and writes slash chords with the bass after the slash', () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const read = asPick(makeSlashRead(1, ['C', 'G', 'D'], seeded(seed)))
+      const write = asPick(makeSlashWrite(1, ['C', 'G', 'D'], seeded(seed)))
+      for (const q of [read, write]) {
+        expect(q.answer).toBeGreaterThanOrEqual(0)
+        expect(new Set(q.options).size).toBe(q.options.length)
+        expect(q.ask.text).toContain(q.ask.hl)
+      }
+      const [chord, bass] = write.options[write.answer].split('/')
+      expect(write.ask.text).toContain(`with ${bass} in the bass`)
+      expect(chord).not.toBe(bass)
+    }
   })
 })

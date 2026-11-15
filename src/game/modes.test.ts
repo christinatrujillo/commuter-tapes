@@ -324,19 +324,19 @@ describe('hearing modes', () => {
 describe('every mode fact', () => {
   it('comes back in review, with a label and the tape that taught it', () => {
     const tapes: Record<string, number> = {
-      ...Object.fromEntries(MODES.map((m) => [`mode:${m}`, 63])),
-      ...Object.fromEntries(MODES.filter((m) => m !== 'ionian').map((m) => [`modek:${m}`, 63])),
-      'modec:lydian': 64,
-      'modec:locrian': 64,
-      'modesp:phrygian': 64,
-      'moden:aeolian': 65,
-      'modeh:locrian': 65,
-      'modev:dorian': 65,
-      'modeneck:mixolydian': 66,
-      'ear:dorian': 67,
-      'ear:phrygian': 67,
-      'ear:vamp-dorian': 67,
-      'ear:vamp-lydian': 67,
+      ...Object.fromEntries(MODES.map((m) => [`mode:${m}`, 65])),
+      ...Object.fromEntries(MODES.filter((m) => m !== 'ionian').map((m) => [`modek:${m}`, 65])),
+      'modec:lydian': 66,
+      'modec:locrian': 66,
+      'modesp:phrygian': 66,
+      'moden:aeolian': 67,
+      'modeh:locrian': 67,
+      'modev:dorian': 67,
+      'modeneck:mixolydian': 68,
+      'ear:dorian': 69,
+      'ear:phrygian': 69,
+      'ear:vamp-dorian': 69,
+      'ear:vamp-lydian': 69,
     }
     for (const [fact, tape] of Object.entries(tapes)) {
       expect(tapeOf(fact), fact).toBe(tape)

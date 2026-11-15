@@ -13,9 +13,11 @@ export function scoreTaps(measure: Measure, bpm: number, taps: number[], start: 
   const beatMs = 60000 / bpm
   // Note positions are in quarter notes; the tempo counts the beat (a half note in cut time).
   const quarterMs = beatMs / METER_PULSE[measure.meter].quarters
-  const window = Math.min(250, Math.max(120, beatMs * 0.25))
   const starts = onsets(measure)
   const played = playedIndexes(measure)
+  // A tap can't be nearer to a neighboring note than to its own, so close notes (sixteenths) narrow the window.
+  const closest = Math.min(...played.slice(1).map((i, k) => (starts[i] - starts[played[k]]) * quarterMs))
+  const window = Math.min(250, Math.max(120, beatMs * 0.25), closest / 2)
   const offsets: (number | null)[] = measure.events.map(() => null)
   const used = new Set<number>()
   for (const i of played) {
@@ -149,11 +151,11 @@ export function TapRhythm({ measure, bpm, result, onDone, allowListen = false }:
   })
 
   const colors = result
-    ? measure.events.map((e, i) => (e.rest || (i > 0 && measure.events[i - 1].tie) ? undefined : result.offsets[i] !== null ? '#2f8f4e' : '#c0392b'))
+    ? measure.events.map((e, i) => (e.rest || (i > 0 && measure.events[i - 1].tie) ? undefined : result.offsets[i] !== null ? 'var(--color-right-ink)' : 'var(--color-wrong-ink)'))
     : undefined
   const marks = result?.tapBeats
     .filter((b) => b > -1 && b < METER_QUARTERS[measure.meter] + 0.5)
-    .map((beat) => ({ beat, color: '#a8742a' }))
+    .map((beat) => ({ beat, color: 'var(--color-amber-dim)' }))
   const starts = onsets(measure)
 
   return (

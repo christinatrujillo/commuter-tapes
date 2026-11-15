@@ -112,17 +112,17 @@ describe('hearing minor keys', () => {
 describe('every minor-key fact', () => {
   it('comes back in review, with a label and the tape that taught it', () => {
     const tapes: Record<string, number> = {
-      'mh:4': 52,
-      'mrn:6': 52,
-      'hmin:A': 53,
-      'hmv:V7': 53,
-      'hmv:vii°7': 53,
-      'mprog:i-VI-VII-i': 54,
-      'mprog:iidim-V7-i': 54,
-      'kfind:home': 55,
-      'kfind:chords': 55,
-      'ear:keymode': 56,
-      'ear:minorv': 56,
+      'mh:4': 54,
+      'mrn:6': 54,
+      'hmin:A': 55,
+      'hmv:V7': 55,
+      'hmv:vii°7': 55,
+      'mprog:i-VI-VII-i': 56,
+      'mprog:iidim-V7-i': 56,
+      'kfind:home': 57,
+      'kfind:chords': 57,
+      'ear:keymode': 58,
+      'ear:minorv': 58,
     }
     for (const [fact, tape] of Object.entries(tapes)) {
       expect(tapeOf(fact), fact).toBe(tape)

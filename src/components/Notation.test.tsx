@@ -53,7 +53,7 @@ describe('rhythm notation', () => {
     const { container } = render(<Notation measure={{ meter: '4/4', events: [n('q'), n('q'), n('h')] }} playhead={playhead} />)
     await waitFor(() => expect(playhead.current).toBeTruthy())
     playhead.current!(1.5)
-    const line = container.querySelector('svg > line[stroke="#a8742a"]')!
+    const line = container.querySelector('svg > line[stroke="var(--color-amber-dim)"]')!
     expect(line.getAttribute('visibility')).toBe('visible')
     playhead.current!(null)
     expect(line.getAttribute('visibility')).toBe('hidden')

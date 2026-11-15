@@ -15,7 +15,7 @@ export const THEORY_JAMS = [
   { id: 'intervals', label: 'Intervals', tapes: ['u14', 't6', 't7', 't8'] },
   { id: 'triads', label: 'Triads', tapes: ['tr1', 'tr2', 'tr3', 'tr4', 'tr5', 'tr6'] },
   { id: 'chords', label: 'Chords in a key', tapes: ['hk1', 'hk2', 'hk3', 'hk4'] },
-  { id: 'building', label: 'Building chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb5', 'cb6'] },
+  { id: 'building', label: 'Building chords', tapes: ['cb1', 'cb2', 'cb3', 'cb4', 'cb8', 'cb5', 'cb6'] },
   { id: 'minor', label: 'Minor keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4'] },
   { id: 'blues', label: 'Blues & pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5'] },
   { id: 'modes', label: 'Modes', tapes: ['md1', 'md2', 'md3', 'md4'] },

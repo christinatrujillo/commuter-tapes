@@ -65,7 +65,8 @@ describe('every lesson', () => {
               break
             }
             case 'countBeat':
-              expect(measureQuarters(q.measure)).toBe(METER_QUARTERS[q.measure.meter])
+              // A pickup measure starts late and still ends on the bar line.
+              expect((q.measure.offset ?? 0) + measureQuarters(q.measure)).toBe(METER_QUARTERS[q.measure.meter])
               expect(playedIndexes(q.measure).length).toBeGreaterThanOrEqual(2)
               expect(playedIndexes(q.measure)).toContain(q.target)
               expect(onsets(q.measure)[q.target]).toBe(q.beat)

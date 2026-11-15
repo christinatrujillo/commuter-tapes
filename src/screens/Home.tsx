@@ -1,4 +1,4 @@
-import { useRef, useState, type Ref } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { Cassette, DeckWell } from '../components/Cassette'
 import { HeadphonesIcon } from '../components/Monitors'
 import { LabelTape, TabShell, TransportIcon } from '../components/ui'
@@ -65,7 +65,7 @@ function RackHome() {
       </div>
       {/* A wooden rack holding the tapes spine-out, a shelf per volume under a rail with its name: a list you can scan at a glance. */}
       <div className={`rounded-md p-2.5 shadow-[0_8px_14px_rgba(0,0,0,0.5)] ${WOOD}`}>
-        <ol className="flex flex-col gap-2.5 rounded-sm bg-[#120e0c] p-1.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.85)]">
+        <ol className="flex flex-col gap-2.5 rounded-sm bg-well p-1.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.85)]">
           {VOLUMES.map((volume) => (
             <li key={volume.label}>
               <h3 className={`mb-1.5 flex items-baseline gap-2 rounded-[2px] px-2 py-1 shadow-[0_2px_4px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] ${WOOD}`}>
@@ -174,6 +174,9 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
   )
 }
 
+/** How many lamps each tape had lit the last time the rack was on screen, so newly recorded tracks can light up. */
+const lampsSeen = new Map<string, number>()
+
 /** One tape in the rack, spine out: color stripe, label-tape title, a lamp per lesson, and where you stand. */
 function Spine({
   unit,
@@ -197,6 +200,8 @@ function Spine({
   // The lights show how many tracks are recorded, so this line only says what they can't. Why a tape is sealed shows on the deck.
   const line = locked ? 'Sealed' : finished ? 'Done' : ''
   const listening = unit.lessons.some(isListening)
+  const litBefore = lampsSeen.get(unit.id) ?? done
+  useEffect(() => void lampsSeen.set(unit.id, done), [unit.id, done])
   return (
     <button
       onClick={onPick}
@@ -208,7 +213,7 @@ function Spine({
           : 'bg-[linear-gradient(#2f2723,#211b18)]'
       } ${locked ? 'opacity-55' : ''}`}
     >
-      <span className="w-2 self-stretch" style={{ background: locked ? '#5d5148' : unit.color }} />
+      <span className="w-2 self-stretch" style={{ background: locked ? 'var(--color-screw)' : unit.color }} />
       <span className="w-6 shrink-0 text-center font-mono text-xs text-muted">{String(number).padStart(2, '0')}</span>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
         <span className="flex max-w-full items-center gap-1.5">
@@ -231,7 +236,7 @@ function Spine({
       {!locked && (
         <span className="flex shrink-0 gap-1" aria-hidden>
           {unit.lessons.map((l, k) => (
-            <span key={l.id} className={`led !h-2 !w-2 ${k < done ? 'led-green' : ''}`} />
+            <span key={l.id} className={`led !h-2 !w-2 ${k < done ? 'led-green' : ''} ${k >= litBefore && k < done ? 'lamp-on' : ''}`} />
           ))}
         </span>
       )}
@@ -247,7 +252,7 @@ function Spine({
 function BlankTape({ number, title }: { number: number; title: string }) {
   return (
     <div className="relative flex w-full items-center gap-3 overflow-hidden rounded-[3px] border border-dashed border-[#4a3f38] bg-[#1a1512] py-2 pr-3 pl-0 opacity-60">
-      <span className="w-2 self-stretch bg-[#3a2f29]" />
+      <span className="w-2 self-stretch bg-led-off" />
       <span className="w-6 shrink-0 text-center font-mono text-xs text-muted">{String(number).padStart(2, '0')}</span>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
         <LabelTape className="max-w-full truncate opacity-70">{title}</LabelTape>

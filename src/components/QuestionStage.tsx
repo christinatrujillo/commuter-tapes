@@ -76,7 +76,7 @@ export function useQuestionInput(q: Question, answer: Answer | null, submit: Sub
   return { found: spots, tap, pick, rhythm }
 }
 
-const BEAT_LABELS: Record<number, string> = { 0.5: '½', 1.5: '1½' }
+const BEAT_LABELS: Record<number, string> = { 0.25: '¼', 0.5: '½', 1.5: '1½' }
 
 interface StageProps {
   q: Question
@@ -162,7 +162,7 @@ export function QuestionStage({ q, answer, found, label, feedback, onTap, onPick
     notation = <Notation measure={q.measure} blankBeats={q.missing} />
   } else if (q.kind === 'countBeat') {
     const starts = onsets(q.measure)
-    const colors = answer ? q.measure.events.map((_, i) => (i === q.target ? '#2f8f4e' : i === answer.picked ? '#c0392b' : undefined)) : undefined
+    const colors = answer ? q.measure.events.map((_, i) => (i === q.target ? 'var(--color-right-ink)' : i === answer.picked ? 'var(--color-wrong-ink)' : undefined)) : undefined
     notation = (
       <Notation
         measure={q.measure}
@@ -275,8 +275,8 @@ export function QuestionStage({ q, answer, found, label, feedback, onTap, onPick
   )
 }
 
-const RIGHT = '#2f8f4e'
-const WRONG = '#c0392b'
+const RIGHT = 'var(--color-right-ink)'
+const WRONG = 'var(--color-wrong-ink)'
 
 /** Sheet music for the reading questions; note names appear underneath once you've answered. */
 function scoreFor(q: Question, answer: Answer | null, found: Position[]): ReactNode {

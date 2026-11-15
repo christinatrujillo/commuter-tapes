@@ -17,12 +17,13 @@ function sourceFiles(dir: string): string[] {
 // Symbols like ▶, ⏏ and ↔ also come as color emoji. iPhones draw them as emoji unless the
 // text-style selector (written \uFE0E) follows, while Android draws plain text either way, so a
 // missing selector only shows up on an iPhone. Buttons use drawn icons (TransportIcon) instead.
+// ♭, ♮ and ♯ have no emoji form, and whether they count as pictographs depends on the Unicode version Node ships.
 describe('symbols', () => {
   it('never turn into emoji on iPhones', () => {
     const bare = sourceFiles(SRC).flatMap((file) =>
       readFileSync(file, 'utf8')
         .split('\n')
-        .flatMap((line, i) => [...line.matchAll(/\p{Extended_Pictographic}(?!\uFE0E|\\uFE0E)/gu)].map((m) => `${relative(SRC, file)}:${i + 1} ${m[0]}`)),
+        .flatMap((line, i) => [...line.matchAll(/(?![♭♮♯])\p{Extended_Pictographic}(?!\uFE0E|\\uFE0E)/gu)].map((m) => `${relative(SRC, file)}:${i + 1} ${m[0]}`)),
     )
     expect(bare).toEqual([])
   })

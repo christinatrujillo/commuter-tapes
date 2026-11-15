@@ -169,7 +169,7 @@ describe('listening and the MONITORS switch', () => {
     // The Jam room's "due" count agrees with what Review will actually ask.
     expect(dueFacts(stats, '2026-02-01')).toHaveLength(2)
     expect(dueFacts(stats, '2026-02-01', false)).toEqual(['ivn:M3'])
-    expect(['ivnum:5', 'ivn:M3', 'invnum:3', 'inv:M3', 'ear:P5', 'ear:M3'].map(tapeOf)).toEqual([29, 29, 31, 31, 32, 32])
+    expect(['ivnum:5', 'ivn:M3', 'invnum:3', 'inv:M3', 'ear:P5', 'ear:M3'].map(tapeOf)).toEqual([30, 30, 32, 32, 33, 33])
   })
 })
 

@@ -18,6 +18,23 @@
   --color-amber-dim: #a8742a;
   --color-rec: #e5483a;
   --color-led: #63d68b;
+
+  /* Materials: recessed wells, unlit lamps, screws, magnetic tape and reel hubs, sealed tapes. */
+  --color-well: #120e0c;
+  --color-led-off: #3a2f29;
+  --color-screw: #5d5148;
+  --color-tape: #4a3426;
+  --color-soot: #1b1512;
+  --color-sealed: #3b3532;
+  --color-brass: #c9a86a;
+  --color-gold: #d9a441;
+  /* Paper and the inks on it: faded print, the rating stamp, and right and wrong marks on the staff. */
+  --color-paper: #f6eedc;
+  --color-paper-shade: #ece2c9;
+  --color-print: #6b5f55;
+  --color-stamp: #b5473a;
+  --color-right-ink: #2f8f4e;
+  --color-wrong-ink: #c0392b;
 }
 
 html,
@@ -91,12 +108,12 @@ p {
 }
 .hw-cream {
   --btn-bg: linear-gradient(#f7efdd, #e0d4b8);
-  --btn-fg: #1d1916;
+  --btn-fg: var(--color-ink);
   --btn-depth: #8f8268;
 }
 .hw-dark {
   --btn-bg: linear-gradient(#3b322c, #29221e);
-  --btn-fg: #efe5cf;
+  --btn-fg: var(--color-cream);
   --btn-depth: #0f0c0a;
 }
 
@@ -108,10 +125,10 @@ p {
   border-radius: 10px;
   border: 1px solid var(--color-edge);
   background:
-    radial-gradient(circle at 9px 9px, #5d5148 2px, transparent 2.6px),
-    radial-gradient(circle at calc(100% - 9px) 9px, #5d5148 2px, transparent 2.6px),
-    radial-gradient(circle at 9px calc(100% - 9px), #5d5148 2px, transparent 2.6px),
-    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), #5d5148 2px, transparent 2.6px),
+    radial-gradient(circle at 9px 9px, var(--color-screw) 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 9px) 9px, var(--color-screw) 2px, transparent 2.6px),
+    radial-gradient(circle at 9px calc(100% - 9px), var(--color-screw) 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), var(--color-screw) 2px, transparent 2.6px),
     linear-gradient(#2a221e, #221b18);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -121,7 +138,7 @@ p {
 /* Cream paper, like a cassette J-card or sheet music on a stand. */
 .paper {
   color: var(--color-ink);
-  background: linear-gradient(#f6eedc, #ece2c9);
+  background: linear-gradient(var(--color-paper), var(--color-paper-shade));
   border-radius: 4px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
@@ -130,7 +147,7 @@ p {
 .paper-lined {
   background:
     repeating-linear-gradient(transparent 0 27px, rgba(80, 120, 160, 0.18) 27px 28px),
-    linear-gradient(#f6eedc, #ece2c9);
+    linear-gradient(var(--color-paper), var(--color-paper-shade));
 }
 
 /* Embossed label-maker tape: white raised capitals on black plastic. */
@@ -190,7 +207,7 @@ p {
   width: 10px;
   height: 10px;
   border-radius: 9999px;
-  background: #3a2f29;
+  background: var(--color-led-off);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 .led-amber {
@@ -355,8 +372,15 @@ p {
 /* As the panel lands, a newly lit CLIP lamp comes on with one soft glow. */
 .clip-on { animation: clip-on 300ms ease-out 300ms backwards; }
 @keyframes clip-on {
-  from { background: #3a2f29; box-shadow: none; }
+  from { background: var(--color-led-off); box-shadow: none; }
   60% { box-shadow: 0 0 12px var(--color-rec); }
+}
+
+/* Back on the rack after a take, the lamp for the track just recorded comes on with one soft glow. */
+.lamp-on { animation: lamp-on 600ms ease-out 250ms backwards; }
+@keyframes lamp-on {
+  from { background: var(--color-led-off); box-shadow: none; }
+  60% { box-shadow: 0 0 14px var(--color-led); }
 }
 
 /* ---------- First-run guide ---------- */
@@ -441,7 +465,7 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .breathe, .level-bar, .blink, .reel-spin, .fade-in, .slide-up, .marker-pop, .marker-pulse, .stamp { animation: none; }
-  .panel-rise, .marker-spring, .clip-on { animation: none; }
+  .panel-rise, .marker-spring, .clip-on, .lamp-on { animation: none; }
   .guide-spot, .guide-ring, .guide-in, .guide-out, .guide-words-in, .guide-words-out, .guide-dot-on { animation: none; }
   .guide-arrow { transition: none; }
 }

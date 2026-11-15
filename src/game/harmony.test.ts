@@ -166,16 +166,16 @@ describe('hearing progressions', () => {
 describe('every chords-in-a-key fact', () => {
   it('comes back in review, with a label and the tape that taught it', () => {
     const tapes: Record<string, number> = {
-      'hd:6': 40,
-      'hrn:2': 41,
-      'hprim:V': 42,
-      'hbox:IV': 42,
-      'hprog:I-IV-V-I': 43,
-      'hprog:I-V-vi-IV': 43,
-      'hprog:ii-V-I': 43,
-      'ear:home': 44,
-      'ear:four-five': 44,
-      'ear:prog': 44,
+      'hd:6': 41,
+      'hrn:2': 42,
+      'hprim:V': 43,
+      'hbox:IV': 43,
+      'hprog:I-IV-V-I': 44,
+      'hprog:I-V-vi-IV': 44,
+      'hprog:ii-V-I': 44,
+      'ear:home': 45,
+      'ear:four-five': 45,
+      'ear:prog': 45,
     }
     for (const [fact, tape] of Object.entries(tapes)) {
       expect(tapeOf(fact), fact).toBe(tape)

@@ -27,20 +27,20 @@ interface Props {
 }
 
 const TONE_FILL: Record<Exclude<MarkerTone, 'heat'>, string> = {
-  target: '#ffb547',
-  correct: '#63d68b',
-  wrong: '#e5483a',
+  target: 'var(--color-amber)',
+  correct: 'var(--color-led)',
+  wrong: 'var(--color-rec)',
   alt: '#3f9d63',
   root: '#5fc3c9',
-  note: '#efe5cf',
+  note: 'var(--color-cream)',
   // Sharps and flats: dark dots ringed in cream, like the black keys of a piano.
-  accidental: '#1b1512',
+  accidental: 'var(--color-soot)',
 }
 /** Lit markers glow like indicator lamps. */
 const GLOWS = new Set<MarkerTone>(['target', 'correct', 'wrong', 'root'])
 
 const STRING_WIDTH = [3.4, 2.8, 2.2, 1.8, 1.4, 1.1]
-const STRING_COLOR = ['#c9a86a', '#c9a86a', '#c9a86a', '#c9a86a', '#dcdad6', '#dcdad6']
+const STRING_COLOR = ['var(--color-brass)', 'var(--color-brass)', 'var(--color-brass)', 'var(--color-brass)', '#dcdad6', '#dcdad6']
 const SINGLE_INLAYS = new Set([3, 5, 7, 9, 15, 17, 19, 21])
 
 const landscapeQuery = '(orientation: landscape)'
@@ -175,7 +175,7 @@ export function Fretboard({
             fontSize={15}
             fontWeight={800}
             className="font-label"
-            fill={active.has(s) ? '#efe5cf' : '#5d5148'}
+            fill={active.has(s) ? 'var(--color-cream)' : 'var(--color-screw)'}
           >
             {STRING_LABELS[s]}
           </text>
@@ -197,7 +197,7 @@ export function Fretboard({
             fontSize={landmark ? 14 : 12}
             fontWeight={landmark ? 800 : 600}
             className="font-mono"
-            fill={landmark ? '#c9bda3' : '#6b5f55'}
+            fill={landmark ? 'var(--color-cream-dim)' : 'var(--color-print)'}
           >
             {f}
           </text>
@@ -225,7 +225,7 @@ export function Fretboard({
         .filter((m) => m.pos.fret >= minFret && m.pos.fret <= maxFret)
         .map((m) => {
           const [cx, cy] = pt(slotMid(m.pos.fret - minFret), stringAcross(m.pos.string))
-          const fill = m.tone === 'heat' ? (m.fill ?? '#efe5cf') : TONE_FILL[m.tone]
+          const fill = m.tone === 'heat' ? (m.fill ?? 'var(--color-cream)') : TONE_FILL[m.tone]
           const plain = m.tone === 'note' || m.tone === 'accidental'
           const label = m.label ?? ''
           return (
@@ -242,7 +242,7 @@ export function Fretboard({
                 cy={cy}
                 r={r}
                 fill={fill}
-                stroke={m.tone === 'accidental' ? '#efe5cf' : '#15110f'}
+                stroke={m.tone === 'accidental' ? 'var(--color-cream)' : 'var(--color-room)'}
                 strokeWidth={m.tone === 'accidental' ? 1.5 : plain ? 1 : 2}
                 style={GLOWS.has(m.tone) ? { filter: `drop-shadow(0 0 5px ${fill})` } : undefined}
               />
@@ -255,7 +255,7 @@ export function Fretboard({
                   fontSize={label.length > 2 ? r * 0.62 : label.length > 1 ? r * 0.82 : r * 0.95}
                   fontWeight={700}
                   className="font-label"
-                  fill={m.tone === 'wrong' ? '#fff6ee' : m.tone === 'accidental' ? '#efe5cf' : '#15110f'}
+                  fill={m.tone === 'wrong' ? '#fff6ee' : m.tone === 'accidental' ? 'var(--color-cream)' : 'var(--color-room)'}
                 >
                   {label}
                 </text>

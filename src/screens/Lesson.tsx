@@ -97,7 +97,7 @@ export function ReviewScreen() {
     return buildReview(state.stats, today(), REVIEW_SESSION, Math.random, undefined, listeningOff(state) === null)
   }, [attempt])
   if (!questions.length) return <Unavailable message="Nothing’s due for review. Reviews also mix into every take, so you’re not missing anything." />
-  return <LessonRunner key={attempt} questions={questions} title="Review" onRetry={() => setAttempt((a) => a + 1)} />
+  return <LessonRunner key={attempt} questions={questions} title="Today’s mixtape" onRetry={() => setAttempt((a) => a + 1)} />
 }
 
 export const REVIEW_SESSION = 12
@@ -393,7 +393,7 @@ function CompleteScreen({ summary, title, offerReview }: { summary: Summary; tit
             <LabelTape size="lg">{title}</LabelTape>
           </h1>
           {summary.rating && (
-            <div className="stamp label-text absolute right-4 bottom-2.5 rounded border-2 border-[#b5473a] px-2 py-0.5 text-sm text-[#b5473a]">
+            <div className="stamp label-text absolute right-4 bottom-2.5 rounded border-2 border-stamp px-2 py-0.5 text-sm text-stamp">
               {RATING_NAMES[summary.rating]}
             </div>
           )}
@@ -413,7 +413,7 @@ function CompleteScreen({ summary, title, offerReview }: { summary: Summary; tit
         {offerReview && due >= REVIEW_SESSION && (
           // Replaces this screen in the history, so Back from the review doesn't restart the take.
           <Button variant="dark" onClick={() => navigate('/review', { replace: true })}>
-            <TransportIcon kind="redo" /> Review {REVIEW_SESSION} due · no clips
+            <TransportIcon kind="play" /> Today’s mixtape · {REVIEW_SESSION} due · no clips
           </Button>
         )}
         {summary.volumeDone && (

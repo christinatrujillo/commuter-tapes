@@ -21,6 +21,22 @@ describe('generated rhythms', () => {
     }
   })
 
+  it('count sixteenths 1 e & a, and a pickup as the end of its bar', () => {
+    expect([0, 0.25, 0.5, 0.75, 1].map((p) => countAt(p))).toEqual(['1', 'e', '&', 'a', '2'])
+    expect(countName(1.75)).toBe('the a of 2')
+    for (let seed = 1; seed <= 100; seed++) {
+      const m = randomMeasure('4/4', [...ALL, 'eighthRest', 'sixteenth', 'syncopation'], seeded(seed), [], 3)
+      expect(onsets(m)[0]).toBe(3)
+      expect(3 + measureQuarters(m)).toBe(4)
+    }
+  })
+
+  it('score sixteenths against their own notes only', () => {
+    const m: Measure = { meter: '2/4', events: [{ dur: '16', dots: 0, rest: false }, { dur: '16', dots: 0, rest: false }, { dur: '16', dots: 0, rest: false }, { dur: '16', dots: 0, rest: false }, { dur: 'q', dots: 0, rest: false }] }
+    // At 48 bpm sixteenths are 312 ms apart: taps on every other one match two notes, not four.
+    expect(scoreTaps(m, 48, [0, 625, 1250], 0).hits).toBe(3)
+  })
+
   it('keep beginner rhythms on the beat', () => {
     for (let seed = 1; seed <= 300; seed++) {
       const m = randomMeasure('4/4', ALL, seeded(seed))

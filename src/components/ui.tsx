@@ -59,18 +59,18 @@ export function Reels({ value, counter }: { value: number; counter: number }) {
     <g className="reel-spin">
       <circle cx={cx} cy={26} r={8} fill="#e9dcc0" />
       {[0, 120, 240].map((a) => (
-        <rect key={a} x={cx - 1.5} y={18.5} width={3} height={4} fill="#1b1512" transform={`rotate(${a} ${cx} 26)`} />
+        <rect key={a} x={cx - 1.5} y={18.5} width={3} height={4} fill="var(--color-soot)" transform={`rotate(${a} ${cx} 26)`} />
       ))}
-      <circle cx={cx} cy={26} r={3} fill="#1b1512" />
+      <circle cx={cx} cy={26} r={3} fill="var(--color-soot)" />
     </g>
   )
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <svg viewBox="0 0 200 52" className="h-11 min-w-0 flex-1" aria-hidden>
-        <rect x={1} y={1} width={198} height={50} rx={8} fill="#120e0c" stroke="#3a302a" />
-        <path d={`M 40 ${26 + left} L 100 47 L 160 ${26 + right}`} stroke="#4a3426" strokeWidth={2} fill="none" />
-        <circle cx={40} cy={26} r={left} fill="#4a3426" />
-        <circle cx={160} cy={26} r={right} fill="#4a3426" />
+        <rect x={1} y={1} width={198} height={50} rx={8} fill="var(--color-well)" stroke="var(--color-edge)" />
+        <path d={`M 40 ${26 + left} L 100 47 L 160 ${26 + right}`} stroke="var(--color-tape)" strokeWidth={2} fill="none" />
+        <circle cx={40} cy={26} r={left} fill="var(--color-tape)" />
+        <circle cx={160} cy={26} r={right} fill="var(--color-tape)" />
         {hub(40)}
         {hub(160)}
       </svg>
@@ -143,7 +143,7 @@ export function Toggle({ label, hint, checked, onChange }: { label: string; hint
       </span>
       <input type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span
-        className="relative h-7 w-12 shrink-0 rounded-full border border-black bg-[#120e0c] shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] transition peer-checked:bg-amber-dim after:absolute after:top-[3px] after:left-[3px] after:h-5 after:w-5 after:rounded-full after:bg-[radial-gradient(circle_at_35%_30%,#ffffff,#a9a39b_60%,#6d665f)] after:shadow after:transition peer-checked:after:translate-x-5"
+        className="relative h-7 w-12 shrink-0 rounded-full border border-black bg-well shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] transition peer-checked:bg-amber-dim after:absolute after:top-[3px] after:left-[3px] after:h-5 after:w-5 after:rounded-full after:bg-[radial-gradient(circle_at_35%_30%,#ffffff,#a9a39b_60%,#6d665f)] after:shadow after:transition peer-checked:after:translate-x-5"
         aria-hidden
       />
     </label>
@@ -156,7 +156,7 @@ export function LedBar({ value, total }: { value: number; total: number }) {
   return (
     <span className="flex gap-0.5" aria-hidden>
       {Array.from({ length: 10 }, (_, i) => (
-        <span key={i} className={`h-2.5 w-1.5 rounded-[1px] ${i < lit ? 'bg-led shadow-[0_0_4px_var(--color-led)]' : 'bg-[#3a2f29]'}`} />
+        <span key={i} className={`h-2.5 w-1.5 rounded-[1px] ${i < lit ? 'bg-led shadow-[0_0_4px_var(--color-led)]' : 'bg-led-off'}`} />
       ))}
     </span>
   )
@@ -191,14 +191,14 @@ function VuMeter({ value, goal }: { value: number; goal: number }) {
   const ticks = Array.from({ length: 11 }, (_, i) => -50 + i * 9.2)
   return (
     <svg viewBox="0 0 100 58" className="h-11 w-[76px]" role="img" aria-label={`Today: ${value} of ${goal} notes`}>
-      <rect x={1} y={1} width={98} height={56} rx={5} fill="#efe5cf" stroke="#000" strokeOpacity={0.6} />
+      <rect x={1} y={1} width={98} height={56} rx={5} fill="var(--color-cream)" stroke="#000" strokeOpacity={0.6} />
       {/* Scale arc and the red "goal reached" zone, both centered on the needle pivot (50, 52). */}
-      <path d="M 22.4 28.9 A 36 36 0 0 1 74.1 25.3" fill="none" stroke="#1d1916" strokeWidth={1} />
-      <path d="M 69.6 21.8 A 36 36 0 0 1 77.6 28.9" fill="none" stroke="#e5483a" strokeWidth={3.5} />
+      <path d="M 22.4 28.9 A 36 36 0 0 1 74.1 25.3" fill="none" stroke="var(--color-ink)" strokeWidth={1} />
+      <path d="M 69.6 21.8 A 36 36 0 0 1 77.6 28.9" fill="none" stroke="var(--color-rec)" strokeWidth={3.5} />
       {ticks.map((t) => (
-        <line key={t} x1={50} y1={10} x2={50} y2={15} stroke="#1d1916" strokeWidth={1} transform={`rotate(${t} 50 52)`} />
+        <line key={t} x1={50} y1={10} x2={50} y2={15} stroke="var(--color-ink)" strokeWidth={1} transform={`rotate(${t} 50 52)`} />
       ))}
-      <text x={50} y={36} textAnchor="middle" fontSize={9} className="font-label" fill="#1d1916" letterSpacing={1}>
+      <text x={50} y={36} textAnchor="middle" fontSize={9} className="font-label" fill="var(--color-ink)" letterSpacing={1}>
         VU
       </text>
       <line
@@ -206,11 +206,11 @@ function VuMeter({ value, goal }: { value: number; goal: number }) {
         y1={52}
         x2={50}
         y2={12}
-        stroke="#1d1916"
+        stroke="var(--color-ink)"
         strokeWidth={1.4}
         style={{ transform: `rotate(${angle}deg)`, transformOrigin: '50px 52px', transition: 'transform 600ms cubic-bezier(.3,1.6,.5,1)' }}
       />
-      <circle cx={50} cy={52} r={4} fill="#1d1916" />
+      <circle cx={50} cy={52} r={4} fill="var(--color-ink)" />
       {/* The glass front: a glare across the top half, and a shadow where it meets the case. */}
       <defs>
         <linearGradient id={`${glass}-glare`} x1="0" y1="0" x2="0" y2="1">
@@ -266,14 +266,14 @@ function Knob() {
   return (
     <svg viewBox="0 0 40 40" className="h-7 w-7" aria-hidden>
       {Array.from({ length: 9 }, (_, i) => (
-        <line key={i} x1={20} y1={2} x2={20} y2={5} stroke="#9c8f80" strokeWidth={1.2} transform={`rotate(${-120 + i * 30} 20 20)`} />
+        <line key={i} x1={20} y1={2} x2={20} y2={5} stroke="var(--color-muted)" strokeWidth={1.2} transform={`rotate(${-120 + i * 30} 20 20)`} />
       ))}
       <circle cx={20} cy={20} r={13} fill="url(#knob)" stroke="#000" />
-      <line x1={20} y1={20} x2={20} y2={9} stroke="#efe5cf" strokeWidth={2.2} strokeLinecap="round" transform="rotate(35 20 20)" />
+      <line x1={20} y1={20} x2={20} y2={9} stroke="var(--color-cream)" strokeWidth={2.2} strokeLinecap="round" transform="rotate(35 20 20)" />
       <defs>
         <radialGradient id="knob" cx="35%" cy="30%">
           <stop offset="0" stopColor="#5a4f47" />
-          <stop offset="1" stopColor="#1b1512" />
+          <stop offset="1" stopColor="var(--color-soot)" />
         </radialGradient>
       </defs>
     </svg>

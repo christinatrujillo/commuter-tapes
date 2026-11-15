@@ -225,7 +225,7 @@ function SprintRunner({ preset, questions, onAgain }: { preset: SprintPreset; qu
             {String(score).padStart(2, '0')}
           </span>
         </div>
-        <div className="h-1 bg-[#120e0c]">
+        <div className="h-1 bg-well">
           <div className="h-full bg-amber transition-[width] duration-100" style={{ width: `${(remaining / SPRINT_SECONDS) * 100}%` }} />
         </div>
       </header>

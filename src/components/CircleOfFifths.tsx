@@ -5,8 +5,8 @@ const MAJORS = [['C'], ['G'], ['D'], ['A'], ['E'], ['B', 'C♭'], ['F♯', 'G♭
 const MINORS = [['Am'], ['Em'], ['Bm'], ['F♯m'], ['C♯m'], ['G♯m'], ['D♯m', 'E♭m'], ['B♭m'], ['Fm'], ['Cm'], ['Gm'], ['Dm']]
 const SLOT: Record<KeyId, number> = { C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, Cb: 5, 'F#': 6, Gb: 6, 'C#': 7, Db: 7, Ab: 8, Eb: 9, Bb: 10, F: 11 }
 
-const INK = '#1d1916'
-const LIT = '#d9a441'
+const INK = 'var(--color-ink)'
+const LIT = 'var(--color-gold)'
 
 function Label({ names, x, y, size }: { names: string[]; x: number; y: number; size: number }) {
   const small = names.length > 1 ? size * 0.72 : size

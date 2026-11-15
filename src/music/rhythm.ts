@@ -6,12 +6,16 @@ export type SymbolId =
   | 'half'
   | 'quarter'
   | 'eighth'
+  | 'sixteenth'
   | 'dottedHalf'
   | 'dottedQuarter'
   | 'wholeRest'
   | 'halfRest'
   | 'quarterRest'
+  | 'eighthRest'
   | 'tie'
+  | 'syncopation'
+  | 'pickup'
 
 export type Meter = '4/4' | '3/4' | '2/4' | '2/2'
 
@@ -34,7 +38,7 @@ export const METER_NAME: Record<Meter, string> = { '4/4': '4/4', '3/4': '3/4', '
 
 /** One note or rest in a measure. */
 export interface RhythmEvent {
-  dur: 'w' | 'h' | 'q' | '8'
+  dur: 'w' | 'h' | 'q' | '8' | '16'
   dots: 0 | 1
   rest: boolean
   /** Tied to the next note: play once, hold through both. */
@@ -44,12 +48,14 @@ export interface RhythmEvent {
 export interface Measure {
   meter: Meter
   events: RhythmEvent[]
+  /** A pickup measure: how far into the bar its first note starts, in quarter notes (3 = on beat 4 of 4/4). */
+  offset?: number
 }
 
 interface SymbolInfo {
   name: string
   beats: number
-  /** The event this symbol stands for (ties have none; they join two notes). */
+  /** The event this symbol stands for (ties, syncopation and pickups have none; they're ways of placing notes). */
   event?: RhythmEvent
 }
 
@@ -61,18 +67,22 @@ export const SYMBOLS: Record<SymbolId, SymbolInfo> = {
   half: { name: 'Half note', beats: 2, event: note('h') },
   quarter: { name: 'Quarter note', beats: 1, event: note('q') },
   eighth: { name: 'Eighth note', beats: 0.5, event: note('8') },
+  sixteenth: { name: 'Sixteenth note', beats: 0.25, event: note('16') },
   dottedHalf: { name: 'Dotted half note', beats: 3, event: note('h', 1) },
   dottedQuarter: { name: 'Dotted quarter note', beats: 1.5, event: note('q', 1) },
   wholeRest: { name: 'Whole rest', beats: 4, event: rest('w') },
   halfRest: { name: 'Half rest', beats: 2, event: rest('h') },
   quarterRest: { name: 'Quarter rest', beats: 1, event: rest('q') },
+  eighthRest: { name: 'Eighth rest', beats: 0.5, event: rest('8') },
   tie: { name: 'Tie', beats: 0 },
+  syncopation: { name: 'Syncopation', beats: 0 },
+  pickup: { name: 'Pickup', beats: 0 },
 }
 
 /** Symbols that can be shown on their own and named. */
-export const NAMEABLE: SymbolId[] = ['whole', 'half', 'quarter', 'eighth', 'dottedHalf', 'dottedQuarter', 'wholeRest', 'halfRest', 'quarterRest']
+export const NAMEABLE: SymbolId[] = ['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'dottedHalf', 'dottedQuarter', 'wholeRest', 'halfRest', 'quarterRest', 'eighthRest']
 
-const DUR_QUARTERS = { w: 4, h: 2, q: 1, '8': 0.5 }
+const DUR_QUARTERS = { w: 4, h: 2, q: 1, '8': 0.5, '16': 0.25 }
 /** How long an event lasts, in quarter notes (the same as beats in 4/4, 3/4 and 2/4). */
 export const eventQuarters = (e: RhythmEvent) => DUR_QUARTERS[e.dur] * (e.dots ? 1.5 : 1)
 export const measureQuarters = (m: Measure) => m.events.reduce((sum, e) => sum + eventQuarters(e), 0)
@@ -88,7 +98,7 @@ export function symbolOf(e: RhythmEvent): SymbolId {
 
 /** Where each event starts, in quarter notes from the start of the measure (0 = beat 1). */
 export function onsets(m: Measure): number[] {
-  let t = 0
+  let t = m.offset ?? 0
   return m.events.map((e) => {
     const start = t
     t += eventQuarters(e)
@@ -104,20 +114,23 @@ export function playedIndexes(m: Measure): number[] {
 /** Which beat a position (in quarter notes) falls on, 0-based: 1.5 in 4/4 is halfway through beat 2. */
 const beatAt = (position: number, meter: Meter) => position / METER_PULSE[meter].quarters
 
-/** "1", "&", "2"…: what you'd say at a position (in quarter notes from the start of the measure). */
+/** "1", "e", "&", "a", "2"…: what you'd say at a position (in quarter notes from the start of the measure). */
 export function countAt(position: number, meter: Meter = '4/4'): string {
   const beat = beatAt(position, meter)
-  return Number.isInteger(beat) ? String(beat + 1) : '&'
+  if (Number.isInteger(beat)) return String(beat + 1)
+  // Sixteenths split the beat in four: "1 e & a".
+  return { 0.25: 'e', 0.75: 'a' }[beat % 1] ?? '&'
 }
 
-/** "beat 3" / "the & of 2". */
+/** "beat 3" / "the & of 2" / "the e of 2". */
 export function countName(position: number, meter: Meter = '4/4'): string {
   const beat = beatAt(position, meter)
-  return Number.isInteger(beat) ? `beat ${beat + 1}` : `the & of ${Math.floor(beat) + 1}`
+  return Number.isInteger(beat) ? `beat ${beat + 1}` : `the ${countAt(position, meter)} of ${Math.floor(beat) + 1}`
 }
 
 export function beatsText(beats: number): string {
   if (beats === 0.5) return 'half a beat'
+  if (beats === 0.25) return 'a quarter of a beat'
   const whole = Math.floor(beats)
   const text = beats % 1 ? `${whole}½` : String(whole)
   return `${text} beat${beats === 1 ? '' : 's'}`
@@ -153,22 +166,37 @@ const UNITS: Unit[] = [
     needs: ['dottedQuarter', 'eighth'],
     starts: { '4/4': [0, 1, 2], '3/4': [0, 1], '2/4': [0], '2/2': [] },
   },
+  // An eighth of silence on the beat, then a note on the "&" (or the other way round).
+  { events: [rest('8'), note('8')], needs: ['eighthRest', 'eighth'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2, '2/2': [] } },
+  { events: [note('8'), rest('8')], needs: ['eighthRest', 'eighth'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2, '2/2': [] } },
+  // Sixteenths come a beat at a time: four of them, or two with an eighth.
+  { events: [note('16'), note('16'), note('16'), note('16')], needs: ['sixteenth'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2, '2/2': [] } },
+  { events: [note('8'), note('16'), note('16')], needs: ['sixteenth', 'eighth'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2, '2/2': [] } },
+  { events: [note('16'), note('16'), note('8')], needs: ['sixteenth', 'eighth'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2, '2/2': [] } },
+  // Syncopation: a long note starting on an "&", or a note held over the beat.
+  { events: [note('8'), note('q'), note('8')], needs: ['syncopation', 'eighth', 'quarter'], starts: { '4/4': [0, 1, 2], '3/4': [0, 1], '2/4': [0], '2/2': [] } },
+  {
+    events: [note('8'), note('8', 0, true), note('8'), note('8')],
+    needs: ['syncopation', 'tie', 'eighth'],
+    starts: { '4/4': [0, 1, 2], '3/4': [0, 1], '2/4': [0], '2/2': [] },
+  },
   // A quarter tied across the middle of the bar, the classic place beginners meet ties.
   { events: [{ ...note('q'), tie: true }, note('q')], needs: ['tie', 'quarter'], starts: { '4/4': [1], '3/4': [1], '2/4': [], '2/2': [1] } },
 ]
 
 /**
  * A random one-measure rhythm using only `allowed` symbols. Symbols in `focus` are favored,
- * and at least one of them appears when possible.
+ * and at least one of them appears when possible. `offset` makes it a pickup measure that starts
+ * that many quarter notes into the bar.
  */
-export function randomMeasure(meter: Meter, allowed: SymbolId[], rng: Rng, focus: SymbolId[] = []): Measure {
+export function randomMeasure(meter: Meter, allowed: SymbolId[], rng: Rng, focus: SymbolId[] = [], offset = 0): Measure {
   const total = METER_QUARTERS[meter]
   const usable = UNITS.filter((u) => u.needs.every((s) => allowed.includes(s)))
   let best: Measure | null = null
   for (let attempt = 0; attempt < 40; attempt++) {
     const events: RhythmEvent[] = []
     const used = new Set<SymbolId>()
-    let pos = 0
+    let pos = offset
     while (pos < total) {
       const fits = usable.filter((u) => u.starts[meter].includes(pos) && u.events.reduce((s, e) => s + eventQuarters(e), 0) <= total - pos)
       if (fits.length === 0) {
@@ -190,11 +218,11 @@ export function randomMeasure(meter: Meter, allowed: SymbolId[], rng: Rng, focus
       unit.needs.forEach((s) => used.add(s))
       pos += unit.events.reduce((s, e) => s + eventQuarters(e), 0)
     }
-    const m: Measure = { meter, events }
+    const m: Measure = { meter, events, ...(offset ? { offset } : {}) }
     // Something to play, and (ideally) the new idea in it.
     if (playedIndexes(m).length === 0) continue
     best = m
     if (focus.length === 0 || focus.some((s) => used.has(s))) return m
   }
-  return best ?? { meter, events: Array.from({ length: total }, () => note('q')) }
+  return best ?? { meter, events: Array.from({ length: total - offset }, () => note('q')), ...(offset ? { offset } : {}) }
 }

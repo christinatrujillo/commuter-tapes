@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { PAPER_HIGHLIGHT } from '../lib/color'
 import { loadVexFlow } from './musicFont'
 
-const INK = '#1d1916'
+const INK = 'var(--color-ink)'
 /** The gap between staff lines; the music font is drawn four gaps tall, one staff high. */
 const SPACE = 7
 const STAFF_H = SPACE * 4

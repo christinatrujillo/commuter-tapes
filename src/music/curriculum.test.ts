@@ -13,7 +13,7 @@ describe('the shelf', () => {
   // those numbers, so this fails until the references in src/game and the tips are updated to match.
   it('keeps the tape numbers the cards refer to', () => {
     expect(UNITS.map((u) => u.id).join(' ')).toBe(
-      'r1 r2 r3 r4 u7 r5 r6 r7 u1 u2 u3 r8 u4 u5 u6 u8 u9 r10 r11 u12 u13 t1 t2 t3 r9 t4 t5 u14 t6 t7 t8 t9 tr1 tr2 tr3 tr4 tr5 tr6 tr7 hk1 hk2 hk3 hk4 hk5 cb1 cb2 cb3 cb4 cb5 cb6 cb7 mk1 mk2 mk3 mk4 mk5 bp1 bp2 bp3 bp4 bp5 bp6 md1 md2 md3 md4 md5',
+      'r1 r2 r3 r4 u7 r5 r6 r7 u1 u2 u3 r8 u4 u5 u6 u8 u9 r10 r11 r12 u12 u13 t1 t2 t3 r9 t4 t5 u14 t6 t7 t8 t9 tr1 tr2 tr3 tr4 tr5 tr6 tr7 hk1 hk2 hk3 hk4 hk5 cb1 cb2 cb3 cb4 cb8 cb5 cb6 cb7 mk1 mk2 mk3 mk4 mk5 bp1 bp2 bp3 bp4 bp5 bp6 md1 md2 md3 md4 md5',
     )
   })
 
@@ -22,20 +22,20 @@ describe('the shelf', () => {
     const triads = findLesson('tr1-1')!.unit
     const planned = VOLUMES[10].tapes.find(isPlanned)!
     expect(tapeNumber(UNITS[0])).toBe(1)
-    expect(tapeNumber(findLesson('t1-1')!.unit)).toBe(22)
-    expect(tapeNumber(keys)).toBe(25)
-    expect(tapeBefore(keys)).toBe(24)
-    expect(tapeNumber(triads)).toBe(33)
-    // Tape 32 is ear training, which holds nothing up.
-    expect(tapeBefore(triads)).toBe(31)
-    expect(tapeNumber(findLesson('hk1-1')!.unit)).toBe(40)
-    expect(tapeNumber(findLesson('cb1-1')!.unit)).toBe(45)
-    expect(tapeNumber(findLesson('mk1-1')!.unit)).toBe(52)
-    expect(tapeNumber(findLesson('bp1-1')!.unit)).toBe(57)
-    expect(tapeNumber(findLesson('bp6-1')!.unit)).toBe(62)
-    expect(tapeNumber(findLesson('md1-1')!.unit)).toBe(63)
-    expect(tapeNumber(findLesson('md5-1')!.unit)).toBe(67)
-    expect(tapeNumber(planned)).toBe(68)
+    expect(tapeNumber(findLesson('t1-1')!.unit)).toBe(23)
+    expect(tapeNumber(keys)).toBe(26)
+    expect(tapeBefore(keys)).toBe(25)
+    expect(tapeNumber(triads)).toBe(34)
+    // Tape 33 is ear training, which holds nothing up.
+    expect(tapeBefore(triads)).toBe(32)
+    expect(tapeNumber(findLesson('hk1-1')!.unit)).toBe(41)
+    expect(tapeNumber(findLesson('cb1-1')!.unit)).toBe(46)
+    expect(tapeNumber(findLesson('mk1-1')!.unit)).toBe(54)
+    expect(tapeNumber(findLesson('bp1-1')!.unit)).toBe(59)
+    expect(tapeNumber(findLesson('bp6-1')!.unit)).toBe(64)
+    expect(tapeNumber(findLesson('md1-1')!.unit)).toBe(65)
+    expect(tapeNumber(findLesson('md5-1')!.unit)).toBe(69)
+    expect(tapeNumber(planned)).toBe(70)
   })
 
   it('teaches a key signature before any track reads music in it', () => {

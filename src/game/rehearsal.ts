@@ -291,13 +291,17 @@ const m3 = (...events: RhythmEvent[]): Measure => ({ meter: '3/4', events })
 const m2 = (...events: RhythmEvent[]): Measure => ({ meter: '2/4', events })
 const cut = (...events: RhythmEvent[]): Measure => ({ meter: '2/2', events })
 
-const SYMBOL_TEACHING: Record<SymbolId, { hook: string; example: Measure }> = {
+const SYMBOL_TEACHING: Record<SymbolId, { hook: string; example: Measure; subtitle?: string }> = {
   whole: { hook: 'A whole note is an open oval with no stem (the stick attached to most notes). Hold it for 4 beats: through 1, 2, 3 and 4.', example: m4(n('w')) },
   half: { hook: 'A half note is an open oval with a stem. Hold it for 2 beats, half as long as a whole note.', example: m4(n('h'), n('h')) },
   quarter: { hook: 'A quarter note is a filled-in oval with a stem. It lasts 1 beat, so four of them fill a measure of 4/4.', example: m4(n('q'), n('q'), n('q'), n('q')) },
   eighth: {
     hook: 'An eighth note is a filled oval with a stem and a little flag; two in a row are joined by a thick line called a beam. Each lasts half a beat, so two fit in one beat: count “1 &”.',
     example: m4(n('q'), n('8'), n('8'), n('q'), n('8'), n('8')),
+  },
+  sixteenth: {
+    hook: 'A sixteenth note has two flags, or two beams when they’re joined. Each lasts a quarter of a beat, so four fit in one beat: count “1 e & a”. Two sixteenths take the same time as one eighth.',
+    example: m4(n('16'), n('16'), n('16'), n('16'), n('8'), n('16'), n('16'), n('q'), n('q')),
   },
   dottedHalf: { hook: 'A dot adds half the note’s value: 2 + 1 = 3 beats. It fills a whole measure of 3/4.', example: m3(n('h', 1)) },
   dottedQuarter: {
@@ -307,9 +311,24 @@ const SYMBOL_TEACHING: Record<SymbolId, { hook: string; example: Measure }> = {
   wholeRest: { hook: 'A rest means silence: you play nothing for that long. The whole rest is a block hanging down from the 4th line, and it silences a whole measure.', example: m4(r('w')) },
   halfRest: { hook: 'A block sitting on the middle line, like a hat: 2 beats of silence.', example: m4(n('h'), r('h')) },
   quarterRest: { hook: 'The squiggle: 1 beat of silence.', example: m4(n('q'), r('q'), n('q'), r('q')) },
+  eighthRest: {
+    hook: 'An eighth rest looks like a slanted 7: half a beat of silence. When it sits on the beat, the note after it lands on the “&”. Say the count in your head and play on the “&”.',
+    example: m4(r('8'), n('8'), n('q'), r('8'), n('8'), n('q')),
+  },
   tie: {
+    subtitle: 'Joins two notes into one',
     hook: 'A tie is a curve joining two of the same note. Play the first and keep holding through the second: their beats add up.',
     example: m4(n('q'), n('q', 0, true), n('q'), n('q')),
+  },
+  syncopation: {
+    subtitle: 'Accents off the beat',
+    hook: 'Most rhythms lean on the beats: 1, 2, 3, 4. Syncopation leans on the “&” instead. A long note starts on an “&” and holds through the next beat, so the beat goes by without a new note. Keep counting the beat you don’t play.',
+    example: m4(n('8'), n('q'), n('8'), n('q'), n('q')),
+  },
+  pickup: {
+    subtitle: 'A short measure before bar 1',
+    hook: 'A song can start before its first full measure. Those lead-in notes are a pickup. They’re counted as the end of a bar: a one-beat pickup in 4/4 lands on beat 4. Count “1 2 3” silently, then play. The last measure of the song is short by the same amount.',
+    example: { meter: '4/4', offset: 3, events: [n('8'), n('8')] },
   },
 }
 
@@ -371,7 +390,7 @@ function rhythmCard(item: string, counter: string): Card {
     const t = SYMBOL_TEACHING[s]
     return {
       title: SYMBOLS[s].name,
-      subtitle: s === 'tie' ? 'Joins two notes into one' : beatsText(SYMBOLS[s].beats),
+      subtitle: t.subtitle ?? beatsText(SYMBOLS[s].beats),
       hook: t.hook,
       counter,
       notation: { measure: t.example, labels: heldCounts(t.example) },
@@ -464,7 +483,7 @@ const READING_TEACHING: Record<string, ReadingTeaching> = {
   'key:G': {
     title: 'Key of G',
     subtitle: 'One sharp: F♯',
-    hook: 'The G major scale has one sharp, F♯ (you built it on tape 23). Instead of writing a ♯ on every F, music writes it once, right after the clef: that’s the key signature. Every F, on every line and space, is played F♯ for the whole piece.',
+    hook: 'The G major scale has one sharp, F♯ (you built it on tape 24). Instead of writing a ♯ on every F, music writes it once, right after the clef: that’s the key signature. Every F, on every line and space, is played F♯ for the whole piece.',
     measures: [[sn('E', 4), sn('F', 4), sn('G', 4), sn('A', 4)]],
     keySig: 'G',
     marker: 1,
@@ -700,7 +719,7 @@ function questionFor(item: string, turn: number, l: LessonSpec, rng: Rng): Quest
     }
     case 'rhythm': {
       const [kind, value] = item.split(':')
-      if (kind === 'sym' && value !== 'tie') {
+      if (kind === 'sym' && SYMBOLS[value as SymbolId].event) {
         const s = value as SymbolId
         if (turn % 2 === 0 && nameable.length >= 2) {
           const options = NAMEABLE.filter((x) => nameable.includes(x)).slice(0, 6)
@@ -710,7 +729,8 @@ function questionFor(item: string, turn: number, l: LessonSpec, rng: Rng): Quest
         const beats = [...new Set([1, 2, 4, ...nameable.map((x) => SYMBOLS[x].beats)])].sort((a, b) => a - b)
         return { id, kind: 'beats', symbol: s, options: beats, facts: [item] }
       }
-      if (kind === 'sym') return makeCountBeat(id, meter, symbols, rng, ['tie'])
+      // Ties, syncopation and pickups aren't symbols to name: find a count in a measure that uses one.
+      if (kind === 'sym') return makeCountBeat(id, meter, symbols, rng, [value as SymbolId])
       if (kind === 'meter') {
         const m = value as Meter
         if (l.exercises.includes('measureFill')) return makeMeasureFill(id, m, symbols, rng)

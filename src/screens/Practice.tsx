@@ -63,7 +63,7 @@ export function PracticeScreen() {
         <h1 className="sr-only">Jam room</h1>
 
         <section className="panel px-5 pt-5 pb-5">
-          <h2 className="label-text text-lg text-cream">Review</h2>
+          <h2 className="label-text text-lg text-cream">Today’s mixtape</h2>
           <p className="mt-1 text-sm text-muted">
             Notes and ideas from earlier tapes that are due for a refresh. A few mix into every take, but not enough to keep up, so run this about once a day.
           </p>
@@ -77,7 +77,7 @@ export function PracticeScreen() {
             )}
           </p>
           <Button variant="cream" className="mt-4" disabled={!due} onClick={() => navigate('/review')}>
-            <TransportIcon kind="redo" /> Review now
+            <TransportIcon kind="play" /> Play mixtape
           </Button>
         </section>
 

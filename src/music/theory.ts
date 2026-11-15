@@ -185,11 +185,11 @@ export function keyTriads(key: KeyId): { tones: Tone[]; quality: TriadQuality }[
 // Chords beyond triads
 // ---------------------------------------------------------------------------
 
-/** Every kind of chord the tapes build: the four triads, four 7th chords, and sus, add and 6 chords. */
-export type ChordKind = TriadQuality | 'maj7' | '7' | 'm7' | 'm7b5' | 'dim7' | 'sus2' | 'sus4' | 'add9' | '6' | 'm6'
+/** Every kind of chord the tapes build: the four triads, four 7th chords, sus, add and 6 chords, and the two-note power chord. */
+export type ChordKind = TriadQuality | 'maj7' | '7' | 'm7' | 'm7b5' | 'dim7' | 'sus2' | 'sus4' | 'add9' | '6' | 'm6' | '5'
 
 /** Every kind, in the order they're taught. */
-export const CHORD_KINDS: ChordKind[] = ['maj', 'min', 'dim', 'aug', 'maj7', '7', 'm7', 'm7b5', 'dim7', 'sus2', 'sus4', 'add9', '6', 'm6']
+export const CHORD_KINDS: ChordKind[] = ['maj', 'min', 'dim', 'aug', 'maj7', '7', 'm7', 'm7b5', 'dim7', 'sus2', 'sus4', 'add9', '6', 'm6', '5']
 
 /** The notes above the root, as intervals. add9's 2nd is stacked an octave up, where it's a 9th. */
 const CHORD_INTERVALS: Record<ChordKind, string[]> = {
@@ -207,6 +207,7 @@ const CHORD_INTERVALS: Record<ChordKind, string[]> = {
   add9: ['M3', 'P5', 'M2'],
   '6': ['M3', 'P5', 'M6'],
   m6: ['m3', 'P5', 'M6'],
+  '5': ['P5'],
 }
 
 /** How each kind is written after its root: C, Cm, C°, C+, Cmaj7, C7, Cm7, Cm7♭5, Csus2, Csus4, Cadd9, C6, Cm6. */
@@ -225,6 +226,7 @@ export const CHORD_SUFFIX: Record<ChordKind, string> = {
   add9: 'add9',
   '6': '6',
   m6: 'm6',
+  '5': '5',
 }
 
 export const CHORD_NAMES: Record<ChordKind, string> = {
@@ -239,6 +241,7 @@ export const CHORD_NAMES: Record<ChordKind, string> = {
   add9: 'add9',
   '6': 'major 6',
   m6: 'minor 6',
+  '5': 'power chord',
 }
 
 /** A chord's notes from the root up, or null if one would need a double sharp or flat. */

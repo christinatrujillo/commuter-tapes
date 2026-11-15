@@ -57,7 +57,7 @@ const TRIAD_ID: Partial<Record<ChordKind, string>> = { maj: '', min: 'm', dim: '
 const ID_SUFFIX: Record<ChordKind, string> = { ...CHORD_SUFFIX, dim: 'dim', aug: 'aug', m7b5: 'm7b5', dim7: 'dim7' }
 const chordId = (root: Tone, kind: ChordKind) => `${toneId(root)}${ID_SUFFIX[kind]}`
 function parseChordId(id: string): { root: string; kind: ChordKind } | null {
-  const m = /^([A-G][#b]?)(maj7|m7b5|m7|dim7|7|sus2|sus4|add9|m6|6|m|dim|aug)?$/.exec(id)
+  const m = /^([A-G][#b]?)(maj7|m7b5|m7|dim7|7|sus2|sus4|add9|m6|6|5|m|dim|aug)?$/.exec(id)
   if (!m) return null
   return { root: m[1], kind: CHORD_KINDS.find((k) => ID_SUFFIX[k] === (m[2] ?? ''))! }
 }
@@ -79,6 +79,7 @@ const USUAL_ROOTS: Record<ChordKind, string[]> = {
   add9: ['C', 'D', 'G', 'A', 'E', 'F'],
   '6': ['C', 'G', 'D', 'A', 'F'],
   m6: ['A', 'E', 'D', 'G'],
+  '5': ['E', 'A', 'D', 'G', 'C', 'F', 'B'],
 }
 
 const everyday = (tones: Tone[] | null): tones is Tone[] => !!tones && tones.every((t) => !RARE_SPELLINGS.has(toneName(t)))
@@ -89,6 +90,8 @@ const rootsFor = (kind: ChordKind, roots: string[]) => {
 
 /** "G B D F" */
 const fullName = (root: Tone, kind: ChordKind) => `${toneName(root)} ${CHORD_NAMES[kind]}`
+/** "minor 7th chord", "power chord" */
+const kindChord = (kind: ChordKind) => (CHORD_NAMES[kind].endsWith('chord') ? CHORD_NAMES[kind] : `${CHORD_NAMES[kind]} chord`)
 
 /** What each kind is, in a phrase, for the feedback. */
 const BUILT: Record<ChordKind, string> = {
@@ -106,6 +109,7 @@ const BUILT: Record<ChordKind, string> = {
   add9: 'a major triad plus the 9th',
   '6': 'a major triad plus the 6th',
   m6: 'a minor triad plus the 6th',
+  '5': 'a root and its 5th, with no 3rd',
 }
 
 /** "B is a major 3rd up, D a perfect 5th and F a minor 7th": each note's interval from the root. */
@@ -138,6 +142,7 @@ const SIGN_MEANS: Record<ChordKind, string> = {
   add9: '“add9” means the 9th is added',
   '6': 'A 6 means the 6th is added',
   m6: '“m6” means a minor chord with the 6th added',
+  '5': 'A 5 means a power chord, just the root and its 5th',
 }
 
 /** "What does F♯m mean?" */
@@ -200,6 +205,7 @@ const SPELL_NEAR: Record<ChordKind, ChordKind[]> = {
   add9: ['maj', 'sus2', '6'],
   '6': ['maj7', 'm6', 'add9'],
   m6: ['6', 'm7', 'min'],
+  '5': ['maj', 'sus4', 'sus2'],
 }
 
 /** "What notes make G7?" The root alone on the staff, and the whole chord once it's answered. */
@@ -242,6 +248,7 @@ const FAMILY: Record<ChordKind, ChordKind[]> = {
   add9: ['maj', 'sus2', 'add9'],
   '6': ['maj', 'maj7', '6'],
   m6: ['min', 'm7', 'm6'],
+  '5': ['maj', 'sus4', '5'],
 }
 
 /** "G B D F: which chord?" Offers the kinds in the track's family, as symbols on the same root. */
@@ -260,10 +267,75 @@ export function makeChordKind(id: number, roots: string[], kinds: ChordKind[], r
     ask: { text: `${spelled(tones)}: which chord?`, hl: spelled(tones) },
     options,
     answer: options.indexOf(symbol),
-    why: `From ${toneName(root)}, ${intervalsText(tones, kind)}. That’s ${BUILT[kind]}: ${aOrAn(CHORD_NAMES[kind])} ${CHORD_NAMES[kind]} chord, written ${symbol}.`,
+    why: `From ${toneName(root)}, ${intervalsText(tones, kind)}. That’s ${BUILT[kind]}: ${aOrAn(CHORD_NAMES[kind])} ${kindChord(kind)}, written ${symbol}.`,
     score: { measures: [triadScore(tones, true)], after: [symbol] },
     sound: triadSound(tones),
     facts: [`chq:${kind}`],
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Slash chords
+// ---------------------------------------------------------------------------
+
+const SLASH_MINOR_ROOTS = ['A', 'E', 'D']
+
+/** A major or minor chord with its 3rd or 5th in the bass: the symbol, and the notes from the bass up. */
+function pickSlash(roots: string[], rng: Rng) {
+  const kind: ChordKind = rng() < 0.7 ? 'maj' : 'min'
+  const root = parseTone(pick(kind === 'maj' ? rootsFor('maj', roots) : SLASH_MINOR_ROOTS, rng))
+  const tones = chordTones(root, kind)!
+  const which = rng() < 0.5 ? 1 : 2
+  const chord = chordSymbol(root, kind)
+  return {
+    root,
+    kind,
+    tones,
+    which,
+    chord,
+    bass: toneName(tones[which]),
+    other: toneName(tones[3 - which]),
+    symbol: `${chord}/${toneName(tones[which])}`,
+    stacked: [...tones.slice(which), ...tones.slice(0, which)],
+  }
+}
+
+/** "What does C/E mean?" or "In D/F♯, which note of the chord is on the bottom?" */
+export function makeSlashRead(id: number, roots: string[], rng: Rng): Question {
+  const s = pickSlash(roots, rng)
+  const full = fullName(s.root, s.kind)
+  const meaning = rng() < 0.5
+  const options = meaning
+    ? shuffle([`${full} with ${s.bass} in the bass`, `${s.bass} major with ${toneName(s.root)} in the bass`, `${full}, then ${s.bass} major`, `${full} or ${s.bass} major, your choice`], rng)
+    : ['The root', 'The 3rd', 'The 5th']
+  return {
+    id,
+    kind: 'slashRead',
+    ask: { text: meaning ? `What does ${s.symbol} mean?` : `In ${s.symbol}, which note of the chord is on the bottom?`, hl: s.symbol },
+    options,
+    answer: meaning ? options.indexOf(`${full} with ${s.bass} in the bass`) : s.which,
+    why: `The letter before the slash is the chord, and the letter after it is the lowest note. ${s.symbol} is ${full} (${spelled(s.tones)}) with ${s.bass} on the bottom. ${s.bass} is the chord’s ${s.which === 1 ? '3rd' : '5th'}, so this is the ${s.which === 1 ? '1st' : '2nd'} inversion.`,
+    score: { measures: [triadScore(s.stacked, true)], after: [s.symbol] },
+    sound: triadSound(s.stacked),
+    facts: ['slash:read'],
+  }
+}
+
+/** "G major with B in the bass: how is it written?" */
+export function makeSlashWrite(id: number, roots: string[], rng: Rng): Question {
+  const s = pickSlash(roots, rng)
+  const full = fullName(s.root, s.kind)
+  const options = shuffle([s.symbol, `${s.bass}/${s.chord}`, `${s.chord}/${s.other}`, `${s.bass}/${s.other}`], rng)
+  return {
+    id,
+    kind: 'slashWrite',
+    ask: { text: `${full} with ${s.bass} in the bass: how is it written?`, hl: `${full} with ${s.bass} in the bass` },
+    options,
+    answer: options.indexOf(s.symbol),
+    why: `The chord comes first, then a slash, then the lowest note. ${full} is written ${s.chord}, so with ${s.bass} on the bottom it’s ${s.symbol}.`,
+    score: { measures: [triadScore(s.stacked, true)], after: [s.symbol] },
+    sound: triadSound(s.stacked),
+    facts: ['slash:write'],
   }
 }
 
@@ -572,6 +644,8 @@ export const CHORD_ORDER = [
   'chord:sus',
   'chord:add9',
   'chord:six',
+  'chord:power',
+  'chord:slash',
   'chord:diagram-read',
   'chord:open-major',
   'chord:open-minor',
@@ -591,10 +665,10 @@ export const CHORD_INTRO = ['chord:symbols-why', 'chord:seventh-what', 'chord:di
 export const isChordItem = (item: string) => item.startsWith('chord:')
 /**
  * Facts practiced on these tapes: spelled chords ("chd:G7"), telling kinds apart ("chq:m7"),
- * symbols ("csym:dim"), the 7th chords in a key ("h7:5", "h7:two-five"), open chord diagrams
+ * symbols ("csym:dim"), slash chords ("slash:read"), the 7th chords in a key ("h7:5", "h7:two-five"), open chord diagrams
  * ("diag:Am"), the CAGED shapes ("caged:A", "caged:order") and hearing 7ths ("ear:maj7").
  */
-export const isChordFact = (fact: string) => /^(chd|chq|csym|h7|diag|caged):/.test(fact) || /^ear:(maj7|7|m7|m7b5)$/.test(fact)
+export const isChordFact = (fact: string) => /^(chd|chq|csym|slash|h7|diag|caged):/.test(fact) || /^ear:(maj7|7|m7|m7b5)$/.test(fact)
 
 const OPEN_MAJORS = ['C', 'A', 'G', 'E', 'D']
 const OPEN_MINORS = ['Am', 'Em', 'Dm']
@@ -609,6 +683,7 @@ const KIND_ITEM: Partial<Record<ChordKind, string>> = {
   add9: 'chord:add9',
   '6': 'chord:six',
   m6: 'chord:six',
+  '5': 'chord:power',
 }
 const EAR_ITEM: Partial<Record<ChordKind, string>> = { maj7: 'chord:ear-maj-dom', '7': 'chord:ear-maj-dom', m7: 'chord:ear-m7', m7b5: 'chord:ear-m7b5' }
 /** What each heard kind is reviewed against: the kinds learned by the time it's taught. */
@@ -626,7 +701,9 @@ export function chordItemFor(fact: string): string | null {
     case 'chq':
       return isOneOf(value, CHORD_KINDS) ? (SEVENTHS.includes(value) ? 'chord:seventh-which' : (KIND_ITEM[value] ?? null)) : null
     case 'csym':
-      return isOneOf(value, CHORD_KINDS) ? (value === 'dim' || value === 'aug' ? 'chord:dim-aug-symbols' : 'chord:symbols') : null
+      return isOneOf(value, CHORD_KINDS) ? (value === 'dim' || value === 'aug' ? 'chord:dim-aug-symbols' : value === '5' ? 'chord:power' : 'chord:symbols') : null
+    case 'slash':
+      return value === 'read' || value === 'write' ? 'chord:slash' : null
     case 'h7':
       return value === 'two-five' ? 'chord:key7-two-five' : degreeFact(value) !== null ? 'chord:key7-stack' : null
     case 'diag':
@@ -679,6 +756,10 @@ export function chordCheck(item: string, l: LessonSpec, turn: number, rng: Rng, 
       return even ? makeChordSpell(id, roots, ['add9'], rng) : makeChordKind(id, roots, ['add9'], rng)
     case 'chord:six':
       return even ? makeChordSpell(id, roots, ['6', 'm6'], rng) : makeChordKind(id, roots, ['6', 'm6'], rng)
+    case 'chord:power':
+      return even ? makeChordSpell(id, roots, ['5'], rng) : makeChordKind(id, roots, ['5'], rng)
+    case 'chord:slash':
+      return even ? makeSlashRead(id, roots, rng) : makeSlashWrite(id, roots, rng)
     case 'chord:open-major':
       return makeDiagramName(id, shapes.length ? shapes : OPEN_MAJORS, rng)
     case 'chord:open-minor':
@@ -715,6 +796,8 @@ export function chordReview(fact: string, id: number, rng: Rng): Question | null
     case 'csym':
       if (!isOneOf(value, CHORD_KINDS)) return null
       return rng() < 0.5 ? makeSymbolRead(id, [], FAMILY[value], rng, value) : makeSymbolWrite(id, [], FAMILY[value], rng, value)
+    case 'slash':
+      return value === 'read' ? makeSlashRead(id, REVIEW_KEYS, rng) : value === 'write' ? makeSlashWrite(id, REVIEW_KEYS, rng) : null
     case 'h7': {
       if (value === 'two-five') return makeTwoFiveSpell(id, REVIEW_KEYS, rng)
       const d = degreeFact(value)
@@ -743,9 +826,11 @@ export function describeChordFact(fact: string): string | null {
       return c ? `${chordSymbol(parseTone(c.root), c.kind)} (${CHORD_NAMES[c.kind]})` : null
     }
     case 'chq':
-      return isOneOf(value, CHORD_KINDS) ? `Spotting ${CHORD_NAMES[value]} chords` : null
+      return isOneOf(value, CHORD_KINDS) ? `Spotting ${kindChord(value)}s` : null
     case 'csym':
       return isOneOf(value, CHORD_KINDS) ? `The symbol for ${CHORD_NAMES[value]}` : null
+    case 'slash':
+      return value === 'read' ? 'Reading slash chords' : value === 'write' ? 'Writing slash chords' : null
     case 'h7': {
       if (value === 'two-five') return 'ii7–V7–Imaj7'
       const d = degreeFact(value)
@@ -814,7 +899,7 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'chord:symbol-spell': () => ({
     title: 'From symbol to notes',
     subtitle: 'Root first, then the kind',
-    hook: 'To spell a chord from its symbol, read the root, then the kind, and build it the way you did on tapes 33 to 35. F♯m: the root is F♯ and the chord is minor, so up a minor 3rd is A, and up a major 3rd from there is C♯: F♯ A C♯.',
+    hook: 'To spell a chord from its symbol, read the root, then the kind, and build it the way you did on tapes 34 to 36. F♯m: the root is F♯ and the chord is minor, so up a minor 3rd is A, and up a major 3rd from there is C♯: F♯ A C♯.',
     score: { measures: chordMeasures(chord('F#', 'min')), labels: ['F♯m'] },
     board: triadBoard(chord('F#', 'min')),
     sound: triadSound(chord('F#', 'min')),
@@ -896,7 +981,7 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'chord:key7-two-five': () => ({
     title: 'ii7–V7–Imaj7',
     subtitle: 'The jazz cadence',
-    hook: 'Add 7ths to the ii–V–I from tape 43 and you get the most common move in jazz: Dm7, G7, Cmaj7 in C major. Each chord leads smoothly into the next.',
+    hook: 'Add 7ths to the ii–V–I from tape 44 and you get the most common move in jazz: Dm7, G7, Cmaj7 in C major. Each chord leads smoothly into the next.',
     score: { measures: chordMeasures(chord('D', 'm7'), chord('G', '7'), chord('C', 'maj7')), labels: ['ii7', 'V7', 'Imaj7'] },
     listen: chordsHeard(4, chord('D', 'm7'), chord('G', '7'), chord('C', 'maj7')),
     sound: [],
@@ -960,7 +1045,7 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     title: 'Why CAGED',
     subtitle: 'Five shapes cover the neck',
     hook: 'Each open major chord, C, A, G, E and D, is also a shape you can slide up the neck. Line the five shapes up and they cover the whole neck, for any chord. Their order up the neck spells the name: CAGED.',
-    onGuitar: 'It’s the bigger version of the three-string triad shapes from tape 38: the same notes, more strings.',
+    onGuitar: 'It’s the bigger version of the three-string triad shapes from tape 39: the same notes, more strings.',
     diagram: fingerDiagram(movedShape('A', 3), parseTone('C')),
     sound: strum(movedShape('A', 3)),
   }),
@@ -1017,6 +1102,28 @@ const CHORD_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     listen: chordsHeard(4, chord('C', 'm7'), chord('C', 'm7b5')),
     sound: [],
   }),
+  'chord:power': () => ({
+    title: 'Power chords',
+    subtitle: 'A root and its 5th',
+    hook: 'A power chord is just two notes: a root and the perfect 5th above it. With no 3rd, it’s neither major nor minor. It’s written with a 5: E5 is E and B. Rock leans on power chords because two notes stay clear when the amp is turned up.',
+    onGuitar: 'One shape plays them all: the root on a low string, then the next string over, 2 frets up. Slide it anywhere and the root names the chord.',
+    score: { measures: chordMeasures(chord('E', '5'), chord('A', '5'), chord('E', 'maj')), labels: ['E5', 'A5', 'E'] },
+    listen: chordsHeard(2, chord('E', '5'), chord('A', '5')),
+    sound: [],
+  }),
+  'chord:slash': () => {
+    const c = chord('C', 'maj')
+    const overE = [...c.slice(1), c[0]]
+    return {
+      title: 'Slash chords',
+      subtitle: 'A chord over a bass note',
+      hook: 'A slash chord names two things: the chord, then the lowest note. C/E is a C major chord with E on the bottom, and you say “C over E”. E belongs to the chord, so C/E is C major in its 1st inversion, written as a symbol.',
+      onGuitar: 'D/F♯ is the one you’ll meet most: a D chord with F♯ on the low E string, 2nd fret. It lets the bass walk down from G to Em: G · D/F♯ · Em.',
+      score: { measures: chordMeasures(c, overE), labels: ['C', 'C/E'] },
+      listen: chordsHeard(3, c, overE),
+      sound: [],
+    }
+  },
 }
 
 /** The card that teaches an idea from these tapes. */

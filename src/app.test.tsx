@@ -36,7 +36,7 @@ vi.mock('./components/Score', () => ({
 // Same for rhythm notation: a stand-in that exposes the measure and makes notes tappable.
 vi.mock('./components/Notation', () => ({
   Notation: ({ measure, onTapNote, blankBeats }: { measure: Measure; onTapNote?: (i: number) => void; blankBeats?: number }) => (
-    <div data-testid="notation" data-events={JSON.stringify(measure.events)} data-meter={measure.meter} data-blank={blankBeats ?? ''}>
+    <div data-testid="notation" data-events={JSON.stringify(measure.events)} data-meter={measure.meter} data-offset={measure.offset ?? 0} data-blank={blankBeats ?? ''}>
       {onTapNote &&
         measure.events.map((e, i) =>
           e.rest ? null : (
@@ -167,8 +167,8 @@ function answerRhythm(text: string, correctly: boolean): boolean {
     choice = buttons.find((b) => (correctly ? b.textContent === name : !!symbolNamed(b.textContent!) && b.textContent !== name))
   } else if (text === 'How many beats does this get?') {
     const beats = SYMBOLS[symbolOf(events[0])].beats
-    const label = beats === 0.5 ? '½' : beats === 1.5 ? '1½' : String(beats)
-    choice = buttons.find((b) => (correctly ? b.textContent === label : /^(½|1½|\d)$/.test(b.textContent!) && b.textContent !== label))
+    const label = beats === 0.25 ? '¼' : beats === 0.5 ? '½' : beats === 1.5 ? '1½' : String(beats)
+    choice = buttons.find((b) => (correctly ? b.textContent === label : /^(¼|½|1½|\d)$/.test(b.textContent!) && b.textContent !== label))
   } else if (text === 'What completes the measure?') {
     const missing = METER_QUARTERS[meter] - events.reduce((t, e) => t + eventQuarters(e), 0)
     choice = buttons.find((b) => {
@@ -177,10 +177,12 @@ function answerRhythm(text: string, correctly: boolean): boolean {
     })
   } else if (text.startsWith('Tap the note on')) {
     const words = highlighted().split(' ')
-    const beat = words[0] === 'beat' ? Number(words[1]) - 1 : Number(words[words.length - 1]) - 0.5
+    // "beat 3", or "the & of 2" (and "the e of 2", "the a of 2" among sixteenths).
+    const beat = words[0] === 'beat' ? Number(words[1]) - 1 : Number(words[words.length - 1]) - 1 + { e: 0.25, '&': 0.5, a: 0.75 }[words[1]]!
     // Beats are counted in the time signature's own beat (a half note in cut time); positions are in quarters.
     const position = beat * METER_PULSE[meter].quarters
-    const starts = onsets({ meter, events })
+    // A pickup measure starts partway through its bar.
+    const starts = onsets({ meter, events, offset: Number(notation.dataset.offset) })
     const target = starts.findIndex((s, i) => s === position && !events[i].rest && !(i > 0 && events[i - 1].tie))
     choice = [...notation.querySelectorAll<HTMLElement>('[data-note-index]')].find((b) => (Number(b.dataset.noteIndex) === target) === correctly)
   } else {
@@ -313,6 +315,7 @@ const CHORD_STEPS: Record<string, [number, number][]> = {
   add9: [[2, 4], [4, 7], [1, 2]],
   '6': [[2, 4], [4, 7], [5, 9]],
   m6: [[2, 3], [4, 7], [5, 9]],
+  '5': [[4, 7]],
 }
 const CHORD_WORDS: Record<string, string> = {
   '': 'major',
@@ -565,6 +568,15 @@ function answerTheory(text: string, correctly: boolean): boolean {
     pickOption(heardChords()[1], (b) => b === 'IV' || b === 'V', correctly)
   } else if (text === 'Which progression do you hear?') {
     pickOption(heardChords().join('–'), (b) => PROGRESSION_BUTTON.test(b), correctly)
+  } else if ((m = text.match(/^What does ([^\s/]+)\/(\S+) mean\?$/))) {
+    // A slash chord: the chord, then its lowest note.
+    const [root, suffix] = splitSymbol(m[1])
+    pickOption(`${root} ${CHORD_WORDS[suffix]} with ${m[2]} in the bass`, (b) => / (major|minor)/.test(b), correctly)
+  } else if ((m = text.match(/^In ([^\s/]+)\/(\S+), which note of the chord is on the bottom\?$/))) {
+    const role = spellSymbol(m[1]).split(' ').indexOf(m[2])
+    pickOption(['The root', 'The 3rd', 'The 5th'][role], (b) => /^The (root|3rd|5th)$/.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) (major|minor) with (\S+) in the bass: how is it written\?$/))) {
+    pickOption(`${m[1]}${m[2] === 'minor' ? 'm' : ''}/${m[3]}`, (b) => b.includes('/'), correctly)
   } else if ((m = text.match(/^What does (\S+) mean\?$/))) {
     const [root, suffix] = splitSymbol(m[1])
     pickOption(`${root} ${CHORD_WORDS[suffix]}`, (b) => /^[A-G][♯♭]? \w/.test(b), correctly)
@@ -1118,8 +1130,8 @@ describe('the app', () => {
     expect(screen.getByText(/Nothing’s due for review/)).toBeTruthy()
     useProgress.setState({ stats: { 'sym:half': { seen: 3, correct: 3, recent: 0.9, ms: 1500 }, '5:1': { seen: 3, correct: 3, recent: 0.9, ms: 1500 } } })
     go('/practice')
-    expect(screen.getByText('Review')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Review now' }))
+    expect(screen.getByText('Today’s mixtape')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Play mixtape' }))
     expect(window.location.hash).toBe('#/review')
     let asked = 0
     for (let i = 0; i < 20 && document.querySelector('h2'); i++) {
@@ -1273,12 +1285,12 @@ describe('the app', () => {
     )
     go('/jam?t=scales')
     playLesson()
-    fireEvent.click(screen.getByRole('button', { name: /Review 12 due/ }))
+    fireEvent.click(screen.getByRole('button', { name: /mixtape · 12 due/ }))
     expect(window.location.hash).toBe('#/review')
     // The Review session's own end screen doesn't offer another.
     playLesson()
     expect(screen.getByText('Take recorded')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Review 12 due/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /mixtape · 12 due/ })).toBeNull()
   })
 
   it('unlocks the Keys sprint once you can name keys', () => {

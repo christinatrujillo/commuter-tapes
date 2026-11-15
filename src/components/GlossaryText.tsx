@@ -69,7 +69,7 @@ function LinerNote({ entry, at, onClose }: Open & { onClose: () => void }) {
       >
         {/* Printed stripes across the top, like a vintage tape insert. */}
         <div className="h-[4px] bg-amber-dim" />
-        <div className="mt-[2px] h-[2px] bg-[#b5473a]/80" />
+        <div className="mt-[2px] h-[2px] bg-stamp/80" />
         <div className="px-5 pt-3 pb-5">
           <div className="flex items-center justify-between">
             <span className="font-typed text-[11px] tracking-[0.25em] text-ink/50 uppercase">Liner note</span>

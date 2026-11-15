@@ -68,7 +68,7 @@ function RehearsalRunner({ plan, onRecord, onAgain }: { plan: Rehearsal; onRecor
             </button>
           )}
         </div>
-        <div className="h-1 bg-[#120e0c]">
+        <div className="h-1 bg-well">
           <div className="h-full bg-amber transition-[width] duration-300" style={{ width: `${(index / (plan.steps.length - 1)) * 100}%` }} />
         </div>
       </header>

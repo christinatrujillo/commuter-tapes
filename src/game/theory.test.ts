@@ -234,7 +234,7 @@ describe('teaching and reviewing theory', () => {
 
   it('brings theory facts back for review, tagged with their tape', () => {
     const facts = ['step:half', 'scale:formula', 'scale:G', 'degree:5', 'key:A', 'rel:G', 'minor:E']
-    expect(facts.map(tapeOf)).toEqual([22, 23, 23, 24, 26, 27, 27])
+    expect(facts.map(tapeOf)).toEqual([23, 24, 24, 25, 27, 28, 28])
     for (const fact of facts) {
       const q = theoryReview(fact, 1, seeded(2))
       expect(q, fact).not.toBeNull()
@@ -243,7 +243,7 @@ describe('teaching and reviewing theory', () => {
     const stats = Object.fromEntries(facts.map((f) => [f, { seen: 3, correct: 3, recent: 1, ms: 2000, interval: 3, due: '2026-01-01' }]))
     const review = buildReview(stats, '2026-02-01', 10, seeded(4))
     expect(review).toHaveLength(facts.length)
-    for (const q of review) expect(q.review?.tape).toBeGreaterThan(21)
+    for (const q of review) expect(q.review?.tape).toBeGreaterThan(22)
   })
 
   it('leaves the reading keys to their own review questions', () => {

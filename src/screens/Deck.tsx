@@ -160,7 +160,7 @@ function TrackRow({
           )}
         </span>
         {rating && (
-          <span className="label-text -rotate-2 rounded border border-[#b5473a] px-1.5 text-[11px] whitespace-nowrap text-[#b5473a]">
+          <span className="label-text -rotate-2 rounded border border-stamp px-1.5 text-[11px] whitespace-nowrap text-stamp">
             {RATING_NAMES[rating]}
           </span>
         )}

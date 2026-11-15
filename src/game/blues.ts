@@ -989,7 +989,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:pent-what': () => ({
     title: 'The minor pentatonic',
     subtitle: 'The minor scale, minus two notes',
-    hook: '“Penta” means five. Take the natural minor scale (tape 27) and leave out its 2nd and 6th notes. A minor is A B C D E F G; without B and F (in red) it’s A C D E G, the A minor pentatonic. B and F were each a half step from a neighbor, so the scale that’s left has no half steps at all.',
+    hook: '“Penta” means five. Take the natural minor scale (tape 28) and leave out its 2nd and 6th notes. A minor is A B C D E F G; without B and F (in red) it’s A C D E G, the A minor pentatonic. B and F were each a half step from a neighbor, so the scale that’s left has no half steps at all.',
     score: { measures: scaleScore(A_MINOR), labels: scaleLabels(A_MINOR), colors: marked(7, PAPER_RUST, 1, 5) },
     sound: scaleSound(A_PENT),
   }),
@@ -1025,7 +1025,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
     return {
       title: 'Same notes, new home',
       subtitle: 'C major pentatonic is A minor pentatonic',
-      hook: 'C major pentatonic is C D E G A. Start it from A instead and you have A C D E G, the A minor pentatonic. Like relative keys (tape 27), every major pentatonic shares its notes with the minor pentatonic on its 6th note. Which one you hear depends on which note feels like home.',
+      hook: 'C major pentatonic is C D E G A. Start it from A instead and you have A C D E G, the A minor pentatonic. Like relative keys (tape 28), every major pentatonic shares its notes with the minor pentatonic on its 6th note. Which one you hear depends on which note feels like home.',
       score: { measures: [oneMeasure(c), oneMeasure(A_PENT)], labels: [...scaleLabels(c), ...scaleLabels(A_PENT)] },
       sound: [...scaleSound(c), ...scaleSound(A_PENT)],
     }
@@ -1040,7 +1040,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:blue-note': () => ({
     title: 'The blue note',
     subtitle: 'The 5th, lowered',
-    hook: 'The blue note is the 5th, lowered a half step: in A, E becomes E♭. It sits between the 4th and the 5th, a tritone above the root (tape 29), so it sounds tense and gritty. Blues players slide through it on the way to the 4th or the 5th rather than stopping on it.',
+    hook: 'The blue note is the 5th, lowered a half step: in A, E becomes E♭. It sits between the 4th and the 5th, a tritone above the root (tape 30), so it sounds tense and gritty. Blues players slide through it on the way to the 4th or the 5th rather than stopping on it.',
     score: { measures: scaleScore(A_BLUES), labels: [...SCALE_DEGREES.blues, '1'], colors: marked(6, PAPER_HIGHLIGHT, 3) },
     sound: [50, 51, 52, 51, 50],
   }),
@@ -1086,7 +1086,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:caged-link': () => ({
     title: 'Patterns and CAGED',
     subtitle: 'A chord inside every pattern',
-    hook: 'A minor pentatonic has the same notes as C major pentatonic (tape 58), so every pattern holds a C major chord, C E G. In each one those notes make a CAGED shape (tape 50): Pattern 1 holds the G shape (lit here), Pattern 2 the E shape, then the D, C and A shapes, the same order as CAGED up the neck.',
+    hook: 'A minor pentatonic has the same notes as C major pentatonic (tape 60), so every pattern holds a C major chord, C E G. In each one those notes make a CAGED shape (tape 52): Pattern 1 holds the G shape (lit here), Pattern 2 the E shape, then the D, C and A shapes, the same order as CAGED up the neck.',
     board: cagedBoard(),
     sound: [...cagedInside('A', pentPattern('A', 1)!)!.spots.map(midiAt)].sort((a, b) => a - b),
   }),
@@ -1116,7 +1116,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:twelve-sevenths': () => ({
     title: 'Every chord a 7th',
     subtitle: 'I7, IV7 and V7',
-    hook: 'Blues plays all three chords as dominant 7ths (tape 46), which gives them their bluesy, restless sound. In a major key only V is normally a dominant 7th (tape 47); blues bends that rule on purpose. In A: A7, D7 and E7.',
+    hook: 'Blues plays all three chords as dominant 7ths (tape 47), which gives them their bluesy, restless sound. In a major key only V is normally a dominant 7th (tape 48); blues bends that rule on purpose. In A: A7, D7 and E7.',
     chart: { bars: inA(TWELVE), numerals: TWELVE.map((d) => `${NUMERALS[d]}7`) },
     listen: hearBars([0, 3, 4, 0]),
     sound: [],
@@ -1140,7 +1140,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:minor-blues': () => ({
     title: 'Minor blues',
     subtitle: 'i7, iv7 and v7',
-    hook: 'A minor blues keeps the same 12 bars but uses minor 7th chords (tape 46): i7, iv7 and v7. In A minor that’s Am7, Dm7 and Em7. Bar 9 is often E7 instead, using the raised 7th from tape 53, and many minor blues play F7 then E7 in bars 9 and 10.',
+    hook: 'A minor blues keeps the same 12 bars but uses minor 7th chords (tape 47): i7, iv7 and v7. In A minor that’s Am7, Dm7 and Em7. Bar 9 is often E7 instead, using the raised 7th from tape 55, and many minor blues play F7 then E7 in bars 9 and 10.',
     chart: { bars: TWELVE.map((d) => bluesChord('A', d, true).symbol), numerals: TWELVE.map((d) => `${MINOR_NUMERALS[d]}7`) },
     listen: hearBars([0, 3, 4, 0], true),
     sound: [],
@@ -1176,7 +1176,7 @@ const BLUES_CARDS: Record<string, () => Omit<Card, 'counter'>> = {
   'blues:ear-quick': () => ({
     title: 'The quick change',
     subtitle: 'Listen to the second chord',
-    hook: 'A 12-bar blues (tape 61) can start two ways: four bars on I, or a quick change, jumping to IV in the second bar and straight back. Listen to the second chord. Here: A7 A7 A7 A7, then A7 D7 A7 A7.',
+    hook: 'A 12-bar blues (tape 63) can start two ways: four bars on I, or a quick change, jumping to IV in the second bar and straight back. Listen to the second chord. Here: A7 A7 A7 A7, then A7 D7 A7 A7.',
     score: { measures: chordMeasures(...sevenths('A', 'D')), labels: ['A7 (I)', 'D7 (IV)'] },
     listen: { notes: [...sevenths('A', 'A', 'A', 'A'), ...sevenths('A', 'D', 'A', 'A')].flatMap((c) => triadSound(c)), chord: 4 },
     sound: [],
