@@ -626,8 +626,9 @@ const TAPES: Unit[] = [
   },
   {
     id: 'r12',
-    title: 'Sixteenths & Syncopation',
-    description: 'Smaller beats, off-beat notes and pickups',
+    // Every track here is about notes that don't land on the beat: on the &, the e and the a, or before beat 1.
+    title: 'Off the beat',
+    description: 'Eighth rests, sixteenths, syncopation and pickups',
     color: COLORS[1],
     tips: [
       'An eighth rest is half a beat of silence. With one on the beat, the next note lands on the &.',

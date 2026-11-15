@@ -433,6 +433,26 @@ p {
   to { transform: scale(1) rotate(0deg); }
 }
 
+/* A tape's paper insert slides up out of the case, from under the cassette, and back down when it closes. */
+.insert-up { animation: insert-up 320ms cubic-bezier(0.3, 0.9, 0.3, 1) backwards; }
+@keyframes insert-up {
+  from { transform: translateY(100%); }
+}
+.insert-down { animation: insert-down 260ms ease-in forwards; }
+@keyframes insert-down {
+  to { transform: translateY(100%); }
+}
+/* Dragged or tapped up to fill the screen, or back down to rest under the cassette. */
+.insert-glide { transition: top 280ms cubic-bezier(0.3, 0.9, 0.3, 1); }
+.insert-dim { animation: insert-dim 280ms ease-out backwards; }
+@keyframes insert-dim {
+  from { opacity: 0; }
+}
+.insert-dim-out { animation: insert-dim-out 260ms ease-in forwards; }
+@keyframes insert-dim-out {
+  to { opacity: 0; }
+}
+
 /* ---------- First-run guide ---------- */
 
 /*
@@ -517,6 +537,9 @@ p {
   .breathe, .level-bar, .blink, .reel-spin, .fade-in, .slide-up, .marker-pop, .marker-pulse, .stamp { animation: none; }
   .panel-rise, .marker-spring, .clip-on, .lamp-on, .tape-out, .tape-in { animation: none; }
   .tape-unwrap, .unwrap-shine, .unwrap-lamps, .badge-press { animation: none; }
+  .insert-up, .insert-dim { animation: none; }
+  .insert-glide { transition: none; }
+  .insert-down, .insert-dim-out { animation: none; opacity: 0; }
   .deck-door { transition: none; }
   .guide-spot, .guide-ring, .guide-in, .guide-out, .guide-words-in, .guide-words-out, .guide-dot-on { animation: none; }
   .guide-arrow { transition: none; }

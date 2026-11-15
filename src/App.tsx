@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { stopSounds } from './audio/sound'
 import { Guide } from './components/Guide'
 import { useRoute } from './lib/router'
-import { DeckScreen } from './screens/Deck'
 import { ExploreScreen } from './screens/Explore'
 import { HomeScreen } from './screens/Home'
 import { DrillScreen, LessonScreen, ReviewScreen, TheoryJamScreen, WeakSpotScreen } from './screens/Lesson'
@@ -47,7 +46,8 @@ function Screen({ parts, query }: { parts: string[]; query: URLSearchParams }) {
     case 'sprint':
       return <SprintScreen presetId={query.get('p') ?? ''} />
     case 'tape':
-      return <DeckScreen unitId={parts[1] ?? ''} />
+      // A tape's page is its paper insert, pulled out over the rack on the Tapes tab.
+      return <HomeScreen tapeId={parts[1] ?? ''} />
     case 'settings':
       return <SettingsScreen />
     case 'practice':

@@ -363,11 +363,12 @@ function DeckKeys() {
 }
 
 /** Layout for the four main tabs: console strip on top, scrolling content, deck keys at the bottom. */
-export function TabShell({ children }: { children: ReactNode }) {
+/** `locked` holds the page still while something slid over it (a tape's insert) does the scrolling. */
+export function TabShell({ children, locked = false }: { children: ReactNode; locked?: boolean }) {
   return (
     <div className="flex h-dvh flex-col">
       <ConsoleStrip />
-      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+      <main className={`min-h-0 flex-1 ${locked ? 'overflow-hidden' : 'overflow-y-auto'}`}>{children}</main>
       <DeckKeys />
     </div>
   )

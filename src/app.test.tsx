@@ -943,13 +943,34 @@ describe('the app', () => {
     expect(screen.getByRole('button', { name: /^Tape 1: Reading basics\. Now playing/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /^Tape 1: Reading basics/ }))
     expect(lcd()).toContain('UP NEXT')
-    // Load tape opens the tape's page; Play starts the lesson.
+    // Load tape pulls out the tape's insert over the rack; Play starts the lesson.
     fireEvent.click(screen.getByRole('button', { name: 'Load tape' }))
     expect(window.location.hash).toBe('#/tape/r1')
     expect(screen.getByText('Liner notes')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     expect(window.location.hash).toBe('#/rehearse/r1-1')
     expect(screen.getByText('New idea 1 of 7')).toBeTruthy()
+  })
+
+  it('puts a tape’s insert back with Close, leaving that tape in the deck', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /^Tape 2: High E String · Staff/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Load tape' }))
+    expect(window.location.hash).toBe('#/tape/r2')
+    // The pictures come with it: the notes on the staff and on the neck.
+    expect(screen.getByTestId('staff')).toBeTruthy()
+    expect(document.querySelector('svg[aria-label="Guitar fretboard"]')).toBeTruthy()
+    // Its grip fills the screen with it, and shrinks it back.
+    fireEvent.click(screen.getByRole('button', { name: 'Fill the screen' }))
+    expect(screen.getByRole('button', { name: 'Shrink the insert' }).getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'Shrink the insert' }))
+    expect(screen.getByRole('button', { name: 'Fill the screen' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    advanceTo(Date.now() + 400)
+    expect(window.location.hash).toBe('#/')
+    expect(screen.queryByText('Liner notes')).toBeNull()
+    expect(within(document.querySelector('section')!).getByText('Loaded')).toBeTruthy()
+    expect(document.querySelector('section .lcd')!.textContent).toContain('High E String')
   })
 
   it('asks a brand-new learner where to start, and opens Vol. 3 for straight to theory', () => {

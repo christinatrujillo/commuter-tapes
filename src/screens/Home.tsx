@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type Ref } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type Ref } from 'react'
 import { Cassette, DeckWell } from '../components/Cassette'
 import { HeadphonesIcon } from '../components/Monitors'
 import { LabelTape, TabShell, TransportIcon } from '../components/ui'
-import { navigate } from '../lib/router'
-import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber, VOLUMES, type Unit } from '../music/curriculum'
+import { goBack, navigate } from '../lib/router'
+import { ALL_LESSONS, findLesson, isListening, isPlanned, tapeBefore, tapeNumber, UNITS, VOLUMES, type Unit } from '../music/curriculum'
 import { currentLessonId, isUnlocked, earTracksWaiting, trackPath, useProgress } from '../store/progress'
+import { TapeInsert } from './TapeInsert'
 
 /** Wood grain, for the rack and its shelf rails. */
 export const WOOD = 'bg-[repeating-linear-gradient(90deg,#4a3222_0px,#4f3625_5px,#432d1f_9px,#553a28_12px,#4a3222_17px)]'
@@ -13,18 +14,21 @@ export const CARVED = 'bg-clip-text text-transparent [filter:drop-shadow(0_-1px_
 export const CARVED_TITLE = 'bg-[linear-gradient(180deg,#6f5234_0%,#b0905f_45%,#ead0a6_100%)]'
 const CARVED_LABEL = 'bg-[linear-gradient(180deg,#5e452b_0%,#94784f_45%,#c9ab80_100%)]'
 
-/** Home: a tape deck holding your next lesson's tape, and a rack of every tape below it, by volume. */
-export function HomeScreen() {
+/**
+ * Home: a tape deck holding your next lesson's tape, and a rack of every tape below it, by volume.
+ * With `tapeId` (the address /tape/<id>), that tape is in the deck with its paper insert pulled out.
+ */
+export function HomeScreen({ tapeId }: { tapeId?: string }) {
   return (
-    <TabShell>
+    <TabShell locked={!!tapeId}>
       <div className="mx-auto max-w-lg px-4 pt-4 pb-10">
-        <RackHome />
+        <RackHome tapeId={tapeId} />
       </div>
     </TabShell>
   )
 }
 
-function RackHome() {
+function RackHome({ tapeId }: { tapeId?: string }) {
   const lessons = useProgress((s) => s.lessons)
   const unlockAll = useProgress((s) => s.settings.unlockAll)
   const earTraining = useProgress((s) => s.settings.earTraining)
@@ -36,8 +40,42 @@ function RackHome() {
   const doneCount = ALL_LESSONS.filter((l) => lessons[l.id]?.stars).length
   // The tape in the deck: your next lesson's, unless you've picked another off the rack.
   const [picked, setPicked] = useState<Unit | null>(null)
-  const loaded = picked ?? found?.unit ?? null
+  // The tape whose insert is out, if any. Its insert stays a moment after closing, to slide back in.
+  const opened = UNITS.find((u) => u.id === tapeId) ?? null
+  const [lastOpened, setLastOpened] = useState(opened)
+  // Opening on a tape with its insert already out (back from a take, or a reload) shows it in place.
+  const [slideIn, setSlideIn] = useState(!opened)
+  const [insertTop, setInsertTop] = useState(0)
+  const loaded = opened ?? picked ?? found?.unit ?? null
   const deckRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (opened) {
+      setLastOpened(opened)
+      // The tape stays in the deck once its insert goes back in.
+      setPicked(opened === found?.unit ? null : opened)
+      return
+    }
+    setSlideIn(true)
+    const gone = setTimeout(() => setLastOpened(null), 280)
+    return () => clearTimeout(gone)
+    // Only opening and closing the insert matters here.
+  }, [opened])
+
+  // The insert comes out from under the cassette: bring the deck to the top and measure where the cassette ends.
+  useLayoutEffect(() => {
+    if (!opened) return
+    const measure = () => {
+      const well = deckRef.current?.querySelector('[data-deck-well]')
+      // On a short screen (a phone on its side) it covers part of the cassette, to keep at least half the screen for itself.
+      if (well) setInsertTop(Math.min(well.getBoundingClientRect().bottom, window.innerHeight * 0.45))
+    }
+    deckRef.current?.scrollIntoView({ block: 'start' })
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [opened])
+  const insert = opened ?? lastOpened
 
   function pick(unit: Unit) {
     setPicked(unit === found?.unit ? null : unit)
@@ -96,6 +134,7 @@ function RackHome() {
           ))}
         </ol>
       </div>
+      {insert && <TapeInsert unit={insert} top={insertTop} motion={opened ? (slideIn ? 'in' : null) : 'out'} onClose={() => goBack('/')} />}
     </>
   )
 }
@@ -171,7 +210,7 @@ function Deck({ ref, unit, isNext, locked }: { ref: Ref<HTMLElement>; unit: Unit
             ))}
           </span>
         </div>
-        <span className="truncate text-lg leading-tight">{middle}</span>
+        <span className="text-lg leading-tight text-balance">{middle}</span>
         <span className="text-[11px] opacity-75">{bottom}</span>
       </div>
       {/* The main key says what it does: it starts the next track. Load tape (the track list and liner notes) sits under it. */}
@@ -243,26 +282,29 @@ function Spine({
           <LabelTape className="min-w-0 truncate">{unit.title}</LabelTape>
           {listening && <HeadphonesIcon className="h-3.5 w-3.5 shrink-0 text-cream-dim" />}
         </span>
-        {(isCurrent || line) && (
-          <span className={`flex items-center gap-1.5 text-[13px] ${finished ? 'text-led' : 'text-cream-dim'}`}>
-            {isCurrent && (
-              <>
-                <span className="led led-red breathe !h-2 !w-2" />
-                <span className="text-cream">Now playing{line ? ' ·' : ''}</span>
-              </>
+        {/* The row under the name: where you stand on the left, a lamp per track on the right. The name gets the whole row above. */}
+        {(isCurrent || line || !locked) && (
+          <span className="flex w-full items-center justify-between gap-2">
+            <span className={`flex items-center gap-1.5 text-[13px] ${finished ? 'text-led' : 'text-cream-dim'}`}>
+              {isCurrent && (
+                <>
+                  <span className="led led-red breathe !h-2 !w-2" />
+                  <span className="text-cream">Now playing{line ? ' ·' : ''}</span>
+                </>
+              )}
+              {finished && <TransportIcon kind="check" />}
+              {line}
+            </span>
+            {!locked && (
+              <span className={`flex shrink-0 gap-1 ${unwrapping ? 'unwrap-lamps' : ''}`} aria-hidden>
+                {unit.lessons.map((l, k) => (
+                  <span key={l.id} className={`led !h-2 !w-2 ${k < done ? 'led-green' : ''} ${k >= litBefore && k < done ? 'lamp-on' : ''}`} />
+                ))}
+              </span>
             )}
-            {finished && <TransportIcon kind="check" />}
-            {line}
           </span>
         )}
       </span>
-      {!locked && (
-        <span className={`flex shrink-0 gap-1 ${unwrapping ? 'unwrap-lamps' : ''}`} aria-hidden>
-          {unit.lessons.map((l, k) => (
-            <span key={l.id} className={`led !h-2 !w-2 ${k < done ? 'led-green' : ''} ${k >= litBefore && k < done ? 'lamp-on' : ''}`} />
-          ))}
-        </span>
-      )}
       {/* The case's plastic: a faint sheen and a lit top edge. */}
       <span className="pointer-events-none absolute inset-0 rounded-[3px] bg-[linear-gradient(180deg,rgba(255,255,255,0.09)_0%,rgba(255,255,255,0.025)_45%,transparent_46%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]" />
       {/* Unopened tapes still have their cellophane. When a tape opens, its shine sweeps off once. */}

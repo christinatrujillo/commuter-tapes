@@ -151,7 +151,7 @@ function HeadphonesMark({ ink }: { ink: string }) {
  */
 export function DeckWell({ children, band, open = false }: { children: ReactNode; band?: ReactNode; open?: boolean }) {
   return (
-    <div className="relative w-full overflow-hidden rounded-lg bg-[#0d0a08] p-3 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]">
+    <div data-deck-well className="relative w-full overflow-hidden rounded-lg bg-[#0d0a08] p-3 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]">
       {band && (
         <div className="absolute top-1 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded border border-edge bg-room px-2 py-0.5 whitespace-nowrap">{band}</div>
       )}
