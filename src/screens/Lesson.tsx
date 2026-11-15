@@ -219,7 +219,8 @@ function LessonRunner({
   const input = useQuestionInput(q, answer, submit)
 
   function next() {
-    if (mistakes >= MAX_CLIPS) {
+    // Only a track's take can be ruined; practice (jams, trouble spots, review) always runs to the end.
+    if (lessonId && mistakes >= MAX_CLIPS) {
       saveTake(null)
       return setFailed(true)
     }
@@ -283,7 +284,7 @@ function LessonRunner({
           <TransportIcon kind="stop" />
         </button>
         <Reels value={(index + (answer ? 1 : 0)) / queue.length} counter={index + 1} />
-        <ClipLeds clips={mistakes} max={MAX_CLIPS} />
+        {lessonId && <ClipLeds clips={mistakes} max={MAX_CLIPS} />}
       </header>
       <QuestionStage
         q={q}

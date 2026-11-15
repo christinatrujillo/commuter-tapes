@@ -1,7 +1,7 @@
 {
   "name": "Commuter Tapes",
   "short_name": "Commuter Tapes",
-  "description": "Learn the guitar fretboard and how to read music, one short lesson at a time.",
+  "description": "Learn music theory for the guitar in short lessons you can finish between train stops.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
