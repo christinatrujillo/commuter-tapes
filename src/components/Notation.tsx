@@ -32,14 +32,15 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
 
   useEffect(() => {
     let cancelled = false
-    void loadVexFlow().then(({ Beam, Dot, Formatter, Fraction, Renderer, Stave, StaveNote, StaveTie, Voice, VoiceMode }) => {
+    void loadVexFlow().then(({ Beam, Dot, Formatter, Fraction, Renderer, Stave, StaveNote, StaveTie, Tuplet, Voice, VoiceMode }) => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''
       const total = METER_QUARTERS[measure.meter]
       const lead = (clef ? 42 : 8) + (timeSig ? 26 : 0)
-      // A pickup measure is only as wide as the beats it holds; sixteenths need more room per beat.
-      const perBeat = measure.events.some((e) => e.dur === '16') ? 78 : 56
+      // A pickup measure is only as wide as the beats it holds; sixteenths, triplets and 6/8's eighths need more room per beat.
+      const sixEight = measure.meter === '6/8'
+      const perBeat = sixEight || measure.events.some((e) => e.dur === '16' || e.triplet) ? 78 : 56
       const width = Math.max(150, lead + 40 + (total - (measure.offset ?? 0)) * perBeat)
       const height = labels ? 132 : 112
       const renderer = new Renderer(el, Renderer.Backends.SVG)
@@ -58,14 +59,23 @@ export function Notation({ measure, pitch = 'b/4', clef = true, timeSig = true, 
         if (color) n.setStyle({ fillStyle: color, strokeStyle: color })
         return n
       })
+      // Each triplet's three notes, marked with a 3, take the time of two (set before the voice counts their time).
+      // Triplets can come back to back, so a run of them starts a new one every three notes.
+      const tuplets: InstanceType<typeof Tuplet>[] = []
+      let inRun = 0
+      measure.events.forEach((e, i) => {
+        inRun = e.triplet ? inRun + 1 : 0
+        if (inRun % 3 === 1) tuplets.push(new Tuplet(notes.slice(i, i + 3), { numNotes: 3, notesOccupied: 2 }))
+      })
       const voice = new Voice({ numBeats: total, beatValue: 4 }).setMode(VoiceMode.SOFT).addTickables(notes)
-      // Eighths are beamed a beat at a time, the way beginners learn to see them.
-      const beams = Beam.generateBeams(notes, { groups: [new Fraction(1, 4)] })
+      // Eighths are beamed a beat at a time, the way beginners learn to see them: in 6/8, three to a beam.
+      const beams = Beam.generateBeams(notes, { groups: [sixEight ? new Fraction(3, 8) : new Fraction(1, 4)] })
       const area = stave.getNoteEndX() - stave.getNoteStartX()
       const used = blankBeats ? area * (1 - blankBeats / total) : area
       new Formatter().joinVoices([voice]).format([voice], Math.max(30, used - 24))
       voice.draw(ctx, stave)
       beams.forEach((b) => b.setContext(ctx).draw())
+      tuplets.forEach((tuplet) => tuplet.setContext(ctx).draw())
       measure.events.forEach((e, i) => {
         if (e.tie && notes[i + 1]) {
           new StaveTie({ firstNote: notes[i], lastNote: notes[i + 1], firstIndexes: [0], lastIndexes: [0] }).setContext(ctx).draw()

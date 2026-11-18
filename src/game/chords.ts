@@ -38,7 +38,7 @@ import {
 } from '../music/theory'
 import { between, pick, shuffle, type Rng } from '../lib/random'
 import { isOneOf } from '../lib/guards'
-import { aOrAn, capitalize } from '../lib/text'
+import { andList, aOrAn, capitalize } from '../lib/text'
 import type { Question } from './questions'
 import { chordMeasures, triadBoard, triadScore, triadSound } from './triads'
 
@@ -119,7 +119,7 @@ function intervalsText(tones: Tone[], kind: ChordKind): string {
     const name = kind === 'add9' && iv.number === 2 ? 'major 9th (the 2nd, an octave up)' : intervalName(iv)
     return `${toneName(tones[i + 1])} ${i === 0 ? `is ${aOrAn(name)} ${name} up` : `${aOrAn(name)} ${name}`}`
   })
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]
+  return andList(parts)
 }
 
 // ---------------------------------------------------------------------------

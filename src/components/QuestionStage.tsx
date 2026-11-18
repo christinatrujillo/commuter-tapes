@@ -290,6 +290,8 @@ function scoreFor(q: Question, answer: Answer | null, found: Position[]): ReactN
         colors={s.colors}
         labels={answer ? (s.after ?? s.labels) : s.labels}
         marker={answer ? null : (s.marker ?? null)}
+        signs={s.signs}
+        numbered={!!s.signs}
       />
     )
   }

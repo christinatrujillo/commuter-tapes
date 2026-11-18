@@ -14,14 +14,36 @@ import {
   pitchClass,
   samePos,
   spellMidi,
+  spelledMidi,
   spelledName,
   staffPlace,
   vexKey,
   WRITTEN_OCTAVE_SHIFT,
   type Position,
+  type SpelledNote,
 } from '../music/notes'
 import { keyLabel, type KeyId } from '../music/score'
-import { intervalAbove, intervalName, intervalSize, majorScale, parseInterval, relativeMinor, toneId, toneName, tonePc, type Tone } from '../music/theory'
+import {
+  chordDegrees,
+  chordIntervals,
+  chordSymbol,
+  chordTones,
+  intervalAbove,
+  intervalName,
+  intervalSize,
+  KEY_ON_PC,
+  majorScale,
+  parseInterval,
+  parseTone,
+  RARE_SPELLINGS,
+  relativeMinor,
+  spelled,
+  toneId,
+  toneName,
+  tonePc,
+  type ChordKind,
+  type Tone,
+} from '../music/theory'
 import { bluesScale, majorPentatonic, minorPentatonic, patternSpots, SCALE_DEGREES } from '../game/blues'
 import { fretboardViews, type ScaleView } from '../game/jams'
 import { MODE_NAMES, MODES, modeDegrees, modeScale, type ModeId } from '../game/modes'
@@ -31,11 +53,30 @@ const PCS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 /** A single pentatonic pattern gets a longer neck, so it's whole in every key. */
 const PATTERN_MAX_FRET = 15
 
-type Mode = 'notes' | 'scale' | 'interval'
+type Mode = 'notes' | 'scale' | 'interval' | 'arpeggio'
 /** Which notes the Notes view shows, and what it calls the ones between the natural notes. */
 type Names = 'naturals' | 'sharps' | 'flats'
 
 const SCALE_NAMES: Record<ScaleView, string> = { major: 'Major scale', majorPent: 'Major pentatonic', minorPent: 'Minor pentatonic', blues: 'Blues scale', modes: 'Modes' }
+
+/** The other name of each black key, and B's (C♭), for chords their usual names can't spell plainly. */
+const OTHER_NAMES = ['', 'C#', '', 'D#', '', '', 'Gb', '', 'G#', '', 'A#', 'Cb']
+
+/**
+ * The arpeggio of a chord on this note, spelled the way it's usually written: from the root's usual
+ * name, or from its other name where the usual one would need a double sharp or flat (F♯ augmented
+ * is written G♭ augmented) or a C♭ or F♭ the other name avoids (D♭ minor is written C♯ minor).
+ */
+function arpeggioOn(pc: number, kind: ChordKind): { tones: Tone[]; symbol: string } {
+  const usual = chordTones(parseTone(KEY_ON_PC[pc]), kind)
+  const other = OTHER_NAMES[pc] ? chordTones(parseTone(OTHER_NAMES[pc]), kind) : null
+  const has = (tones: Tone[], names: string[]) => tones.some((t) => names.includes(toneName(t)))
+  const rename = !usual || (!!other && has(usual, ['C♭', 'F♭']) && !has(other, [...RARE_SPELLINGS]))
+  const tones = (rename ? other : usual)!
+  return { tones, symbol: chordSymbol(tones[0], kind) }
+}
+/** A pitch written under this note name: middle C as C4, or as B♯3 in a chord that spells it B♯. */
+const writtenAs = (midi: number, t: Tone): SpelledNote => ({ ...t, octave: (midi - spelledMidi({ ...t, octave: 0 })) / 12 })
 
 /**
  * A scale the Scale view can show in `key`: the minor ones start on its relative minor, and a mode
@@ -61,8 +102,9 @@ function scaleIn(view: ScaleView, key: KeyId, mode: ModeId): { tones: Tone[]; de
 
 /**
  * A reference fretboard: every note labeled, tap one to hear it and see it on the staff. Once
- * you've reached the scale and interval tapes, a Scale view and an Interval view join it, showing
- * only the keys and intervals you've learned.
+ * you've reached the scale, interval and triad tapes, a Scale view, an Interval view and an
+ * Arpeggio view (every note of a chord across the neck) join it, showing only the keys,
+ * intervals and chords you've learned.
  */
 export function ExploreScreen() {
   const landscape = useLandscape()
@@ -80,11 +122,14 @@ export function ExploreScreen() {
   // 0 shows the whole neck; 1 to 5 show one pentatonic pattern.
   const [pattern, setPattern] = useState(0)
   const [interval, setIntervalName] = useState(unlocked.intervals[0] ?? 'P5')
+  const [arpRoot, setArpRoot] = useState(0)
+  const [arpKind, setArpKind] = useState<ChordKind>(unlocked.chords[0] ?? 'maj')
 
   const modes: { value: Mode; label: string }[] = [
     { value: 'notes', label: 'Notes' },
     ...(unlocked.keys.length ? [{ value: 'scale' as const, label: 'Scale' }] : []),
     ...(unlocked.intervals.length ? [{ value: 'interval' as const, label: 'Interval' }] : []),
+    ...(unlocked.chords.length ? [{ value: 'arpeggio' as const, label: 'Arpeggio' }] : []),
   ]
 
   const view = unlocked.scales.includes(scale) ? scale : 'major'
@@ -100,6 +145,10 @@ export function ExploreScreen() {
   // The upper note takes the interval's letter (F up a 4th is B flat, not A sharp); sharp names only where that would need a double sharp.
   const upper = selected ? intervalAbove(spellMidi(midiAt(selected), 'sharp'), parseInterval(interval)) : null
   const upperName = upper ? toneName(upper) : selected ? pcName(pitchClass(midiAt(selected) + size), 'sharp') : ''
+  const chord = unlocked.chords.includes(arpKind) ? arpKind : (unlocked.chords[0] ?? 'maj')
+  const arpeggio = arpeggioOn(arpRoot, chord)
+  const arpPcs = arpeggio.tones.map(tonePc)
+  const arpLabels = degrees ? chordDegrees(chord) : arpeggio.tones.map(toneName)
 
   let markers: Marker[]
   if (mode === 'scale') {
@@ -108,6 +157,14 @@ export function ExploreScreen() {
       .map((p) => {
         const d = scalePcs.indexOf(pitchClass(midiAt(p)))
         return { pos: p, tone: selected && samePos(p, selected) ? 'target' : d === 0 ? 'root' : 'note', label: degrees ? shown.degrees[d] : toneName(tones[d]) }
+      })
+  } else if (mode === 'arpeggio') {
+    // Every chord tone on the neck, the root glowing.
+    markers = allPositions(FULL_NECK)
+      .filter((p) => arpPcs.includes(pitchClass(midiAt(p))))
+      .map((p) => {
+        const i = arpPcs.indexOf(pitchClass(midiAt(p)))
+        return { pos: p, tone: selected && samePos(p, selected) ? 'target' : i === 0 ? 'root' : 'note', label: arpLabels[i] }
       })
   } else if (mode === 'interval') {
     // From the note you tap: every spot on the neck an interval above it.
@@ -133,15 +190,22 @@ export function ExploreScreen() {
   }
 
   const tap = (p: Position) => {
-    // In the Notes and Scale views only the notes on show answer a tap; in the Interval view you
-    // pick a starting note anywhere.
+    // In the Notes, Scale and Arpeggio views only the notes on show answer a tap; in the Interval
+    // view you pick a starting note anywhere.
     if (mode !== 'interval' && !markers.some((m) => samePos(m.pos, p))) return
     setSelected(p)
     playNotes(...(mode === 'interval' ? [midiAt(p), midiAt(p) + size] : [midiAt(p)]))
   }
 
-  const written = selected ? spellMidi(midiAt(selected) + WRITTEN_OCTAVE_SHIFT, spelling) : null
-  const degreeOf = selected ? scalePcs.indexOf(pitchClass(midiAt(selected))) : -1
+  const degreeOf = mode === 'scale' && selected ? scalePcs.indexOf(pitchClass(midiAt(selected))) : -1
+  const toneOf = mode === 'arpeggio' && selected ? arpPcs.indexOf(pitchClass(midiAt(selected))) : -1
+  // A scale's or chord's notes go on the staff the way it spells them (B♭ in F major, not A♯).
+  const spelledAs = degreeOf >= 0 ? tones[degreeOf] : toneOf >= 0 ? arpeggio.tones[toneOf] : null
+  const written = selected
+    ? spelledAs
+      ? writtenAs(midiAt(selected) + WRITTEN_OCTAVE_SHIFT, spelledAs)
+      : spellMidi(midiAt(selected) + WRITTEN_OCTAVE_SHIFT, spelling)
+    : null
 
   const info =
     mode === 'interval' ? (
@@ -156,10 +220,16 @@ export function ExploreScreen() {
           <Staff keys={[vexKey(written)]} />
         </div>
         <div className="min-w-0">
-          <div className="font-label text-3xl leading-none text-amber">{pcName(pitchClass(midiAt(selected)))}</div>
+          <div className="font-label text-3xl leading-none text-amber">
+            {toneOf >= 0 ? toneName(arpeggio.tones[toneOf]) : pcName(pitchClass(midiAt(selected)))}
+          </div>
           <div className="mt-1 text-cream">{describePosition(selected)}</div>
           <div className="text-sm text-muted">
-            {mode === 'scale' && degreeOf >= 0
+            {toneOf >= 0
+              ? toneOf === 0
+                ? `The root of the ${arpeggio.symbol} chord`
+                : `The ${intervalName(chordIntervals(chord)[toneOf - 1])} of the ${arpeggio.symbol} chord`
+              : degreeOf >= 0
               ? view === 'major'
                 ? `The ${degreeOf + 1}${['st', 'nd', 'rd'][degreeOf] ?? 'th'} note of ${keyLabel(key)} major`
                 : degreeOf === 0
@@ -171,13 +241,27 @@ export function ExploreScreen() {
       </>
     ) : (
       <p className="px-2 text-muted">
-        {mode === 'scale'
-          ? onePattern
-            ? `Pattern ${pattern} of the ${shown.name}, the root glowing. Tap a note to hear it.`
-            : `Every note of ${theName}, the root glowing. Tap one to hear it.`
-          : 'Tap any note to hear it and see where it’s written on the staff.'}
+        {mode === 'arpeggio'
+          ? `Every note of the ${arpeggio.symbol} chord: ${spelled(arpeggio.tones)}, the root glowing. Tap one to hear it.`
+          : mode === 'scale'
+            ? onePattern
+              ? `Pattern ${pattern} of the ${shown.name}, the root glowing. Tap a note to hear it.`
+              : `Every note of ${theName}, the root glowing. Tap one to hear it.`
+            : 'Tap any note to hear it and see where it’s written on the staff.'}
       </p>
     )
+
+  // Note names or degrees on the dots, for the Scale and Arpeggio views.
+  const labelSwitch = (
+    <LedButtons
+      options={[
+        { value: 'names', label: 'Note names' },
+        { value: 'degrees', label: 'Degrees' },
+      ]}
+      selected={[degrees ? 'degrees' : 'names']}
+      onToggle={(v) => setDegrees(v === 'degrees')}
+    />
+  )
 
   const controls = (
     <div className="flex flex-col gap-3">
@@ -274,14 +358,37 @@ export function ExploreScreen() {
               />
             </div>
           )}
-          <LedButtons
-            options={[
-              { value: 'names', label: 'Note names' },
-              { value: 'degrees', label: 'Degrees' },
-            ]}
-            selected={[degrees ? 'degrees' : 'names']}
-            onToggle={(v) => setDegrees(v === 'degrees')}
-          />
+          {labelSwitch}
+        </>
+      )}
+      {mode === 'arpeggio' && (
+        <>
+          <div>
+            <div className="label-text mb-2 text-[11px] text-muted">{unlocked.chords.length > 1 ? 'Root' : 'Major chord'}</div>
+            <LedButtons
+              options={PCS.map((pc) => ({ value: pc, label: keyLabel(KEY_ON_PC[pc]) }))}
+              selected={[arpRoot]}
+              onToggle={(pc) => {
+                setArpRoot(pc)
+                setSelected(null)
+              }}
+            />
+          </div>
+          {unlocked.chords.length > 1 && (
+            <div>
+              {/* Each chord is named the way it's written on this root: D♭ minor is C♯m. */}
+              <div className="label-text mb-2 text-[11px] text-muted">Chord</div>
+              <LedButtons
+                options={unlocked.chords.map((k) => ({ value: k, label: arpeggioOn(arpRoot, k).symbol }))}
+                selected={[chord]}
+                onToggle={(k) => {
+                  setArpKind(k)
+                  setSelected(null)
+                }}
+              />
+            </div>
+          )}
+          {labelSwitch}
         </>
       )}
       {mode === 'interval' && (

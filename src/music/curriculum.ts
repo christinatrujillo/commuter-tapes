@@ -129,6 +129,38 @@ export type ExerciseType =
   | 'modeNeckName' // a major scale pattern with a note lit as home: which mode?
   | 'modeHear' // hear a scale: the mode, or the major or minor scale it changes?
   | 'vampHear' // hear a two-chord vamp: which mode?
+  | 'melodicNote' // "what’s the 6th note of E melodic minor?"
+  | 'melodicSpell' // "which notes make D melodic minor?"
+  | 'minorKind' // "A B C D E F G♯: which minor scale?"
+  | 'symmetricSame' // "C whole-tone has the same notes as which whole-tone scale?"
+  | 'symmetricShape' // frets up one string: whole-tone, or which diminished scale?
+  | 'symmetricChords' // "which two chords make C whole-tone?"
+  | 'arpMissing' // an arpeggio shape with one note gone: tap where it goes
+  | 'arpName' // an arpeggio shape, roots lit: which chord?
+  | 'arpSeventh' // a triad's arpeggio shape: tap a note that makes it a 7th chord
+  | 'melodicHear' // hear the home chord and a minor scale: melodic or natural minor?
+  | 'harmonicHear' // hear the home chord and a minor scale: harmonic or melodic minor?
+  | 'minorScaleHear' // hear the home chord and a minor scale: natural, harmonic or melodic?
+  | 'symmetricHear' // hear a scale: whole-tone or diminished?
+  | 'chordFamily' // "in C major, which family is Am in?"
+  | 'chordShared' // "which two notes do F and Dm share?"
+  | 'chordSwap' // "in C major, which chord can stand in for F?"
+  | 'secondaryChord' // "in C major, what's V7/ii?"
+  | 'secondaryTarget' // "in C major, E7 leads to which chord?"
+  | 'secondaryNote' // "in C major, which note of E7 isn't in the key?"
+  | 'secondarySpot' // "in C major, which chord of C – E7 – Am – F is a secondary dominant?"
+  | 'borrowedChord' // "in C major, what's ♭VII?"
+  | 'borrowedNumeral' // "in C major, which numeral is the borrowed A♭?"
+  | 'borrowedSpot' // "in C major, which chord of C – F – Fm – C is borrowed from C minor?"
+  | 'tritoneSub' // "in C major, what's the tritone sub for G7?"
+  | 'tritoneShared' // "which two notes do D7 and A♭7 share?"
+  | 'tritoneProgression' // "in C major, Dm7 – G7 – Cmaj7 with a tritone sub becomes which progression?"
+  | 'deceptiveHear' // hear I – IV – V and the last chord: home, or a deceptive cadence?
+  | 'secondaryHear' // hear a progression: the key's own chord, or a secondary dominant?
+  | 'minorFourHear' // hear I, then IV or the borrowed iv, then I: which?
+  | 'tritoneHear' // hear ii7, then V7 or its tritone sub, then Imaj7: which?
+  | 'roadOrder' // a numbered score with road signs: in what order are its measures played?
+  | 'roadNext' // a numbered score with road signs: after measure 4, where do you go?
 
 export interface LessonSpec {
   id: string
@@ -175,6 +207,10 @@ export interface LessonSpec {
   patterns?: number[]
   /** Modes a track's questions use, by name ("dorian"). */
   modes?: string[]
+  /** Symmetric scales a track's questions use: 'whole-tone', or diminished as 'whole-half' or 'half-whole'. */
+  symmetric?: string[]
+  /** The road signs a track's scores use: 'repeat', 'repeat-pair', 'endings', 'dc-fine', 'ds-fine', 'dc-coda', 'ds-coda'. */
+  roadSigns?: string[]
   /** Early relative-key and triad questions show the scale on the staff to count along (later tracks take that help away). */
   showScale?: boolean
   count?: number
@@ -225,6 +261,8 @@ const WITH_EIGHTHS: SymbolId[] = [...WITH_DOTTED_HALF, 'eighth']
 const WITH_TIES: SymbolId[] = [...WITH_EIGHTHS, 'tie', 'dottedQuarter']
 const WITH_EIGHTH_RESTS: SymbolId[] = [...WITH_TIES, 'eighthRest']
 const WITH_SIXTEENTHS: SymbolId[] = [...WITH_EIGHTH_RESTS, 'sixteenth']
+/** What 6/8 is written with: eighth notes in threes, quarters with an eighth, dotted quarters and dotted halves. */
+const SIX_EIGHT: SymbolId[] = ['quarter', 'eighth', 'dottedQuarter', 'dottedHalf']
 
 function stringUnit(n: number, string: number, description: string, tips: string[], extra: LessonSpec[] = []): Unit {
   const id = `u${n}`
@@ -1776,10 +1814,281 @@ const TAPES: Unit[] = [
       { id: 'md5-5', title: 'Hearing review', exercises: ['modeHear', 'vampHear'], region: FULL_NECK, modes: ['dorian', 'mixolydian', 'lydian', 'phrygian'], count: 10 },
     ],
   },
+  {
+    id: 'sc1',
+    title: 'Melodic Minor',
+    description: 'Minor with a major top',
+    color: COLORS[4],
+    tips: [
+      'Melodic minor raises the 6th and 7th notes of the natural minor scale a half step: A B C D E F♯ G♯ in A minor.',
+      'It’s also the major scale with a lowered 3rd: A major is A B C♯ D E F♯ G♯, so A melodic minor is A B C D E F♯ G♯.',
+      'Classical music raises the two notes only on the way up and comes back down as natural minor. Jazz and rock keep them raised both ways.',
+    ],
+    tipStaff: { keys: ['a/4', 'b/4', 'c/5', 'd/5', 'e/5', 'f#/5', 'g#/5', 'a/5'], labels: ['A', 'B', 'C', 'D', 'E', 'F♯', 'G♯', 'A'] },
+    lessons: [
+      { id: 'sc1-1', title: 'Raise the 6th and 7th', exercises: ['melodicNote'], region: FULL_NECK, minorKeys: ['A', 'E', 'D'], topics: ['scales:melodic-why', 'scales:melodic'] },
+      { id: 'sc1-2', title: 'Spelling melodic minor', exercises: ['melodicSpell'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'G', 'B'], topics: ['scales:melodic-spell'] },
+      { id: 'sc1-3', title: 'Three minors', exercises: ['minorKind'], region: FULL_NECK, minorKeys: ['A', 'E', 'D', 'G', 'C'], topics: ['scales:down', 'scales:three-minors'] },
+      {
+        id: 'sc1-4',
+        title: 'Melodic minor review',
+        exercises: ['melodicNote', 'melodicSpell', 'minorKind'],
+        region: FULL_NECK,
+        minorKeys: ['A', 'E', 'D', 'B', 'G', 'C', 'F'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'sc2',
+    title: 'Symmetric Scales',
+    description: 'Patterns that repeat',
+    color: COLORS[5],
+    tips: [
+      'A symmetric scale repeats one step pattern all the way up, so no note stands out as home.',
+      'Whole-tone is six notes, all whole steps: C D E F♯ G♯ A♯. There are only two different ones.',
+      'Diminished is eight notes, whole and half steps in turn: C D E♭ F G♭ A♭ A B (whole-half) or C D♭ E♭ E F♯ G A B♭ (half-whole). There are only three different ones.',
+      'On the neck, a whole-tone shape repeats every 2 frets and a diminished shape every 3.',
+    ],
+    tipStaff: { keys: ['c/4', 'd/4', 'e/4', 'f#/4', 'g#/4', 'a#/4', 'c/5'], labels: ['C', 'D', 'E', 'F♯', 'G♯', 'A♯', 'C'] },
+    lessons: [
+      { id: 'sc2-1', title: 'Whole steps only', exercises: ['symmetricSame'], region: FULL_NECK, symmetric: ['whole-tone'], topics: ['scales:symmetric-why', 'scales:whole-tone'] },
+      {
+        id: 'sc2-2',
+        title: 'Whole, half, whole, half',
+        exercises: ['symmetricSame'],
+        region: FULL_NECK,
+        symmetric: ['whole-tone', 'whole-half', 'half-whole'],
+        topics: ['scales:diminished', 'scales:half-whole'],
+      },
+      { id: 'sc2-3', title: 'Shapes that slide', exercises: ['symmetricShape'], region: FULL_NECK, topics: ['scales:symmetric-neck'] },
+      { id: 'sc2-4', title: 'The chords inside', exercises: ['symmetricChords'], region: FULL_NECK, topics: ['scales:symmetric-chords'] },
+      { id: 'sc2-5', title: 'Symmetric scales review', exercises: ['symmetricSame', 'symmetricShape', 'symmetricChords'], region: FULL_NECK, count: 12 },
+    ],
+  },
+  {
+    id: 'sc3',
+    title: 'Arpeggio Shapes',
+    description: 'Chords, one note at a time',
+    color: COLORS[6],
+    tips: [
+      'An arpeggio is a chord played one note at a time, so a solo can follow the chords.',
+      'Pick a chord’s notes out of a major scale pattern and you have its arpeggio shape, with its root on the low E or A string.',
+      'A minor shape moves only the 3rds; the roots and 5ths stay put.',
+      '7th arpeggios add one note: a major 7th a half step below a root, or a minor 7th a whole step below.',
+    ],
+    lessons: [
+      { id: 'sc3-1', title: 'One note at a time', exercises: ['arpMissing'], region: FULL_NECK, chords: ['maj'], rootStrings: [0], topics: ['arp:why', 'arp:major'] },
+      { id: 'sc3-2', title: 'Major or minor', exercises: ['arpName', 'arpMissing'], region: FULL_NECK, chords: ['maj', 'min'], rootStrings: [0], topics: ['arp:minor'] },
+      { id: 'sc3-3', title: 'Root on the A string', exercises: ['arpMissing', 'arpName'], region: FULL_NECK, chords: ['maj', 'min'], rootStrings: [1], topics: ['arp:a-string'] },
+      {
+        id: 'sc3-4',
+        title: 'Adding the 7th',
+        exercises: ['arpSeventh', 'arpName'],
+        region: FULL_NECK,
+        chords: ['maj7', '7', 'm7', 'm7b5'],
+        rootStrings: [0, 1],
+        topics: ['arp:sevenths'],
+      },
+      {
+        id: 'sc3-5',
+        title: 'Arpeggio shapes review',
+        exercises: ['arpMissing', 'arpName', 'arpSeventh'],
+        region: FULL_NECK,
+        chords: ['maj', 'min', 'maj7', '7', 'm7', 'm7b5'],
+        rootStrings: [0, 1],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'sc4',
+    title: 'Hearing Scales',
+    description: 'Ear training: headphones on',
+    color: COLORS[1],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
+      'The three minor scales differ only near the top, so listen to the 6th and 7th.',
+      'Natural minor stays dark, harmonic minor jumps a step and a half to its 7th, and melodic minor brightens like major.',
+      'Whole-tone floats in even whole steps; diminished twists through whole and half steps in turn.',
+    ],
+    lessons: [
+      { id: 'sc4-1', title: 'Melodic or natural minor', exercises: ['melodicHear'], region: FULL_NECK, topics: ['scales:ear-why', 'scales:ear-melodic'] },
+      { id: 'sc4-2', title: 'Harmonic or melodic minor', exercises: ['harmonicHear'], region: FULL_NECK, topics: ['scales:ear-harmonic'] },
+      { id: 'sc4-3', title: 'All three minors', exercises: ['minorScaleHear'], region: FULL_NECK, topics: ['scales:ear-minors'] },
+      { id: 'sc4-4', title: 'Whole-tone or diminished', exercises: ['symmetricHear'], region: FULL_NECK, topics: ['scales:ear-symmetric'] },
+      { id: 'sc4-5', title: 'Hearing review', exercises: ['minorScaleHear', 'symmetricHear'], region: FULL_NECK, count: 10 },
+    ],
+  },
+  {
+    id: 'cs1',
+    title: 'Chord Families',
+    description: 'Chords that do the same job',
+    color: COLORS[2],
+    tips: [
+      'The chords of a key fall into three families by their job: tonic (I, iii, vi), subdominant (IV, ii) and dominant (V, vii°).',
+      'Chords in a family share two notes: C and Am share C and E.',
+      'To swap a chord, use another from its family: Am for C, Dm for F and B° for G in C major.',
+    ],
+    lessons: [
+      { id: 'cs1-1', title: 'Three families', exercises: ['chordFamily'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F'], topics: ['swap:why', 'swap:families'] },
+      { id: 'cs1-2', title: 'Two notes in common', exercises: ['chordShared'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F'], topics: ['swap:shared'] },
+      { id: 'cs1-3', title: 'Stand-ins', exercises: ['chordSwap'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F', 'A'], topics: ['swap:stand-in', 'swap:deceptive'] },
+      {
+        id: 'cs1-4',
+        title: 'Chord families review',
+        exercises: ['chordFamily', 'chordShared', 'chordSwap'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'F', 'A', 'E', 'Bb'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'cs2',
+    title: 'Secondary Dominants',
+    description: 'The V7 of another chord',
+    color: COLORS[3],
+    tips: [
+      'A secondary dominant is the V7 of a chord other than I: in C major, A7 is the V7 of Dm, written V7/ii.',
+      'To find it, go up a 5th from the chord’s root and play a dominant 7th there.',
+      'It leads down a 5th, to the chord it belongs to, and brings in a note from outside the key: A7’s C♯ leads up to D.',
+    ],
+    lessons: [
+      { id: 'cs2-1', title: 'The V7 of another chord', exercises: ['secondaryChord'], region: FULL_NECK, keys: ['C', 'G', 'F'], topics: ['swap:sec-why', 'swap:secondary'] },
+      { id: 'cs2-2', title: 'Where it leads', exercises: ['secondaryTarget'], region: FULL_NECK, keys: ['C', 'G', 'F'], topics: ['swap:sec-target'] },
+      { id: 'cs2-3', title: 'The outside note', exercises: ['secondaryNote'], region: FULL_NECK, keys: ['C', 'G', 'F', 'Bb'], topics: ['swap:sec-note'] },
+      { id: 'cs2-4', title: 'In a progression', exercises: ['secondarySpot'], region: FULL_NECK, keys: ['C', 'G', 'F', 'D'], topics: ['swap:sec-songs'] },
+      {
+        id: 'cs2-5',
+        title: 'Secondary dominants review',
+        exercises: ['secondaryChord', 'secondaryTarget', 'secondaryNote', 'secondarySpot'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'F', 'Bb', 'D'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'cs3',
+    title: 'Borrowed Chords',
+    description: 'A touch of minor in a major key',
+    color: COLORS[4],
+    tips: [
+      'A borrowed chord comes from the parallel minor, the minor key on the same home note: C minor for C major.',
+      'The common ones are iv, ♭VI, ♭VII and ♭III: Fm, A♭, B♭ and E♭ in C major.',
+      'A flat in front of a numeral means its root is a half step lower than the major key’s note: ♭VII is B♭, not B.',
+    ],
+    lessons: [
+      { id: 'cs3-1', title: 'Borrowed from minor', exercises: ['borrowedChord'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F'], topics: ['swap:bor-why', 'swap:parallel', 'swap:borrowed'] },
+      { id: 'cs3-2', title: 'Flats in the numerals', exercises: ['borrowedNumeral'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F', 'A'], topics: ['swap:bor-numerals'] },
+      { id: 'cs3-3', title: 'In songs', exercises: ['borrowedSpot'], region: FULL_NECK, keys: ['C', 'G', 'D', 'A', 'E'], topics: ['swap:minor-iv', 'swap:rock-flats'] },
+      {
+        id: 'cs3-4',
+        title: 'Borrowed chords review',
+        exercises: ['borrowedChord', 'borrowedNumeral', 'borrowedSpot'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'F', 'A', 'E'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'cs4',
+    title: 'Tritone Substitution',
+    description: 'The jazz swap for V7',
+    color: COLORS[5],
+    tips: [
+      'A tritone sub swaps V7 for the dominant 7th a tritone away: D♭7 for G7 in C major, written ♭II7.',
+      'It works because the two chords share their 3rd and 7th, the tritone that makes a dominant 7th pull.',
+      'In a ii–V–I it makes the bass slide down by half steps: Dm7 – D♭7 – Cmaj7.',
+    ],
+    lessons: [
+      { id: 'cs4-1', title: 'A tritone away', exercises: ['tritoneSub'], region: FULL_NECK, keys: ['C', 'G', 'D', 'A', 'F', 'E'], topics: ['swap:tri-why', 'swap:tritone'] },
+      { id: 'cs4-2', title: 'The shared tritone', exercises: ['tritoneShared'], region: FULL_NECK, keys: ['G', 'D', 'A', 'E'], topics: ['swap:tri-shared'] },
+      { id: 'cs4-3', title: 'In a ii–V–I', exercises: ['tritoneProgression'], region: FULL_NECK, keys: ['C', 'G', 'D', 'F', 'A'], topics: ['swap:tri-ii-v'] },
+      {
+        id: 'cs4-4',
+        title: 'Tritone subs review',
+        exercises: ['tritoneSub', 'tritoneShared', 'tritoneProgression'],
+        region: FULL_NECK,
+        keys: ['C', 'G', 'D', 'A', 'F', 'E'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'cs5',
+    title: 'Hearing Swaps',
+    description: 'Ear training: headphones on',
+    color: COLORS[6],
+    tips: [
+      'This tape needs sound, so put headphones on. No sound right now? “Can’t listen now” pauses listening questions for 15 minutes.',
+      'A deceptive cadence goes from V to vi instead of home: listen for the last chord turning minor.',
+      'A secondary dominant is a bright 7th chord where the key’s own minor chord would be; a borrowed iv is a minor chord where IV would be.',
+      'A tritone sub makes the bass slide down by half steps into home instead of leaping.',
+    ],
+    lessons: [
+      { id: 'cs5-1', title: 'Home or deceptive', exercises: ['deceptiveHear'], region: FULL_NECK, topics: ['swap:ear-why', 'swap:ear-deceptive'] },
+      { id: 'cs5-2', title: 'Secondary dominants', exercises: ['secondaryHear'], region: FULL_NECK, topics: ['swap:ear-secondary'] },
+      { id: 'cs5-3', title: 'IV or minor iv', exercises: ['minorFourHear'], region: FULL_NECK, topics: ['swap:ear-minor-iv'] },
+      { id: 'cs5-4', title: 'V7 or the tritone sub', exercises: ['tritoneHear'], region: FULL_NECK, topics: ['swap:ear-tritone'] },
+      { id: 'cs5-5', title: 'Hearing review', exercises: ['deceptiveHear', 'secondaryHear', 'minorFourHear', 'tritoneHear'], region: FULL_NECK, count: 10 },
+    ],
+  },
+  {
+    id: 'rx1',
+    title: 'Road Signs',
+    description: 'Repeats, endings and jumps',
+    color: COLORS[0],
+    tips: [
+      'A repeat sign sends you back once: to the start, or to the facing sign |: if there is one.',
+      'With 1st and 2nd endings, play the 1st ending, repeat, then skip it the second time and play the 2nd.',
+      'D.C. sends you back to the start and D.S. back to the sign. Al Fine: stop at Fine. Al Coda: at To Coda, jump to the coda.',
+    ],
+    lessons: [
+      { id: 'rx1-1', title: 'Repeat signs', exercises: ['roadOrder'], region: FULL_NECK, roadSigns: ['repeat', 'repeat-pair'], topics: ['signs:why', 'signs:repeat'] },
+      { id: 'rx1-2', title: '1st and 2nd endings', exercises: ['roadOrder', 'roadNext'], region: FULL_NECK, roadSigns: ['endings'], topics: ['signs:endings'] },
+      { id: 'rx1-3', title: 'D.C. al Fine', exercises: ['roadOrder', 'roadNext'], region: FULL_NECK, roadSigns: ['dc-fine'], topics: ['signs:dc-fine'] },
+      { id: 'rx1-4', title: 'D.S. and the coda', exercises: ['roadOrder', 'roadNext'], region: FULL_NECK, roadSigns: ['ds-coda', 'ds-fine', 'dc-coda'], topics: ['signs:ds-coda', 'signs:mix'] },
+      {
+        id: 'rx1-5',
+        title: 'Road signs review',
+        exercises: ['roadOrder', 'roadNext'],
+        region: FULL_NECK,
+        roadSigns: ['repeat', 'repeat-pair', 'endings', 'dc-fine', 'ds-fine', 'dc-coda', 'ds-coda'],
+        count: 12,
+      },
+    ],
+  },
+  {
+    id: 'rx2',
+    title: '6/8 & Triplets',
+    description: 'Beats in threes',
+    color: COLORS[1],
+    tips: [
+      'In 6/8 the eighth note gets the beat: six to a measure, counted 1 2 3 4 5 6, with eighth notes beamed in threes.',
+      'A quarter note gets 2 beats in 6/8, a dotted quarter 3, and a dotted half all 6.',
+      'A triplet fits three eighth notes into one beat, marked with a 3. Count it 1 trip let.',
+    ],
+    lessons: [
+      { id: 'rx2-1', title: '6/8 time', exercises: ['countBeat'], region: FULL_NECK, symbols: SIX_EIGHT, meters: ['6/8'] },
+      { id: 'rx2-2', title: 'Tapping in 6/8', exercises: ['tapRhythm', 'countBeat'], region: FULL_NECK, symbols: SIX_EIGHT, meters: ['6/8'], count: 8 },
+      { id: 'rx2-3', title: 'Triplets', exercises: ['countBeat', 'tapRhythm'], region: FULL_NECK, symbols: [...WITH_EIGHTHS, 'triplet'], meters: ['4/4', '3/4'] },
+      {
+        id: 'rx2-4',
+        title: '6/8 and triplets review',
+        exercises: ['countBeat', 'measureFill', 'tapRhythm'],
+        region: FULL_NECK,
+        symbols: [...WITH_EIGHTHS, 'dottedQuarter', 'triplet'],
+        meters: ['6/8', '4/4'],
+        count: 12,
+      },
+    ],
+  },
 ]
 
 const tape = (id: string): Unit => TAPES.find((u) => u.id === id)!
-const soon = (title: string): PlannedTape => ({ planned: true, title })
 
 /**
  * One shelf, one path, a volume per chapter. Volume 1 follows the method-book reading order
@@ -1806,9 +2115,9 @@ export const VOLUMES: Volume[] = [
     title: 'Modes',
     tapes: ['md1', 'md2', 'md3', 'md4', 'md5'].map(tape),
   },
-  { label: 'Vol. 11', title: 'More Scales & Arpeggios', tapes: [soon('Melodic minor'), soon('Arpeggio shapes')] },
-  { label: 'Vol. 12', title: 'Chord Swaps', tapes: [soon('Substitutions'), soon('Reharmonizing')] },
-  { label: 'Bonus Vol.', title: 'Reading Extras', tapes: [soon('Road signs'), soon('6/8 & triplets'), soon('Reading TAB')] },
+  { label: 'Vol. 11', title: 'More Scales & Arpeggios', tapes: ['sc1', 'sc2', 'sc3', 'sc4'].map(tape) },
+  { label: 'Vol. 12', title: 'Chord Swaps', tapes: ['cs1', 'cs2', 'cs3', 'cs4', 'cs5'].map(tape) },
+  { label: 'Bonus Vol.', title: 'Reading Extras', tapes: ['rx1', 'rx2'].map(tape) },
 ]
 
 /** The recorded tapes, in the order you work through them. */
@@ -1832,6 +2141,14 @@ const LISTENING: ExerciseType[] = [
   'quickHear',
   'modeHear',
   'vampHear',
+  'melodicHear',
+  'harmonicHear',
+  'minorScaleHear',
+  'symmetricHear',
+  'deceptiveHear',
+  'secondaryHear',
+  'minorFourHear',
+  'tritoneHear',
 ]
 export const isListening = (l: LessonSpec) => l.exercises.some((e) => LISTENING.includes(e))
 

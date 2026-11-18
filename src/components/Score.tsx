@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { loadVexFlow, SVG_NS } from './musicFont'
 import { METER_QUARTERS, type Meter } from '../music/rhythm'
-import { KEYS, scoreKey, signSymbol, staffDegree, type KeyId, type ScoreMeasure } from '../music/score'
+import { KEYS, scoreKey, signSymbol, staffDegree, type KeyId, type RoadMark, type RoadSigns, type ScoreMeasure } from '../music/score'
 
 /** Roughly how wide one letter of a 10pt label is, with a little air between neighbors. */
 const LABEL_CHAR_PX = 8
@@ -18,16 +18,20 @@ export interface ScoreProps {
   labels?: string[]
   /** Points a small arrow at this note (counting across all measures). */
   marker?: number | null
+  /** Repeat signs, 1st and 2nd endings, and jumps, by measure. */
+  signs?: (RoadSigns | undefined)[]
+  /** Numbers each measure underneath, for following the order it's played in. */
+  numbered?: boolean
 }
 
 /** A short melody at real pitch: clef, key signature, printed accidentals and bar lines, on a cream page. */
-export function Score({ measures, keySig = 'C', meter = null, colors, labels, marker = null }: ScoreProps) {
+export function Score({ measures, keySig = 'C', meter = null, colors, labels, marker = null, signs, numbered = false }: ScoreProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const signature = JSON.stringify([measures, keySig, meter, colors, labels, marker])
+  const signature = JSON.stringify([measures, keySig, meter, colors, labels, marker, signs, numbered])
 
   useEffect(() => {
     let cancelled = false
-    void loadVexFlow().then(({ Accidental, Dot, Formatter, Renderer, Stave, StaveNote, Voice, VoiceMode }) => {
+    void loadVexFlow().then(({ Accidental, BarlineType, Dot, Formatter, Renderer, Repetition, Stave, StaveNote, Voice, VoiceMode, VoltaType }) => {
       const el = ref.current
       if (cancelled || !el) return
       el.innerHTML = ''
@@ -36,14 +40,29 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
       let at = 0
       const widths = measures.map((m, i) => {
         const slots = m.map(() => Math.max(46, (labels?.[at++]?.length ?? 0) * LABEL_CHAR_PX))
-        return (i === 0 ? lead : 0) + Math.max(70, 28 + slots.reduce((a, b) => a + b, 0))
+        // A repeat sign at the start takes a little room of its own, and words like "D.S. al Coda" need theirs.
+        const mark = signs?.[i]?.mark
+        const words = mark && mark !== 'segno' && mark !== 'coda' ? 36 : 0
+        return (i === 0 ? lead : 0) + (signs?.[i]?.repeatStart ? 12 : 0) + words + Math.max(70, 28 + slots.reduce((a, b) => a + b, 0))
       })
       const width = widths.reduce((a, b) => a + b, 0) + 4
-      const height = labels ? 160 : 140
+      const height = 140 + (labels ? 20 : 0) + (numbered ? 20 : 0)
+      const REPETITION: Record<RoadMark, number> = {
+        segno: Repetition.type.SEGNO_LEFT,
+        coda: Repetition.type.CODA_LEFT,
+        fine: Repetition.type.FINE,
+        'to-coda': Repetition.type.TO_CODA,
+        dc: Repetition.type.DC,
+        'dc-al-fine': Repetition.type.DC_AL_FINE,
+        'dc-al-coda': Repetition.type.DC_AL_CODA,
+        'ds-al-fine': Repetition.type.DS_AL_FINE,
+        'ds-al-coda': Repetition.type.DS_AL_CODA,
+      }
       const renderer = new Renderer(el, Renderer.Backends.SVG)
       renderer.resize(width, height)
       const ctx = renderer.getContext()
       const centers: number[] = []
+      const middles: number[] = []
       let x = 2
       let top = 0
 
@@ -54,8 +73,15 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
           if (keySig !== 'C') stave.addKeySignature(keySig)
           if (meter) stave.addTimeSignature(meter === '2/2' ? 'C|' : meter)
         }
+        const sign = signs?.[i]
+        if (sign?.repeatStart) stave.setBegBarType(BarlineType.REPEAT_BEGIN)
+        if (sign?.repeatEnd) stave.setEndBarType(BarlineType.REPEAT_END)
+        else if (sign?.final) stave.setEndBarType(BarlineType.END)
+        if (sign?.ending) stave.setVoltaType(VoltaType.BEGIN_END, `${sign.ending}.`, -5)
+        if (sign?.mark) stave.setRepetitionType(REPETITION[sign.mark])
         stave.setContext(ctx).draw()
         top = stave.getYForLine(0)
+        middles.push((stave.getNoteStartX() + stave.getNoteEndX()) / 2)
         x += widths[i]
         if (!measure.length) return
         const notes = measure.map((n, k) => {
@@ -76,11 +102,26 @@ export function Score({ measures, keySig = 'C', meter = null, colors, labels, ma
 
       const svg = el.querySelector('svg')
       if (!svg) return
+      if (numbered) {
+        // Under the staff, below any note labels: one number per measure.
+        middles.forEach((mx, i) => {
+          const number = document.createElementNS(SVG_NS, 'text')
+          number.setAttribute('x', String(mx))
+          number.setAttribute('y', String(height - 10))
+          number.setAttribute('font-size', '10pt')
+          number.setAttribute('font-weight', '600')
+          number.setAttribute('text-anchor', 'middle')
+          number.setAttribute('stroke', 'none')
+          number.setAttribute('data-measure', String(i + 1))
+          number.textContent = String(i + 1)
+          svg.appendChild(number)
+        })
+      }
       labels?.forEach((label, i) => {
         if (!label || centers[i] === undefined) return
         const text = document.createElementNS(SVG_NS, 'text')
         text.setAttribute('x', String(centers[i]))
-        text.setAttribute('y', String(height - 10))
+        text.setAttribute('y', String(height - (numbered ? 30 : 10)))
         text.setAttribute('font-size', '10pt')
         text.setAttribute('text-anchor', 'middle')
         text.setAttribute('stroke', 'none')

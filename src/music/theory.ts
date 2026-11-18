@@ -253,6 +253,12 @@ export function chordTones(root: Tone, kind: ChordKind): Tone[] | null {
 /** The interval each note of a chord makes with its root. */
 export const chordIntervals = (kind: ChordKind) => CHORD_INTERVALS[kind].map(parseInterval)
 
+/** Each chord tone as a degree against the major scale on the root: 1 ♭3 5 ♭7 for a minor 7th. */
+export const chordDegrees = (kind: ChordKind) => [
+  '1',
+  ...chordIntervals(kind).map(({ quality, number }) => `${quality === 'm' || quality === 'd' ? '♭' : quality === 'A' ? '♯' : ''}${number}`),
+]
+
 /** "F♯m7♭5" */
 export const chordSymbol = (root: Tone, kind: ChordKind) => `${toneName(root)}${CHORD_SUFFIX[kind]}`
 
@@ -283,6 +289,12 @@ export const minorScaleOn = (tonic: string) => naturalMinorScale(majorKeyOfMinor
 export function harmonicMinorScale(tonic: string): Tone[] {
   const scale = minorScaleOn(tonic)
   return [...scale.slice(0, 6), spellOn(scale[6].letter, tonePc(scale[6]) + 1)!]
+}
+
+/** The melodic minor scale on its way up: natural minor with its 6th and 7th raised a half step (F♯ and G♯ in A minor). */
+export function melodicMinorScale(tonic: string): Tone[] {
+  const scale = minorScaleOn(tonic)
+  return [...scale.slice(0, 5), ...scale.slice(5).map((t) => spellOn(t.letter, tonePc(t) + 1)!)]
 }
 
 /** The triad on each note of a natural minor key, in scale order. */

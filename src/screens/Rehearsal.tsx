@@ -148,6 +148,8 @@ function CardView({ card, onNext, onBack }: { card: Card; onNext: () => void; on
         labels={card.score.labels}
         marker={card.score.marker}
         colors={card.score.colors}
+        signs={card.score.signs}
+        numbered={!!card.score.signs}
       />
     </div>
   ) : null

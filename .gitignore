@@ -14,3 +14,9 @@ dist
 
 # Progress backups exported from the app
 commuter-tapes-backup-*.json
+
+# Playwright test results, reports and traces (they hold local file paths)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

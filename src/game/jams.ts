@@ -1,6 +1,6 @@
 import { UNITS, type LessonSpec } from '../music/curriculum'
 import { KEY_ORDER, type KeyId } from '../music/score'
-import { intervalSize, parseInterval } from '../music/theory'
+import { intervalSize, parseInterval, type ChordKind } from '../music/theory'
 import type { LessonRecord } from '../store/progress'
 import { pick, type Rng } from '../lib/random'
 import { buildSession, type Question, type Stats } from './questions'
@@ -19,7 +19,11 @@ export const THEORY_JAMS = [
   { id: 'minor', label: 'Minor keys', tapes: ['mk1', 'mk2', 'mk3', 'mk4'] },
   { id: 'blues', label: 'Blues & pentatonics', tapes: ['bp1', 'bp2', 'bp3', 'bp4', 'bp5'] },
   { id: 'modes', label: 'Modes', tapes: ['md1', 'md2', 'md3', 'md4'] },
-  { id: 'ear', label: 'Ear · headphones', tapes: ['t9', 'tr7', 'hk5', 'cb7', 'mk5', 'bp6', 'md5'] },
+  { id: 'more-scales', label: 'More scales', tapes: ['sc1', 'sc2'] },
+  { id: 'arpeggios', label: 'Arpeggios', tapes: ['sc3'] },
+  { id: 'swaps', label: 'Chord swaps', tapes: ['cs1', 'cs2', 'cs3', 'cs4'] },
+  { id: 'reading-extras', label: 'Reading extras', tapes: ['rx1'] },
+  { id: 'ear', label: 'Ear · headphones', tapes: ['t9', 'tr7', 'hk5', 'cb7', 'mk5', 'bp6', 'md5', 'sc4', 'cs5'] },
 ]
 
 /** The tracks you've recorded on these tapes. */
@@ -58,26 +62,40 @@ const SCALE_TAPES: [ScaleView, string][] = [
   ['modes', 'md1'],
 ]
 
+/** The chords the Fretboard tab's Arpeggio view can show, in order: the four triads, then the 7th chords. */
+const ARPEGGIO_KINDS: ChordKind[] = ['maj', 'min', 'dim', 'aug', 'maj7', '7', 'm7', 'm7b5']
+/** The tapes that teach them, a track at a time (the first tape's tracks are all major). */
+const ARPEGGIO_TAPES = ['tr1', 'tr2', 'tr3', 'cb2']
+
 /**
- * What the Fretboard tab's Scale and Interval views can show: only what you've learned. The
+ * What the Fretboard tab's Scale, Interval and Arpeggio views can show: only what you've learned. The
  * Scale view opens with the Major scale tape (C major, plus the keys of the tracks you've
  * recorded), and adds each pentatonic and the blues scale with its tape, the pentatonic patterns
  * as they're taught (the box first), and the modes with the Modes tape; the Interval view opens with the Intervals tape
- * (its shapes, the octave, and any names from Naming intervals).
+ * (its shapes, the octave, and any names from Naming intervals); the Arpeggio view opens with the
+ * Building triads tape (major), and adds each chord with the track that teaches it.
  */
-export function fretboardViews(lessons: Record<string, LessonRecord>): { keys: KeyId[]; intervals: string[]; scales: ScaleView[]; patterns: number[] } {
+export function fretboardViews(lessons: Record<string, LessonRecord>): {
+  keys: KeyId[]
+  intervals: string[]
+  scales: ScaleView[]
+  patterns: number[]
+  chords: ChordKind[]
+} {
   const scales = SCALE_TAPES.filter(([, tape]) => recordedOn([tape], lessons).length).map(([scale]) => scale)
   const scaleTracks = recordedOn(['t2'], lessons)
   const keys = scales.length ? KEY_ORDER.filter((k) => k === 'C' || scaleTracks.some((l) => l.keys?.includes(k))) : []
   const patternTracks = recordedOn(['bp4'], lessons)
   const patterns = patternTracks.length ? [...new Set([1, ...patternTracks.flatMap((l) => l.patterns ?? [])])].sort() : []
+  const taught = new Set<ChordKind>(recordedOn(ARPEGGIO_TAPES, lessons).flatMap((l) => l.chords ?? l.triads ?? ['maj' as const]))
+  const chords = ARPEGGIO_KINDS.filter((k) => taught.has(k))
   const shapeTracks = recordedOn(['u14'], lessons)
-  if (!shapeTracks.length) return { keys, intervals: [], scales, patterns }
+  if (!shapeTracks.length) return { keys, intervals: [], scales, patterns, chords }
   const names = new Set<string>([
     ...shapeTracks.flatMap((l) => (l.intervals ?? []).map((n) => SHAPE_NAMES[n]).filter(Boolean)),
     ...(recordedOn(['u13'], lessons).length ? ['P8'] : []),
     ...recordedOn(['t6'], lessons).flatMap((l) => l.ivNames ?? []),
   ])
   const intervals = [...names].sort((a, b) => intervalSize(parseInterval(a))! - intervalSize(parseInterval(b))!)
-  return { keys, intervals, scales, patterns }
+  return { keys, intervals, scales, patterns, chords }
 }

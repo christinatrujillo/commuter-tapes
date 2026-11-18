@@ -27,13 +27,29 @@ import {
   type Position,
   type Region,
 } from '../music/notes'
-import { beatsText, countAt, eventQuarters, METER_PULSE, NAMEABLE, note, onsets, rest, SYMBOLS, type Measure, type Meter, type RhythmEvent, type SymbolId } from '../music/rhythm'
+import {
+  beatsText,
+  countAt,
+  eventQuarters,
+  METER_PULSE,
+  NAMEABLE,
+  note,
+  onsets,
+  rest,
+  SYMBOLS,
+  tripletNote,
+  type Measure,
+  type Meter,
+  type RhythmEvent,
+  type SymbolId,
+} from '../music/rhythm'
 import {
   KEY_ORDER,
   resolveNotes,
   type AccidentalRule,
   type KeyId,
   type MotionKind,
+  type RoadSigns,
   type ScoreMeasure,
   type ScoreNote,
 } from '../music/score'
@@ -70,7 +86,16 @@ export interface Card {
   /** A rhythm to play (clicks and notes) when the card appears. */
   rhythm?: { measure: Measure; bpm: number }
   /** A worked example in real notation (key signature, accidentals, a marked note). */
-  score?: { measures: ScoreMeasure[]; keySig?: KeyId; meter?: Meter | null; labels?: string[]; marker?: number | null; colors?: (string | undefined)[] }
+  score?: {
+    measures: ScoreMeasure[]
+    keySig?: KeyId
+    meter?: Meter | null
+    labels?: string[]
+    marker?: number | null
+    colors?: (string | undefined)[]
+    /** Repeat signs, endings and jumps, by measure, with every measure numbered. */
+    signs?: (RoadSigns | undefined)[]
+  }
   /** The circle of fifths with these major keys lit, and the relative minors of `minors`. */
   circle?: { majors: KeyId[]; minors?: KeyId[] }
   /** Ear-training examples, played even with answer sounds off. */
@@ -330,6 +355,11 @@ const SYMBOL_TEACHING: Record<SymbolId, { hook: string; example: Measure; subtit
     hook: 'A song can start before its first full measure. Those lead-in notes are a pickup. They’re counted as the end of a bar: a one-beat pickup in 4/4 lands on beat 4. Count “1 2 3” silently, then play. The last measure of the song is short by the same amount.',
     example: { meter: '4/4', offset: 3, events: [n('8'), n('8')] },
   },
+  triplet: {
+    subtitle: 'Three in the time of two',
+    hook: 'A triplet fits three eighth notes into one beat, the time two would usually take. A 3 over the beam marks it. Count it “1 trip let”: three even notes, then carry on with the next beat.',
+    example: m4(n('q'), tripletNote(), tripletNote(), tripletNote(), n('q'), n('q')),
+  },
 }
 
 const METER_TEACHING: Record<Meter, { hook: string; example: Measure }> = {
@@ -342,6 +372,10 @@ const METER_TEACHING: Record<Meter, { hook: string; example: Measure }> = {
   '2/2': {
     hook: '¢ means 2/2: two beats per measure, and the half note gets the beat. Count 1 2. Quarter notes land on 1 & 2 &.',
     example: cut(n('h'), n('q'), n('q')),
+  },
+  '6/8': {
+    hook: 'The top 6 means six beats in each measure; the bottom 8 means each beat is an eighth note long. Count 1 2 3 4 5 6, leaning on 1 and 4: eighth notes are beamed in threes, two groups to a measure. A quarter note gets 2 beats here, and a dotted quarter 3. Played fast, 6/8 is felt as two big beats.',
+    example: { meter: '6/8', events: [n('q'), n('8'), n('8'), n('8'), n('8')] },
   },
 }
 

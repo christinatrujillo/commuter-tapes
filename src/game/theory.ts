@@ -50,6 +50,10 @@ import { CHORD_INTRO, CHORD_ORDER, chordCard, chordCheck, chordItemFor, chordRev
 import { isMinorFact, isMinorItem, MINOR_INTRO, MINOR_ORDER, minorCard, minorCheck, minorItemFor, minorReview } from './minor'
 import { BLUES_INTRO, BLUES_ORDER, bluesCard, bluesCheck, bluesItemFor, bluesReview, isBluesFact, isBluesItem } from './blues'
 import { isModesFact, isModesItem, MODES_INTRO, MODES_ORDER, modesCard, modesCheck, modesItemFor, modesReview } from './modes'
+import { isScalesFact, isScalesItem, SCALES_INTRO, SCALES_ORDER, scalesCard, scalesCheck, scalesItemFor, scalesReview } from './scales'
+import { ARPEGGIO_INTRO, ARPEGGIO_ORDER, arpeggioCard, arpeggioCheck, arpeggioItemFor, arpeggioReview, isArpeggioFact, isArpeggioItem } from './arpeggios'
+import { isSwapFact, isSwapItem, SWAP_INTRO, SWAP_ORDER, swapCard, swapCheck, swapItemFor, swapReview } from './swaps'
+import { isRoadFact, isRoadItem, ROAD_INTRO, ROAD_ORDER, roadCard, roadCheck, roadItemFor, roadReview } from './roads'
 
 /**
  * Theory questions and teaching: whole and half steps, the major scale and its patterns on the
@@ -535,6 +539,10 @@ export const THEORY_ORDER = [
   ...MINOR_ORDER,
   ...BLUES_ORDER,
   ...MODES_ORDER,
+  ...SCALES_ORDER,
+  ...ARPEGGIO_ORDER,
+  ...SWAP_ORDER,
+  ...ROAD_ORDER,
 ]
 
 /** Ideas that are explained on a card but not tested on their own (the why, the sound of major and minor, what an octave is). */
@@ -558,10 +566,14 @@ const INTRO = new Set([
   ...MINOR_INTRO,
   ...BLUES_INTRO,
   ...MODES_INTRO,
+  ...SCALES_INTRO,
+  ...ARPEGGIO_INTRO,
+  ...SWAP_INTRO,
+  ...ROAD_INTRO,
 ])
 export const isIntroItem = (item: string) => INTRO.has(item) || /^(oct|basics|intro|ivshape):/.test(item)
 
-export const isTheoryItem = (item: string) => /^(basics|intro|step|scale|pattern|circle|rel|minor):/.test(item) || isIntervalItem(item) || isTriadItem(item) || isHarmonyItem(item) || isChordItem(item) || isMinorItem(item) || isBluesItem(item) || isModesItem(item)
+export const isTheoryItem = (item: string) => /^(basics|intro|step|scale|pattern|circle|rel|minor):/.test(item) || isIntervalItem(item) || isTriadItem(item) || isHarmonyItem(item) || isChordItem(item) || isMinorItem(item) || isBluesItem(item) || isModesItem(item) || isScalesItem(item) || isArpeggioItem(item) || isSwapItem(item) || isRoadItem(item)
 
 const SHARP_KEYS = KEY_ORDER.filter((k) => KEYS[k].count > 0)
 const FLAT_KEYS = KEY_ORDER.filter((k) => KEYS[k].count < 0)
@@ -570,7 +582,7 @@ const READ_KEYS: KeyId[] = ['C', 'G', 'D', 'F']
 
 /** The idea a practiced fact belongs to, for the theory facts that don't share its name. */
 export function theoryItemFor(fact: string): string | null {
-  const own = intervalItemFor(fact) ?? triadItemFor(fact) ?? harmonyItemFor(fact) ?? chordItemFor(fact) ?? minorItemFor(fact) ?? bluesItemFor(fact) ?? modesItemFor(fact)
+  const own = intervalItemFor(fact) ?? triadItemFor(fact) ?? harmonyItemFor(fact) ?? chordItemFor(fact) ?? minorItemFor(fact) ?? bluesItemFor(fact) ?? modesItemFor(fact) ?? scalesItemFor(fact) ?? arpeggioItemFor(fact) ?? swapItemFor(fact) ?? roadItemFor(fact)
   if (own) return own
   const [kind, value] = fact.split(':')
   if (kind === 'scale' && value !== 'formula') return 'scale:degrees'
@@ -590,6 +602,10 @@ export function theoryCheck(item: string, l: LessonSpec, turn: number, rng: Rng,
   if (isMinorItem(item)) return minorCheck(item, l, turn, rng, id)
   if (isBluesItem(item)) return bluesCheck(item, l, turn, rng, id)
   if (isModesItem(item)) return modesCheck(item, l, turn, rng, id)
+  if (isScalesItem(item)) return scalesCheck(item, l, turn, rng, id)
+  if (isArpeggioItem(item)) return arpeggioCheck(item, l, turn, rng, id)
+  if (isSwapItem(item)) return swapCheck(item, l, turn, rng, id)
+  if (isRoadItem(item)) return roadCheck(item, l, turn, rng, id)
   const keys = l.keys ?? ['C']
   const even = turn % 2 === 0
   switch (item) {
@@ -649,6 +665,10 @@ export function theoryReview(fact: string, id: number, rng: Rng): Question | nul
   if (isMinorFact(fact)) return minorReview(fact, id, rng)
   if (isBluesFact(fact)) return bluesReview(fact, id, rng)
   if (isModesFact(fact)) return modesReview(fact, id, rng)
+  if (isScalesFact(fact)) return scalesReview(fact, id, rng)
+  if (isArpeggioFact(fact)) return arpeggioReview(fact, id, rng)
+  if (isSwapFact(fact)) return swapReview(fact, id, rng)
+  if (isRoadFact(fact)) return roadReview(fact, id, rng)
   const [kind, value] = fact.split(':')
   switch (kind) {
     case 'step': {
@@ -1054,5 +1074,9 @@ export function theoryCard(item: string, counter: string): Card {
   if (isMinorItem(item)) return minorCard(item, counter)
   if (isBluesItem(item)) return bluesCard(item, counter)
   if (isModesItem(item)) return modesCard(item, counter)
+  if (isScalesItem(item)) return scalesCard(item, counter)
+  if (isArpeggioItem(item)) return arpeggioCard(item, counter)
+  if (isSwapItem(item)) return swapCard(item, counter)
+  if (isRoadItem(item)) return roadCard(item, counter)
   return { ...THEORY_CARDS[item](), counter }
 }

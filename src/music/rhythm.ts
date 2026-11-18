@@ -16,25 +16,27 @@ export type SymbolId =
   | 'tie'
   | 'syncopation'
   | 'pickup'
+  | 'triplet'
 
-export type Meter = '4/4' | '3/4' | '2/4' | '2/2'
+export type Meter = '4/4' | '3/4' | '2/4' | '2/2' | '6/8'
 
 /** Length of a measure in quarter notes. */
-export const METER_QUARTERS: Record<Meter, number> = { '4/4': 4, '3/4': 3, '2/4': 2, '2/2': 4 }
+export const METER_QUARTERS: Record<Meter, number> = { '4/4': 4, '3/4': 3, '2/4': 2, '2/2': 4, '6/8': 3 }
 
 /**
  * The beat you count and tap: how many per measure, and how long each one lasts in quarter notes.
- * Cut time (2/2) counts half notes, so its quarter notes land on the "&".
+ * Cut time (2/2) counts half notes, so its quarter notes land on the "&"; 6/8 counts eighth notes.
  */
 export const METER_PULSE: Record<Meter, { beats: number; quarters: number }> = {
   '4/4': { beats: 4, quarters: 1 },
   '3/4': { beats: 3, quarters: 1 },
   '2/4': { beats: 2, quarters: 1 },
   '2/2': { beats: 2, quarters: 2 },
+  '6/8': { beats: 6, quarters: 0.5 },
 }
 
 /** How a time signature is named in prompts. */
-export const METER_NAME: Record<Meter, string> = { '4/4': '4/4', '3/4': '3/4', '2/4': '2/4', '2/2': 'cut time' }
+export const METER_NAME: Record<Meter, string> = { '4/4': '4/4', '3/4': '3/4', '2/4': '2/4', '2/2': 'cut time', '6/8': '6/8' }
 
 /** One note or rest in a measure. */
 export interface RhythmEvent {
@@ -43,6 +45,8 @@ export interface RhythmEvent {
   rest: boolean
   /** Tied to the next note: play once, hold through both. */
   tie?: boolean
+  /** One of a triplet: three notes in the time of two, marked with a 3. */
+  triplet?: boolean
 }
 
 export interface Measure {
@@ -61,6 +65,8 @@ interface SymbolInfo {
 
 export const note = (dur: RhythmEvent['dur'], dots: 0 | 1 = 0, tie = false): RhythmEvent => ({ dur, dots, rest: false, ...(tie ? { tie } : {}) })
 export const rest = (dur: RhythmEvent['dur']): RhythmEvent => ({ dur, dots: 0, rest: true })
+/** A note of a triplet: an eighth, unless it says otherwise. */
+export const tripletNote = (dur: RhythmEvent['dur'] = '8'): RhythmEvent => ({ ...note(dur), triplet: true })
 
 export const SYMBOLS: Record<SymbolId, SymbolInfo> = {
   whole: { name: 'Whole note', beats: 4, event: note('w') },
@@ -77,17 +83,24 @@ export const SYMBOLS: Record<SymbolId, SymbolInfo> = {
   tie: { name: 'Tie', beats: 0 },
   syncopation: { name: 'Syncopation', beats: 0 },
   pickup: { name: 'Pickup', beats: 0 },
+  triplet: { name: 'Triplet', beats: 0 },
 }
 
 /** Symbols that can be shown on their own and named. */
 export const NAMEABLE: SymbolId[] = ['whole', 'half', 'quarter', 'eighth', 'sixteenth', 'dottedHalf', 'dottedQuarter', 'wholeRest', 'halfRest', 'quarterRest', 'eighthRest']
 
 const DUR_QUARTERS = { w: 4, h: 2, q: 1, '8': 0.5, '16': 0.25 }
-/** How long an event lasts, in quarter notes (the same as beats in 4/4, 3/4 and 2/4). */
-export const eventQuarters = (e: RhythmEvent) => DUR_QUARTERS[e.dur] * (e.dots ? 1.5 : 1)
-export const measureQuarters = (m: Measure) => m.events.reduce((sum, e) => sum + eventQuarters(e), 0)
+/**
+ * A position or length in quarter notes, rounded to the nearest 48th of a quarter: a grid that
+ * holds sixteenths and triplet thirds exactly, so three thirds add up to one beat, not 0.9999999999999999.
+ */
+const snap = (quarters: number) => Math.round(quarters * 48) / 48
+/** How long an event lasts, in quarter notes (the same as beats in 4/4, 3/4 and 2/4). A triplet's notes take two-thirds of their time. */
+export const eventQuarters = (e: RhythmEvent) => DUR_QUARTERS[e.dur] * (e.dots ? 1.5 : 1) * (e.triplet ? 2 / 3 : 1)
+export const measureQuarters = (m: Measure) => snap(m.events.reduce((sum, e) => sum + eventQuarters(e), 0))
 
 export function symbolOf(e: RhythmEvent): SymbolId {
+  if (e.triplet) return 'triplet'
   const id = NAMEABLE.find((s) => {
     const ev = SYMBOLS[s].event!
     return ev.dur === e.dur && ev.dots === e.dots && ev.rest === e.rest
@@ -101,7 +114,7 @@ export function onsets(m: Measure): number[] {
   let t = m.offset ?? 0
   return m.events.map((e) => {
     const start = t
-    t += eventQuarters(e)
+    t = snap(t + eventQuarters(e))
     return start
   })
 }
@@ -112,14 +125,18 @@ export function playedIndexes(m: Measure): number[] {
 }
 
 /** Which beat a position (in quarter notes) falls on, 0-based: 1.5 in 4/4 is halfway through beat 2. */
-const beatAt = (position: number, meter: Meter) => position / METER_PULSE[meter].quarters
+const beatAt = (position: number, meter: Meter) => snap(position / METER_PULSE[meter].quarters)
 
-/** "1", "e", "&", "a", "2"…: what you'd say at a position (in quarter notes from the start of the measure). */
+/** "1", "e", "&", "a", "trip", "let", "2"…: what you'd say at a position (in quarter notes from the start of the measure). */
 export function countAt(position: number, meter: Meter = '4/4'): string {
   const beat = beatAt(position, meter)
   if (Number.isInteger(beat)) return String(beat + 1)
-  // Sixteenths split the beat in four: "1 e & a".
-  return { 0.25: 'e', 0.75: 'a' }[beat % 1] ?? '&'
+  const part = snap(beat % 1)
+  // Triplets split the beat in three: "1 trip let".
+  if (Math.abs(part - 1 / 3) < 1e-6) return 'trip'
+  if (Math.abs(part - 2 / 3) < 1e-6) return 'let'
+  // Sixteenths split it in four: "1 e & a".
+  return { 0.25: 'e', 0.75: 'a' }[part] ?? '&'
 }
 
 /** "beat 3" / "the & of 2" / "the e of 2". */
@@ -140,11 +157,11 @@ export function beatsText(beats: number): string {
 // Generating measures
 // ---------------------------------------------------------------------------
 
-/** A building block of a measure, with the beats it may start on (beginner rhythms avoid syncopation). */
+/** A building block of a measure, with the beats it may start on in each time signature it fits (beginner rhythms avoid syncopation). */
 interface Unit {
   events: RhythmEvent[]
   needs: SymbolId[]
-  starts: Record<Meter, number[]>
+  starts: Partial<Record<Meter, number[]>>
 }
 
 const ANY4 = [0, 1, 2, 3]
@@ -155,7 +172,7 @@ const ANY2 = [0, 1]
 const UNITS: Unit[] = [
   { events: [note('w')], needs: ['whole'], starts: { '4/4': [0], '3/4': [], '2/4': [], '2/2': [0] } },
   { events: [rest('w')], needs: ['wholeRest'], starts: { '4/4': [0], '3/4': [], '2/4': [], '2/2': [0] } },
-  { events: [note('h', 1)], needs: ['dottedHalf'], starts: { '4/4': [0, 1], '3/4': [0], '2/4': [], '2/2': [0] } },
+  { events: [note('h', 1)], needs: ['dottedHalf'], starts: { '4/4': [0, 1], '3/4': [0], '2/4': [], '2/2': [0], '6/8': [0] } },
   { events: [note('h')], needs: ['half'], starts: { '4/4': [0, 2], '3/4': [0, 1], '2/4': [0], '2/2': [0, 2] } },
   { events: [rest('h')], needs: ['halfRest'], starts: { '4/4': [0, 2], '3/4': [0, 1], '2/4': [0], '2/2': [0, 2] } },
   { events: [note('q')], needs: ['quarter'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2, '2/2': ANY4 } },
@@ -182,6 +199,12 @@ const UNITS: Unit[] = [
   },
   // A quarter tied across the middle of the bar, the classic place beginners meet ties.
   { events: [{ ...note('q'), tie: true }, note('q')], needs: ['tie', 'quarter'], starts: { '4/4': [1], '3/4': [1], '2/4': [], '2/2': [1] } },
+  // A triplet fills one beat: three eighths in the time of two.
+  { events: [tripletNote(), tripletNote(), tripletNote()], needs: ['triplet', 'eighth'], starts: { '4/4': ANY4, '3/4': ANY3, '2/4': ANY2 } },
+  // 6/8 comes in two halves of three eighth notes each: three eighths, a dotted quarter, or a quarter and an eighth.
+  { events: [note('8'), note('8'), note('8')], needs: ['eighth'], starts: { '6/8': [0, 1.5] } },
+  { events: [note('q', 1)], needs: ['dottedQuarter'], starts: { '6/8': [0, 1.5] } },
+  { events: [note('q'), note('8')], needs: ['quarter', 'eighth'], starts: { '6/8': [0, 1.5] } },
 ]
 
 /**
@@ -192,16 +215,18 @@ const UNITS: Unit[] = [
 export function randomMeasure(meter: Meter, allowed: SymbolId[], rng: Rng, focus: SymbolId[] = [], offset = 0): Measure {
   const total = METER_QUARTERS[meter]
   const usable = UNITS.filter((u) => u.needs.every((s) => allowed.includes(s)))
+  // When nothing else fits: a beat's worth, which is an eighth in 6/8.
+  const filler = METER_PULSE[meter].quarters < 1 ? note('8') : note('q')
   let best: Measure | null = null
   for (let attempt = 0; attempt < 40; attempt++) {
     const events: RhythmEvent[] = []
     const used = new Set<SymbolId>()
     let pos = offset
     while (pos < total) {
-      const fits = usable.filter((u) => u.starts[meter].includes(pos) && u.events.reduce((s, e) => s + eventQuarters(e), 0) <= total - pos)
+      const fits = usable.filter((u) => (u.starts[meter] ?? []).includes(pos) && u.events.reduce((s, e) => s + eventQuarters(e), 0) <= total - pos)
       if (fits.length === 0) {
-        events.push(note('q'))
-        pos += 1
+        events.push({ ...filler })
+        pos = snap(pos + eventQuarters(filler))
         continue
       }
       const weights = fits.map((u) => (u.needs.some((s) => focus.includes(s)) ? 3 : 1))
@@ -216,7 +241,7 @@ export function randomMeasure(meter: Meter, allowed: SymbolId[], rng: Rng, focus
       }
       events.push(...unit.events.map((e) => ({ ...e })))
       unit.needs.forEach((s) => used.add(s))
-      pos += unit.events.reduce((s, e) => s + eventQuarters(e), 0)
+      pos = snap(pos + unit.events.reduce((s, e) => s + eventQuarters(e), 0))
     }
     const m: Measure = { meter, events, ...(offset ? { offset } : {}) }
     // Something to play, and (ideally) the new idea in it.
@@ -224,5 +249,5 @@ export function randomMeasure(meter: Meter, allowed: SymbolId[], rng: Rng, focus
     best = m
     if (focus.length === 0 || focus.some((s) => used.has(s))) return m
   }
-  return best ?? { meter, events: Array.from({ length: total - offset }, () => note('q')), ...(offset ? { offset } : {}) }
+  return best ?? { meter, events: Array.from({ length: Math.round((total - offset) / eventQuarters(filler)) }, () => ({ ...filler })), ...(offset ? { offset } : {}) }
 }

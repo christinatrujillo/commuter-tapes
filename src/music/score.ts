@@ -1,3 +1,4 @@
+import { andList } from '../lib/text'
 import { LETTERS, type Accidental, type Letter, type SpelledNote } from './notes'
 import type { RhythmEvent } from './rhythm'
 
@@ -38,7 +39,7 @@ function keyInfo(key: KeyId, count: number): KeyInfo {
   const sign = count > 0 ? 1 : -1
   const letters = (count > 0 ? SHARP_ORDER : FLAT_ORDER).slice(0, Math.abs(count))
   const names = letters.map((l) => `${l}${sign > 0 ? '♯' : '♭'}`)
-  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]
+  const list = andList(names)
   return {
     name: `${keyLabel(key)} major`,
     altered: Object.fromEntries(letters.map((l) => [l, sign])),
@@ -62,6 +63,21 @@ export interface ScoreNote {
 }
 
 export type ScoreMeasure = ScoreNote[]
+
+/** A road sign over a measure: the segno and coda signs mark a place to jump to; the words say where to go. */
+export type RoadMark = 'segno' | 'coda' | 'fine' | 'to-coda' | 'dc' | 'dc-al-fine' | 'dc-al-coda' | 'ds-al-fine' | 'ds-al-coda'
+
+/** The road signs on one measure: repeats, 1st and 2nd endings, and jumps. */
+export interface RoadSigns {
+  /** A repeat sign at the start of the measure (|:) or at its end (:|). */
+  repeatStart?: boolean
+  repeatEnd?: boolean
+  /** The bracket of a 1st or 2nd ending over the measure. */
+  ending?: 1 | 2
+  mark?: RoadMark
+  /** The final bar line, thin then thick. */
+  final?: boolean
+}
 
 /**
  * What each written note actually is, by the rules of reading music:

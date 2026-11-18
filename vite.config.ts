@@ -3,6 +3,7 @@ import { readdirSync } from 'node:fs'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
+import { configDefaults } from 'vitest/config'
 
 /**
  * Emits dist/sw.js: a small service worker that precaches every built file so
@@ -88,4 +89,6 @@ export default defineConfig({
   // The sheet-music library (VexFlow, with its music font) loads in its own ~720 kB file the first
   // time a staff is drawn; the app's main file stays well under this. Both are cached for offline.
   build: { chunkSizeWarningLimit: 750 },
+  // Vitest runs the unit tests; the Playwright specs in e2e/ run with `npm run test:e2e`.
+  test: { exclude: [...configDefaults.exclude, 'e2e/**'] },
 })

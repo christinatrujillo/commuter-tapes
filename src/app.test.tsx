@@ -5,8 +5,9 @@ import { App } from './App'
 import { ALL_LESSONS } from './music/curriculum'
 import { INTERVALS, midiAt, parsePosKey, pcName, pitchClass, spelledMidi, type Letter } from './music/notes'
 import { eventQuarters, METER_PULSE, METER_QUARTERS, onsets, SYMBOLS, symbolOf, type Measure, type Meter, type RhythmEvent } from './music/rhythm'
-import { KEYS, MOTION_NAMES, motionBetween, resolveNotes, type KeyId, type ScoreMeasure } from './music/score'
+import { KEYS, MOTION_NAMES, motionBetween, resolveNotes, type KeyId, type RoadSigns, type ScoreMeasure } from './music/score'
 import { currentLessonId, isUnlocked, THEORY_START, useProgress } from './store/progress'
+import { roadRoute } from './test-helpers'
 
 // Ear questions play notes the player can't see; the stand-in remembers the last ones played.
 // It also counts how often the screens ask for sound to stop.
@@ -26,10 +27,10 @@ vi.mock('./components/Staff', () => ({
   Staff: ({ keys }: { keys: string[] }) => <div data-testid="staff">{keys.join(',')}</div>,
 }))
 
-// And for melodies: a stand-in that exposes the notes, key signature and marked note.
+// And for melodies: a stand-in that exposes the notes, key signature, marked note and road signs.
 vi.mock('./components/Score', () => ({
-  Score: ({ measures, keySig, marker }: { measures: ScoreMeasure[]; keySig?: string; marker?: number | null }) => (
-    <div data-testid="score" data-measures={JSON.stringify(measures)} data-key={keySig ?? 'C'} data-marker={marker ?? ''} />
+  Score: ({ measures, keySig, marker, signs }: { measures: ScoreMeasure[]; keySig?: string; marker?: number | null; signs?: (RoadSigns | undefined)[] }) => (
+    <div data-testid="score" data-measures={JSON.stringify(measures)} data-key={keySig ?? 'C'} data-marker={marker ?? ''} data-signs={JSON.stringify(signs ?? [])} />
   ),
 }))
 
@@ -177,13 +178,13 @@ function answerRhythm(text: string, correctly: boolean): boolean {
     })
   } else if (text.startsWith('Tap the note on')) {
     const words = highlighted().split(' ')
-    // "beat 3", or "the & of 2" (and "the e of 2", "the a of 2" among sixteenths).
-    const beat = words[0] === 'beat' ? Number(words[1]) - 1 : Number(words[words.length - 1]) - 1 + { e: 0.25, '&': 0.5, a: 0.75 }[words[1]]!
-    // Beats are counted in the time signature's own beat (a half note in cut time); positions are in quarters.
+    // "beat 3", or "the & of 2" (and "the e of 2", "the a of 2" among sixteenths, "the trip of 2", "the let of 2" in a triplet).
+    const beat = words[0] === 'beat' ? Number(words[1]) - 1 : Number(words[words.length - 1]) - 1 + { e: 0.25, '&': 0.5, a: 0.75, trip: 1 / 3, let: 2 / 3 }[words[1]]!
+    // Beats are counted in the time signature's own beat (a half note in cut time, an eighth in 6/8); positions are in quarters.
     const position = beat * METER_PULSE[meter].quarters
-    // A pickup measure starts partway through its bar.
+    // A pickup measure starts partway through its bar. A triplet's thirds can't be written exactly, so allow a hair.
     const starts = onsets({ meter, events, offset: Number(notation.dataset.offset) })
-    const target = starts.findIndex((s, i) => s === position && !events[i].rest && !(i > 0 && events[i - 1].tie))
+    const target = starts.findIndex((s, i) => Math.abs(s - position) < 1e-6 && !events[i].rest && !(i > 0 && events[i - 1].tie))
     choice = [...notation.querySelectorAll<HTMLElement>('[data-note-index]')].find((b) => (Number(b.dataset.noteIndex) === target) === correctly)
   } else {
     return false
@@ -245,6 +246,8 @@ function intervalSemis(name: string): number {
   const base = PERFECT_IV[n] ?? MAJOR_IV[n]
   return base + ({ perfect: 0, major: 0, minor: -1, augmented: 1, diminished: PERFECT_IV[n] !== undefined ? -1 : -2 } as Record<string, number>)[quality]
 }
+
+const shownRoad = () => roadRoute(JSON.parse(screen.getByTestId('score').dataset.signs!))
 
 const letterGap = (lo: string, hi: string) => (LETTER_ORDER.indexOf(hi[0]) - LETTER_ORDER.indexOf(lo[0]) + 7) % 7
 const staffSpot = (n: { letter: string; octave: number }) => n.octave * 7 + LETTER_ORDER.indexOf(n.letter)
@@ -644,6 +647,137 @@ function answerTheory(text: string, correctly: boolean): boolean {
     pickOption(`${notes[0]} ${kindOf(notes)}`, (b) => TRIAD_BUTTON.test(b), correctly)
   } else if ((m = text.match(/^What’s the 7th note of (\S+) harmonic minor\?$/))) {
     pickOption(noteAbove(m[1], 6, 11), (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^What’s the (6th|7th) note of (\S+) melodic minor\?$/))) {
+    // Melodic minor's 6th and 7th sit where major's do: 9 and 11 half steps up.
+    pickOption(m[1] === '6th' ? noteAbove(m[2], 5, 9) : noteAbove(m[2], 6, 11), (b) => /^[A-G][♯♭]?$/.test(b), correctly)
+  } else if ((m = text.match(/^Which notes make (\S+) melodic minor\?$/))) {
+    const t = m[1]
+    const notes = [1, 2, 3, 4, 5].map((d) => scaleDegree(t, d, true))
+    pickOption([...notes, noteAbove(t, 5, 9), noteAbove(t, 6, 11)].join(' '), (b) => /^([A-G][♯♭]? ?){7}$/.test(b), correctly)
+  } else if ((m = text.match(/^((?:[A-G][♯♭]? ){6}[A-G][♯♭]?): which minor scale\?$/))) {
+    // Natural minor's 7th is 10 half steps up; harmonic raises only the 7th, melodic the 6th too.
+    const notes = m[1].split(' ')
+    const above = (i: number) => (labelPc(notes[i]) - labelPc(notes[0]) + 12) % 12
+    const kind = above(6) === 10 ? 'Natural minor' : above(5) === 8 ? 'Harmonic minor' : 'Melodic minor'
+    pickOption(kind, (b) => /^(Natural|Harmonic|Melodic) minor$/.test(b), correctly)
+  } else if ((m = text.match(/^(\S+) (whole-tone|whole-half diminished|half-whole diminished) has the same notes as which \2 scale\?$/))) {
+    // Whole-tone starts over every 2 half steps, diminished every 3: the one offered on that grid shares the notes.
+    const [root, name] = [m[1], m[2]]
+    const step = name === 'whole-tone' ? 2 : 3
+    const offered = screen.getAllByRole('button').map((b) => b.textContent!).filter((b) => b.endsWith(` ${name}`))
+    const right = offered.find((b) => (labelPc(b.split(' ')[0]) - labelPc(root) + 12) % step === 0)!
+    pickOption(right, (b) => b.endsWith(` ${name}`), correctly)
+  } else if (/^These frets on the .+ string: which scale\?$/.test(text)) {
+    const frets = boardMarkers().map((mk) => mk.pos.fret).sort((a, b) => a - b)
+    const kind = frets.length === 7 ? 'Whole-tone' : frets[1] === 2 ? 'Whole-half diminished' : 'Half-whole diminished'
+    pickOption(kind, (b) => /^(Whole-tone|Whole-half diminished|Half-whole diminished)$/.test(b), correctly)
+  } else if ((m = text.match(/^Which two chords make (\S+) (whole-tone|whole-half diminished|half-whole diminished)\?$/))) {
+    // Every other note: two augmented triads a whole step apart, or two diminished 7ths a whole or half step apart.
+    const up = (n: number) => pcName(labelPc(m![1]) + n, 'sharp')
+    const right = m[2] === 'whole-tone' ? `${m[1]}+ and ${up(2)}+` : `${m[1]}°7 and ${up(m[2] === 'whole-half diminished' ? 2 : 1)}°7`
+    pickOption(right, (b) => b.includes(' and '), correctly)
+  } else if ((m = text.match(/^Tap the missing note of this (.+) arpeggio, on the (.+) string$/))) {
+    // The one chord note on that string that isn't on the board yet.
+    const pcs = spellSymbol(m[1].replace(/ major$/, '')).split(' ').map(labelPc)
+    const string = ['low E', 'A', 'D', 'G', 'B', 'high E'].indexOf(m[2])
+    const shown = boardMarkers().map((mk) => mk.pos)
+    const isMissing = (p: { string: number; fret: number }) => pcs.includes(pitchClass(midiAt(p))) && !shown.some((d) => d.string === p.string && d.fret === p.fret)
+    const spot = hitSpots().find((s) => s.pos.string === string && isMissing(s.pos) === correctly)
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if (text === 'Which arpeggio is this?') {
+    // The choice whose notes are exactly the ones on the board.
+    const onBoard = new Set(boardMarkers().map((mk) => pitchClass(midiAt(mk.pos))))
+    const offered = screen.getAllByRole('button').map((b) => b.textContent!).filter((b) => /^[A-G][♯♭]?(m|°|\+|maj7|7|m7|m7♭5)?$/.test(b))
+    const right = offered.find((o) => {
+      const pcs = spellSymbol(o).split(' ').map(labelPc)
+      return pcs.length === onBoard.size && pcs.every((pc) => onBoard.has(pc))
+    })!
+    pickOption(right, (b) => offered.includes(b), correctly)
+  } else if ((m = text.match(/^Tap a note that turns this (.+) arpeggio into (\S+)$/))) {
+    // The 7th chord's one note the triad doesn't have, anywhere on the board.
+    const triad = spellSymbol(m[1].replace(/ major$/, '')).split(' ').map(labelPc)
+    const seventh = spellSymbol(m[2]).split(' ').map(labelPc).find((pc) => !triad.includes(pc))!
+    const spot = hitSpots().find((s) => (pitchClass(midiAt(s.pos)) === seventh) === correctly)
+    if (!spot) throw new Error(`Nothing to tap for: ${text}`)
+    fireEvent.click(spot.el)
+  } else if (/^(Melodic minor or natural minor|Harmonic minor or melodic minor|Which minor scale)\?$/.test(text)) {
+    // The climb's 6th and 7th, in half steps above home: natural 8 and 10, harmonic 8 and 11, melodic 9 and 11.
+    const [sixth, seventh] = [5, 6].map((i) => heard.notes[i] - heard.notes[0])
+    const kind = seventh === 10 ? 'Natural minor' : sixth === 8 ? 'Harmonic minor' : 'Melodic minor'
+    pickOption(kind, (b) => /^(Natural|Harmonic|Melodic) minor$/.test(b), correctly)
+  } else if (text === 'Whole-tone or diminished?') {
+    // Whole-tone's first two steps are both whole steps; diminished has a half step among them.
+    const even = heard.notes[1] - heard.notes[0] === 2 && heard.notes[2] - heard.notes[1] === 2
+    pickOption(even ? 'Whole-tone' : 'Diminished', (b) => b === 'Whole-tone' || b === 'Diminished', correctly)
+  } else if ((m = text.match(/^In (\S+) major, which family is (\S+) in\?$/))) {
+    // By scale note: I, iii and vi are tonic; ii and IV subdominant; V and vii° dominant.
+    const d = letterGap(m[1], splitSymbol(m[2])[0]) + 1
+    const family = [1, 3, 6].includes(d) ? 'Tonic (home)' : [2, 4].includes(d) ? 'Subdominant (away)' : 'Dominant (tension)'
+    pickOption(family, (b) => / \((home|away|tension)\)$/.test(b), correctly)
+  } else if ((m = text.match(/^Which two notes do (\S+) and (\S+) share\?$/))) {
+    const [a, b] = [spellSymbol(m[1]).split(' '), spellSymbol(m[2]).split(' ')]
+    const common = a.filter((n) => b.some((o) => labelPc(o) === labelPc(n)))
+    pickOption(common.join(' and '), (o) => / and /.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which chord can stand in for (\S+)\?$/))) {
+    // Each chord's stand-in is the one a 3rd away in its family: I and vi, ii and IV, V and vii°.
+    const key = m[1]
+    const d = letterGap(key, splitSymbol(m[2])[0]) + 1
+    const s = { 1: 6, 2: 4, 3: 1, 4: 2, 5: 7, 6: 1, 7: 5 }[d]!
+    const right = chordSymbolOf([s, s + 2, s + 4].map((x) => scaleDegree(key, ((x - 1) % 7) + 1)))
+    pickOption(right, (o) => /^[A-G][♯♭]?(m|°)?$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, what’s V7\/(\S+)\?$/))) {
+    // A dominant 7th a 5th above the root of the chord it's the V7 of.
+    const d = ['I', 'ii', 'iii', 'IV', 'V', 'vi'].indexOf(m[2]) + 1
+    pickOption(`${noteAbove(scaleDegree(m[1], d), 4, 7)}7`, (o) => /^[A-G][♯♭]?\S*7$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, (\S+) leads to which chord\?$/))) {
+    // Down a 5th (up a 4th) from its root, to the key's chord there.
+    const key = m[1]
+    const d = letterGap(key, noteAbove(splitSymbol(m[2])[0], 3, 5)) + 1
+    pickOption(chordSymbolOf([d, d + 2, d + 4].map((x) => scaleDegree(key, ((x - 1) % 7) + 1))), (o) => /^[A-G][♯♭]?(m|°)?$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which note of (\S+) isn’t in the key\?$/))) {
+    const scale = [1, 2, 3, 4, 5, 6, 7].map((d) => scaleDegree(m![1], d))
+    pickOption(spellSymbol(m[2]).split(' ').find((n) => !scale.includes(n))!, (o) => /^[A-G][♯♭]?$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which chord of (.+) is a secondary dominant\?$/))) {
+    // The one chord with a note outside the key.
+    const scale = [1, 2, 3, 4, 5, 6, 7].map((d) => scaleDegree(m![1], d))
+    const outside = m[2].split(' – ').find((c) => spellSymbol(c).split(' ').some((n) => !scale.includes(n)))!
+    pickOption(outside, (o) => m![2].split(' – ').includes(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, what’s (iv|♭VI|♭VII|♭III)\?$/))) {
+    // The parallel minor's chord on that note: minor on the 4th, major on the 6th, 7th and 3rd.
+    const d = { iv: 4, '♭VI': 6, '♭VII': 7, '♭III': 3 }[m[2]]!
+    pickOption(`${scaleDegree(m[1], d, true)}${m[2] === 'iv' ? 'm' : ''}`, (o) => /^[A-G][♯♭]?(m|°)?$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which numeral is the borrowed (\S+)\?$/))) {
+    const d = letterGap(m[1], splitSymbol(m[2])[0]) + 1
+    pickOption({ 4: 'iv', 6: '♭VI', 7: '♭VII', 3: '♭III' }[d]!, (o) => /^♭?[ivIV]+°?$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, which chord of (.+) is borrowed from \1 minor\?$/))) {
+    // The one chord with a note outside the major key.
+    const scale = [1, 2, 3, 4, 5, 6, 7].map((d) => scaleDegree(m![1], d))
+    const borrowed = m[2].split(' – ').find((c) => spellSymbol(c).split(' ').some((n) => !scale.includes(n)))!
+    pickOption(borrowed, (o) => m![2].split(' – ').includes(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, what’s the tritone sub for (\S+)\?$/))) {
+    // The dominant 7th a half step above home: ♭II7.
+    pickOption(`${noteAbove(m[1], 1, 1)}7`, (o) => /^[A-G][♯♭]?7$/.test(o), correctly)
+  } else if ((m = text.match(/^In (\S+) major, (.+) with a tritone sub becomes which progression\?$/))) {
+    const [ii, , one] = m[2].split(' – ')
+    pickOption(`${ii} – ${noteAbove(m[1], 1, 1)}7 – ${one}`, (o) => o.startsWith(`${ii} – `), correctly)
+  } else if (text === 'In what order are these measures played?') {
+    pickOption(shownRoad().join(' '), (o) => /^[\d ]+$/.test(o), correctly)
+  } else if ((m = text.match(/^After measure (\d+)(?:, the (first|second) time)?, where do you go\?$/))) {
+    const route = shownRoad()
+    const at = route.flatMap((x, j) => (x === Number(m![1]) ? [j] : []))[m[2] === 'second' ? 1 : 0]
+    pickOption(at + 1 < route.length ? `Measure ${route[at + 1]}` : 'The end', (o) => /^(Measure \d+|The end)$/.test(o), correctly)
+  } else if (text === 'Home, or a deceptive cadence?') {
+    // Four chords of four notes, each from its root: the last root is home's, or a major 6th up (vi).
+    pickOption((heard.notes[12] - heard.notes[0]) % 12 === 0 ? 'Home' : 'Deceptive cadence', (o) => o === 'Home' || o === 'Deceptive cadence', correctly)
+  } else if (text === 'In the key, or a secondary dominant?') {
+    // The second chord's 3rd: minor in the key, major in a secondary dominant.
+    pickOption(heard.notes[5] - heard.notes[4] === 4 ? 'Secondary dominant' : 'In the key', (o) => o === 'In the key' || o === 'Secondary dominant', correctly)
+  } else if (text === 'Major IV or minor iv?') {
+    pickOption(heard.notes[5] - heard.notes[4] === 4 ? 'Major IV' : 'Minor iv', (o) => o === 'Major IV' || o === 'Minor iv', correctly)
+  } else if (text === 'V7, or a tritone sub?') {
+    // A tritone sub's root is a half step above home's.
+    pickOption((heard.notes[4] - heard.notes[8] + 12) % 12 === 1 ? 'Tritone sub' : 'V7', (o) => o === 'V7' || o === 'Tritone sub', correctly)
   } else if ((m = text.match(/^In (\S+) minor, what are the chords of (\S+)\?$/))) {
     const chords = m[2].split('–').map((step) => minorStepSymbol(m![1], step))
     pickOption(chords.join(' – '), (b) => b.includes(' – '), correctly)
@@ -1492,6 +1626,74 @@ describe('the app', () => {
     expect(labels()).toEqual(new Set(['1', '2', '3', '4', '5', '6', '♭7']))
     fireEvent.click(document.querySelector('rect.fret-hit[data-pos="0:3"]')!)
     expect(screen.getByText('The root of G Mixolydian')).toBeTruthy()
+  })
+
+  it('writes a Scale view note on the staff the way the scale spells it', () => {
+    render(<App />)
+    act(() => useProgress.setState({ lessons: { 't2-2': { stars: 3, completions: 1 } } }))
+    go('/explore')
+    fireEvent.click(screen.getByRole('button', { name: 'Scale' }))
+    fireEvent.click(screen.getByRole('button', { name: 'F' }))
+    // The low E string's 6th fret is B♭ in F major, so the staff shows B♭, not A♯.
+    fireEvent.click(document.querySelector('rect.fret-hit[data-pos="0:6"]')!)
+    expect(screen.getByText('The 4th note of F major')).toBeTruthy()
+    expect(screen.getByTestId('staff').textContent).toBe('bb/3')
+  })
+
+  it('adds the Arpeggio view to the Fretboard tab with the triad and 7th chord tapes', () => {
+    render(<App />)
+    const done = { stars: 3, completions: 1 }
+    go('/explore')
+    expect(screen.queryByRole('button', { name: 'Arpeggio' })).toBeNull()
+    const dots = () => [...document.querySelectorAll<SVGGElement>('svg[aria-label="Guitar fretboard"] g[data-tone]')]
+    const labels = (tone?: string) => new Set(dots().filter((g) => !tone || g.dataset.tone === tone).map((g) => g.querySelector('text')!.textContent))
+    const chordRow = () => [...screen.getByText('Chord').parentElement!.querySelectorAll('button')].map((b) => b.textContent)
+    const panel = () => screen.getByText(/Every note of the|of the .* chord/).closest('.panel')!.textContent!
+    const tapFret = (pos: string) => fireEvent.click(document.querySelector(`rect.fret-hit[data-pos="${pos}"]`)!)
+
+    // Building triads: major chords only, so there's no Chord row yet.
+    act(() => useProgress.setState({ lessons: { 'tr1-2': done } }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arpeggio' }))
+    expect(labels()).toEqual(new Set(['C', 'E', 'G']))
+    expect(labels('root')).toEqual(new Set(['C']))
+    expect(screen.getByText('Major chord')).toBeTruthy()
+    expect(screen.queryByText('Chord')).toBeNull()
+    expect(panel()).toContain('Every note of the C chord: C E G, the root glowing.')
+
+    // Each chord joins with the track that teaches it.
+    act(() => useProgress.setState({ lessons: { 'tr1-2': done, 'tr2-1': done, 'tr3-1': done, 'cb2-3': done } }))
+    expect(chordRow()).toEqual(['C', 'Cm', 'C°', 'Cm7', 'Cm7♭5'])
+
+    // The E♭ on the A string's 6th fret is Cm's minor 3rd, written E♭ (not D♯); the E next to it isn't in the chord, so it doesn't answer.
+    fireEvent.click(screen.getByRole('button', { name: 'Cm' }))
+    tapFret('1:6')
+    expect(panel()).toContain('The minor 3rd of the Cm chord')
+    expect(screen.getByTestId('staff').textContent).toBe('eb/4')
+    tapFret('1:7')
+    expect(panel()).toContain('The minor 3rd of the Cm chord')
+
+    // Each chord is named the way it's written on the root: D♭ minor is C♯m.
+    fireEvent.click(screen.getByRole('button', { name: 'D♭' }))
+    expect(chordRow()).toEqual(['D♭', 'C♯m', 'C♯°', 'C♯m7', 'C♯m7♭5'])
+    expect(labels()).toEqual(new Set(['C♯', 'E', 'G♯']))
+
+    // With every chord: F♯ keeps its name except where it would need a double sharp, and B augmented is written C♭+.
+    act(() => useProgress.setState({ lessons: { 'tr1-2': done, 'tr2-1': done, 'tr3-1': done, 'tr3-2': done, 'cb2-1': done, 'cb2-2': done, 'cb2-3': done } }))
+    fireEvent.click(screen.getByRole('button', { name: 'F♯' }))
+    expect(chordRow()).toEqual(['F♯', 'F♯m', 'F♯°', 'G♭+', 'F♯maj7', 'F♯7', 'F♯m7', 'F♯m7♭5'])
+    fireEvent.click(screen.getByRole('button', { name: 'F♯maj7' }))
+    expect(labels()).toEqual(new Set(['F♯', 'A♯', 'C♯', 'E♯']))
+    tapFret('0:1')
+    expect(panel()).toContain('The major 7th of the F♯maj7 chord')
+    expect(screen.getByTestId('staff').textContent).toBe('e#/3')
+    fireEvent.click(screen.getByRole('button', { name: 'B' }))
+    expect(chordRow()).toEqual(['B', 'Bm', 'B°', 'C♭+', 'Bmaj7', 'B7', 'Bm7', 'Bm7♭5'])
+
+    // Degrees count from the root: a half-diminished chord is 1 ♭3 ♭5 ♭7.
+    fireEvent.click(screen.getByRole('button', { name: 'Bm7♭5' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Degrees' }))
+    expect(labels()).toEqual(new Set(['1', '♭3', '♭5', '♭7']))
+    expect(labels('root')).toEqual(new Set(['1']))
   })
 
   describe('the first-run guide', () => {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { seeded } from '../test-helpers'
 import { scoreTaps } from '../components/TapRhythm'
-import { heldCounts } from '../game/rehearsal'
-import { beatsText, countAt, countName, eventQuarters, measureQuarters, METER_QUARTERS, onsets, playedIndexes, randomMeasure, symbolOf, type Measure, type SymbolId } from './rhythm'
+import { buildRehearsal, heldCounts } from '../game/rehearsal'
+import { makeTapRhythm, TAP_BPM } from '../game/questions'
+import { beatsText, countAt, countName, eventQuarters, measureQuarters, METER_QUARTERS, note, onsets, playedIndexes, randomMeasure, symbolOf, tripletNote, type Measure, type SymbolId } from './rhythm'
 
 const ALL: SymbolId[] = ['whole', 'half', 'quarter', 'eighth', 'dottedHalf', 'dottedQuarter', 'wholeRest', 'halfRest', 'quarterRest', 'tie']
 
@@ -140,5 +141,63 @@ describe('silent counts', () => {
     const m: Measure = { meter: '4/4', events: [{ dur: 'h', dots: 0, rest: false }, { dur: 'h', dots: 0, rest: true }] }
     expect(heldCounts(m)).toEqual(['1 2', '(3) (4)'])
     expect(heldCounts({ meter: '4/4', events: [{ dur: 'w', dots: 0, rest: true }] })).toEqual(['(1) (2) (3) (4)'])
+  })
+})
+
+describe('6/8 and triplets', () => {
+  const SIX_EIGHT: SymbolId[] = ['quarter', 'eighth', 'dottedQuarter', 'dottedHalf']
+
+  it('fills 6/8 with six eighth-note beats, its eighths in threes', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const m = randomMeasure('6/8', SIX_EIGHT, seeded(seed))
+      expect(measureQuarters(m)).toBe(3)
+      const starts = onsets(m)
+      // Every note starts on an eighth, and the second half of the measure starts on a note (unless one note fills it all).
+      expect(starts.every((s) => Number.isInteger(s * 2))).toBe(true)
+      if (m.events.length > 1) expect(starts).toContain(1.5)
+    }
+  })
+
+  it('counts 6/8 one to six, and a triplet 1 trip let', () => {
+    expect([0, 0.5, 1, 1.5, 2, 2.5].map((p) => countAt(p, '6/8'))).toEqual(['1', '2', '3', '4', '5', '6'])
+    const m: Measure = { meter: '4/4', events: [note('q'), tripletNote(), tripletNote(), tripletNote(), note('h')] }
+    // Three thirds land exactly on the next beat: counted in thirds of a beat, 0, 3, 4, 5 and 6.
+    expect(onsets(m).map((p) => p * 3)).toEqual([0, 3, 4, 5, 6])
+    expect(onsets(m).map((p) => countAt(p))).toEqual(['1', '2', 'trip', 'let', '3'])
+    expect(countName(1 + 2 / 3)).toBe('the let of 2')
+    expect(measureQuarters(m)).toBe(4)
+    expect(symbolOf(tripletNote())).toBe('triplet')
+  })
+
+  it('writes the counts a held note covers in 6/8', () => {
+    const m: Measure = { meter: '6/8', events: [note('q', 1), note('q'), note('8')] }
+    expect(heldCounts(m)).toEqual(['1 2 3', '4 5', '6'])
+  })
+
+  it('puts triplets on the beat, and keeps every note on the grid', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const m = randomMeasure('4/4', ['quarter', 'eighth', 'half', 'triplet'], seeded(seed), ['triplet'])
+      expect(measureQuarters(m)).toBe(4)
+      onsets(m).forEach((s, i) => {
+        if (m.events[i].triplet && !m.events[i - 1]?.triplet) expect(Number.isInteger(s), `seed ${seed}`).toBe(true)
+      })
+    }
+  })
+
+  it('teaches 6/8 and the triplet on cards of their own, and taps 6/8 at an easy eighth-note pace', () => {
+    const cards = (id: string) => buildRehearsal(id, seeded(1))!.steps.flatMap((s) => (s.kind === 'card' ? [`${s.card.title}: ${s.card.subtitle}`] : []))
+    expect(cards('rx2-1')).toContain('6/8 time: 6 beats per measure')
+    expect(cards('rx2-3')).toContain('Triplet: Three in the time of two')
+    const q = makeTapRhythm(1, '6/8', SIX_EIGHT, TAP_BPM, seeded(1))
+    expect(q.kind === 'tapRhythm' && q.bpm).toBe(TAP_BPM * 1.5)
+  })
+
+  it('times taps against eighth-note beats in 6/8', () => {
+    // 60 bpm in 6/8: an eighth note per second, so a dotted quarter lasts three.
+    const m: Measure = { meter: '6/8', events: [note('q', 1), note('8'), note('8'), note('8')] }
+    const r = scoreTaps(m, 60, [1000, 4000, 5000, 6000], 1000)
+    expect(r.hits).toBe(4)
+    expect(r.extra).toBe(0)
+    expect(eventQuarters(tripletNote()) * 3).toBe(1)
   })
 })

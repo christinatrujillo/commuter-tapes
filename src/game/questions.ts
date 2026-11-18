@@ -1,7 +1,7 @@
 import type { ChartSpec } from '../components/ChordChart'
 import type { Marker } from '../components/Fretboard'
 import type { ExerciseType, LessonSpec } from '../music/curriculum'
-import { KEYS, type AccidentalRule, type KeyId, type Motion, type ScoreMeasure, type ScoreNote } from '../music/score'
+import { KEYS, type AccidentalRule, type KeyId, type Motion, type RoadSigns, type ScoreMeasure, type ScoreNote } from '../music/score'
 import { daysBetween, today } from '../lib/date'
 import { pick, randomSpelling, shuffle, type Rng } from '../lib/random'
 import { makeAccidentalRule, makeKeyName, makeKeyNote, makeMotion, makePhrase } from './reading'
@@ -72,6 +72,39 @@ import {
   makeModeVamp,
   makeVampHear,
 } from './modes'
+import {
+  makeHarmonicHear,
+  makeMelodicHear,
+  makeMelodicNote,
+  makeMelodicSpell,
+  makeMinorKind,
+  makeMinorScaleHear,
+  makeSymmetricChords,
+  makeSymmetricHear,
+  makeSymmetricSame,
+  makeSymmetricShape,
+} from './scales'
+import { makeArpMissing, makeArpName, makeArpSeventh } from './arpeggios'
+import { makeRoadNext, makeRoadOrder } from './roads'
+import {
+  makeBorrowedChord,
+  makeBorrowedNumeral,
+  makeBorrowedSpot,
+  makeChordFamily,
+  makeChordShared,
+  makeChordSwap,
+  makeDeceptiveHear,
+  makeMinorFourHear,
+  makeSecondaryChord,
+  makeSecondaryHear,
+  makeSecondaryNote,
+  makeSecondarySpot,
+  makeSecondaryTarget,
+  makeTritoneHear,
+  makeTritoneProgression,
+  makeTritoneShared,
+  makeTritoneSub,
+} from './swaps'
 import {
   makeBoxFind,
   makeCadenceHear,
@@ -203,6 +236,8 @@ export interface TheoryPick {
     after?: string[]
     afterMeasures?: ScoreMeasure[]
     marker?: number | null
+    /** Repeat signs, endings and jumps, by measure, with every measure numbered. */
+    signs?: (RoadSigns | undefined)[]
   }
   /** A chord diagram to look at, with more printed on it once it's answered. */
   diagram?: DiagramSpec & { after?: Partial<DiagramSpec> }
@@ -337,8 +372,38 @@ const PICK_KINDS = [
   'modeNeckName',
   'modeHear',
   'vampHear',
+  'melodicNote',
+  'melodicSpell',
+  'minorKind',
+  'symmetricSame',
+  'symmetricShape',
+  'symmetricChords',
+  'arpName',
+  'melodicHear',
+  'harmonicHear',
+  'minorScaleHear',
+  'symmetricHear',
+  'chordFamily',
+  'chordShared',
+  'chordSwap',
+  'secondaryChord',
+  'secondaryTarget',
+  'secondaryNote',
+  'secondarySpot',
+  'borrowedChord',
+  'borrowedNumeral',
+  'borrowedSpot',
+  'tritoneSub',
+  'tritoneShared',
+  'tritoneProgression',
+  'deceptiveHear',
+  'secondaryHear',
+  'minorFourHear',
+  'tritoneHear',
+  'roadOrder',
+  'roadNext',
 ] as const
-const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind', 'boxRoot', 'patternMissing', 'patternRoot', 'modeNeckRoot'] as const
+const TAP_KINDS = ['stepFind', 'degreeFind', 'relativeFind', 'ivBelow', 'ivHearFind', 'triadShapeFind', 'boxFind', 'boxRoot', 'patternMissing', 'patternRoot', 'modeNeckRoot', 'arpMissing', 'arpSeventh'] as const
 export type PickKind = (typeof PICK_KINDS)[number]
 export type TapKind = (typeof TAP_KINDS)[number]
 
@@ -504,6 +569,38 @@ export const FLUENT_MS: Partial<Record<Question['kind'], number>> = {
   modeNeckName: 5000,
   modeHear: 7000,
   vampHear: 8000,
+  melodicNote: 4000,
+  melodicSpell: 7000,
+  minorKind: 5000,
+  symmetricSame: 6000,
+  symmetricShape: 6000,
+  symmetricChords: 5000,
+  arpMissing: 5000,
+  arpName: 6000,
+  arpSeventh: 5000,
+  melodicHear: 7000,
+  harmonicHear: 7000,
+  minorScaleHear: 8000,
+  symmetricHear: 7000,
+  chordFamily: 5000,
+  chordShared: 6000,
+  chordSwap: 5000,
+  secondaryChord: 6000,
+  secondaryTarget: 5000,
+  secondaryNote: 5000,
+  secondarySpot: 5000,
+  borrowedChord: 5000,
+  borrowedNumeral: 5000,
+  borrowedSpot: 5000,
+  tritoneSub: 5000,
+  tritoneShared: 6000,
+  tritoneProgression: 7000,
+  deceptiveHear: 7000,
+  secondaryHear: 7000,
+  minorFourHear: 6000,
+  tritoneHear: 7000,
+  roadOrder: 8000,
+  roadNext: 5000,
 }
 
 /** Whether a question needs you to listen. */
@@ -875,6 +972,70 @@ export function buildSession(spec: LessonSpec, stats: Stats, rng: Rng = Math.ran
         return makeModeHear(id, spec.modes ?? [], rng)
       case 'vampHear':
         return makeVampHear(id, spec.modes ?? [], rng)
+      case 'melodicNote':
+        return makeMelodicNote(id, minorKeys, rng)
+      case 'melodicSpell':
+        return makeMelodicSpell(id, minorKeys, rng)
+      case 'minorKind':
+        return makeMinorKind(id, minorKeys, rng)
+      case 'symmetricSame':
+        return makeSymmetricSame(id, spec.symmetric ?? [], rng)
+      case 'symmetricShape':
+        return makeSymmetricShape(id, spec.symmetric ?? [], rng)
+      case 'symmetricChords':
+        return makeSymmetricChords(id, spec.symmetric ?? [], rng)
+      case 'arpMissing':
+        return makeArpMissing(id, spec.chords ?? [], spec.rootStrings ?? [], rng)
+      case 'arpName':
+        return makeArpName(id, spec.chords ?? [], spec.rootStrings ?? [], rng)
+      case 'arpSeventh':
+        return makeArpSeventh(id, spec.chords ?? [], spec.rootStrings ?? [], rng)
+      case 'melodicHear':
+        return makeMelodicHear(id, rng)
+      case 'harmonicHear':
+        return makeHarmonicHear(id, rng)
+      case 'minorScaleHear':
+        return makeMinorScaleHear(id, rng)
+      case 'symmetricHear':
+        return makeSymmetricHear(id, rng)
+      case 'chordFamily':
+        return makeChordFamily(id, spec.keys ?? [], rng)
+      case 'chordShared':
+        return makeChordShared(id, spec.keys ?? [], rng)
+      case 'chordSwap':
+        return makeChordSwap(id, spec.keys ?? [], rng)
+      case 'secondaryChord':
+        return makeSecondaryChord(id, spec.keys ?? [], rng)
+      case 'secondaryTarget':
+        return makeSecondaryTarget(id, spec.keys ?? [], rng)
+      case 'secondaryNote':
+        return makeSecondaryNote(id, spec.keys ?? [], rng)
+      case 'secondarySpot':
+        return makeSecondarySpot(id, spec.keys ?? [], rng)
+      case 'borrowedChord':
+        return makeBorrowedChord(id, spec.keys ?? [], rng)
+      case 'borrowedNumeral':
+        return makeBorrowedNumeral(id, spec.keys ?? [], rng)
+      case 'borrowedSpot':
+        return makeBorrowedSpot(id, spec.keys ?? [], rng)
+      case 'tritoneSub':
+        return makeTritoneSub(id, spec.keys ?? [], rng)
+      case 'tritoneShared':
+        return makeTritoneShared(id, spec.keys ?? [], rng)
+      case 'tritoneProgression':
+        return makeTritoneProgression(id, spec.keys ?? [], rng)
+      case 'deceptiveHear':
+        return makeDeceptiveHear(id, rng)
+      case 'secondaryHear':
+        return makeSecondaryHear(id, rng)
+      case 'minorFourHear':
+        return makeMinorFourHear(id, rng)
+      case 'tritoneHear':
+        return makeTritoneHear(id, rng)
+      case 'roadOrder':
+        return makeRoadOrder(id, spec.roadSigns ?? [], rng)
+      case 'roadNext':
+        return makeRoadNext(id, spec.roadSigns ?? [], rng)
     }
   }
 
@@ -928,8 +1089,9 @@ export function makeTapRhythm(id: number, meter: Meter, symbols: SymbolId[], bpm
   let measure = randomMeasure(meter, symbols, rng, focus)
   for (let i = 0; i < 10 && playedIndexes(measure).length < 2; i++) measure = randomMeasure(meter, symbols, rng, focus)
   const used = [...new Set(measure.events.map(symbolOf))]
-  // In cut time the beat is a half note, so the same tempo would feel twice as fast; ease it off. Sixteenths get the same room.
-  const tempo = meter === '2/2' || used.includes('sixteenth') ? Math.round(bpm * 0.8) : bpm
+  // In cut time the beat is a half note, so the same tempo would feel twice as fast; ease it off. Sixteenths and
+  // triplets get the same room. 6/8 counts eighth notes, so it can go half as fast again.
+  const tempo = meter === '6/8' ? Math.round(bpm * 1.5) : meter === '2/2' || used.includes('sixteenth') || used.includes('triplet') ? Math.round(bpm * 0.8) : bpm
   return { id, kind: 'tapRhythm', measure, bpm: tempo, facts: used.map((s) => `sym:${s}`) }
 }
 
@@ -943,7 +1105,8 @@ export function makeMeasureFill(id: number, meter: Meter, symbols: SymbolId[], r
     const last = full.events[full.events.length - 1]
     const before = full.events[full.events.length - 2]
     // Only blank a value that stands alone (not part of a beat of eighths or sixteenths, a dotted pair, or a tie).
-    if (last.dur === '8' || last.dur === '16' || before?.tie || before?.dots) continue
+    // In 6/8 a dotted quarter is a whole beat group on its own, so one can come before the blank.
+    if (last.dur === '8' || last.dur === '16' || before?.tie || (before?.dots && meter !== '6/8')) continue
     const answer = symbolOf(last)
     if (!nameable.includes(answer)) continue
     const missing = eventQuarters(last)

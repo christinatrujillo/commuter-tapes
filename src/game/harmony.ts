@@ -19,7 +19,7 @@ import {
 import { between, pick, shuffle, type Rng } from '../lib/random'
 import { isOneOf } from '../lib/guards'
 import { PAPER_HIGHLIGHT, PAPER_RUST } from '../lib/color'
-import { capitalize } from '../lib/text'
+import { andList, capitalize } from '../lib/text'
 import type { Question } from './questions'
 import { triadScore, triadSound } from './triads'
 import { on } from './intervals'
@@ -32,8 +32,6 @@ import { on } from './intervals'
 type Chord = { tones: Tone[]; quality: TriadQuality }
 const chordName = (c: Chord) => `${toneName(c.tones[0])} ${TRIAD_NAMES[c.quality]}`
 const KINDS: TriadQuality[] = ['maj', 'min', 'dim']
-/** "A, B and C" */
-const list = (items: string[]) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0])
 
 /** The written octave of a chord's root, so the chords of a key climb the staff from its home note. */
 function rootOctave(key: KeyId, d: number): number {
@@ -44,7 +42,7 @@ function rootOctave(key: KeyId, d: number): number {
 const chordScore = (key: KeyId, d: number, sig: KeyId = key): ScoreMeasure => triadScore(keyTriads(key)[d].tones, true, sig, rootOctave(key, d))
 const chordSound = (key: KeyId, d: number) => triadSound(keyTriads(key)[d].tones, rootOctave(key, d))
 /** Chords of a key, one after another on one staff. */
-const chordsScore = (key: KeyId, degrees: number[], sig: KeyId = key): ScoreMeasure => degrees.flatMap((d) => chordScore(key, d, sig))
+export const chordsScore = (key: KeyId, degrees: number[], sig: KeyId = key): ScoreMeasure => degrees.flatMap((d) => chordScore(key, d, sig))
 const ALL_DEGREES = [0, 1, 2, 3, 4, 5, 6]
 
 /** How a numeral's case gives the chord's kind. */
@@ -291,7 +289,7 @@ export function makeProgressionSpell(id: number, keys: KeyId[], progs: string[],
     ask: { text: `In ${majorName(key)}, what are the roots of ${progLabel(prog)}?`, hl: progLabel(prog) },
     options,
     answer: options.indexOf(right),
-    why: `Count up ${majorName(key)}: ${scale.map(toneName).join(' ')}. ${capitalize(list(degrees.filter((d, i) => degrees.indexOf(d) === i).map((d) => `${NUMERALS[d]} is ${chordName(chords[d])}`)))}.`,
+    why: `Count up ${majorName(key)}: ${scale.map(toneName).join(' ')}. ${capitalize(andList(degrees.filter((d, i) => degrees.indexOf(d) === i).map((d) => `${NUMERALS[d]} is ${chordName(chords[d])}`)))}.`,
     score: { measures: [[]], keySig: key, afterMeasures: [chordsScore(key, degrees)], after: degrees.map((d) => NUMERALS[d]) },
     sound: degrees.flatMap((d) => chordSound(key, d)),
     facts: [`hprog:${prog}`],
@@ -312,7 +310,7 @@ export function makeProgressionName(id: number, keys: KeyId[], progs: string[], 
     ask: { text: `In ${majorName(key)}, which progression is ${names.join(', ')}?`, hl: names.join(', ') },
     options,
     answer: options.indexOf(progLabel(prog)),
-    why: `In ${majorName(key)}, ${list(degrees.filter((d, i) => degrees.indexOf(d) === i).map((d) => `${chordName(chords[d])} is ${NUMERALS[d]}`))}: ${progLabel(prog)}.`,
+    why: `In ${majorName(key)}, ${andList(degrees.filter((d, i) => degrees.indexOf(d) === i).map((d) => `${chordName(chords[d])} is ${NUMERALS[d]}`))}: ${progLabel(prog)}.`,
     score: { measures: [chordsScore(key, degrees)], keySig: key, labels: degrees.map((d) => toneName(chords[d].tones[0])), after: degrees.map((d) => NUMERALS[d]) },
     sound: degrees.flatMap((d) => chordSound(key, d)),
     facts: [`hprog:${prog}`],
@@ -336,7 +334,7 @@ const AWAY_ENDINGS = [
   [0, 4, 5, 3],
 ]
 /** Chords to hear, one after another. */
-const heard = (key: KeyId, degrees: number[]) => ({ notes: degrees.flatMap((d) => chordSound(key, d)), chord: 3 })
+export const heard = (key: KeyId, degrees: number[]) => ({ notes: degrees.flatMap((d) => chordSound(key, d)), chord: 3 })
 const numerals = (degrees: number[]) => degrees.map((d) => NUMERALS[d]).join('–')
 
 /** Hear four chords: does the progression end at home (on I), or away? */
